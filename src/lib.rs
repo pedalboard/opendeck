@@ -2,7 +2,7 @@
 
 // see https://github.com/shanteacontrols/OpenDeck/wiki/Sysex-Configuration
 
-mod parser;
+pub mod parser;
 
 const SYSEX_START: u8 = 0xF0;
 const SYSEX_END: u8 = 0xF7;
