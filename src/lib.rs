@@ -1,3 +1,5 @@
+#![no_std]
+
 // see https://github.com/shanteacontrols/OpenDeck/wiki/Sysex-Configuration
 
 const SYSEX_START: u8 = 0xF0;
