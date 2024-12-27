@@ -1,6 +1,6 @@
 use crate::{
-    ByteOrder, MessageStatus, OpenDeckRequest, SpecialRequest, M_ID_0, M_ID_1, M_ID_2,
-    SPECIAL_REQ_MSG_SIZE, SYSEX_END, SYSEX_START,
+    Amount, Block, BlockId, ByteOrder, GlobalSection, MessageStatus, OpenDeckRequest,
+    SpecialRequest, Wish, M_ID_0, M_ID_1, M_ID_2, SPECIAL_REQ_MSG_SIZE, SYSEX_END, SYSEX_START,
 };
 
 impl TryFrom<u8> for SpecialRequest {
@@ -30,7 +30,60 @@ impl TryFrom<u8> for SpecialRequest {
             x if x == SpecialRequest::BootloaderSupport as u8 => {
                 Ok(SpecialRequest::BootloaderSupport)
             }
-            _ => Err(OpenDeckParseError::StatusError(MessageStatus::StatusError)),
+            _ => Err(OpenDeckParseError::StatusError(MessageStatus::WishError)),
+        }
+    }
+}
+
+impl TryFrom<u8> for Wish {
+    type Error = OpenDeckParseError;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            x if x == Wish::Get as u8 => Ok(Wish::Get),
+            x if x == Wish::Set as u8 => Ok(Wish::Set),
+            x if x == Wish::Backup as u8 => Ok(Wish::Backup),
+            _ => Err(OpenDeckParseError::StatusError(MessageStatus::WishError)),
+        }
+    }
+}
+
+impl TryFrom<u8> for Amount {
+    type Error = OpenDeckParseError;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            x if x == Amount::Single as u8 => Ok(Amount::Single),
+            x if x == Amount::All as u8 => Ok(Amount::All),
+            _ => Err(OpenDeckParseError::StatusError(MessageStatus::AmountError)),
+        }
+    }
+}
+
+impl TryFrom<u8> for GlobalSection {
+    type Error = OpenDeckParseError;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            x if x == GlobalSection::Midi as u8 => Ok(GlobalSection::Midi),
+            x if x == GlobalSection::Presets as u8 => Ok(GlobalSection::Presets),
+            _ => Err(OpenDeckParseError::StatusError(MessageStatus::SectionError)),
+        }
+    }
+}
+
+impl TryFrom<&[u8]> for Block {
+    type Error = OpenDeckParseError;
+    fn try_from(buf: &[u8]) -> Result<Self, Self::Error> {
+        let block_id = ByteOrder::Block.get(buf);
+        let section_id = ByteOrder::Section.get(buf);
+        match block_id {
+            x if x == BlockId::Global as u8 => {
+                let section = GlobalSection::try_from(section_id)?;
+                Ok(Block::Global(section))
+            }
+            x if x == BlockId::Button as u8 => Ok(Block::Button),
+            x if x == BlockId::Encoder as u8 => Ok(Block::Encoder),
+            x if x == BlockId::Analog as u8 => Ok(Block::Analog),
+            x if x == BlockId::Led as u8 => Ok(Block::Led),
+            _ => Err(OpenDeckParseError::StatusError(MessageStatus::BlockError)),
         }
     }
 }
@@ -69,15 +122,24 @@ impl OpenDeckParser {
             return Err(OpenDeckParseError::StatusError(MessageStatus::StatusError));
         }
         if buf.len() == SPECIAL_REQ_MSG_SIZE {
-            return OpenDeckParser::parse_special_request(buf);
+            OpenDeckParser::parse_special_request(buf)
+        } else {
+            OpenDeckParser::parse_request(buf)
         }
-
-        Err(OpenDeckParseError::BufferTooShort)
     }
 
     pub fn parse_special_request(buf: &[u8]) -> Result<OpenDeckRequest, OpenDeckParseError> {
         let special = SpecialRequest::try_from(ByteOrder::Wish.get(buf))?;
         Ok(OpenDeckRequest::Special(special))
+    }
+
+    pub fn parse_request(buf: &[u8]) -> Result<OpenDeckRequest, OpenDeckParseError> {
+        let wish = Wish::try_from(ByteOrder::Wish.get(buf))?;
+        let amount = Amount::try_from(ByteOrder::Amount.get(buf))?;
+        let block = Block::try_from(buf)?;
+        Ok(OpenDeckRequest::Configuration(
+            wish, amount, block, 0x0000, 0x0000,
+        ))
     }
 }
 
@@ -144,6 +206,22 @@ mod tests {
         assert_eq!(
             OpenDeckParser::parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x1B, 0xF7]),
             Ok(OpenDeckRequest::Special(SpecialRequest::Backup))
+        );
+    }
+
+    #[test]
+    fn should_parse_configuration_messages() {
+        assert_eq!(
+            OpenDeckParser::parse(&[
+                0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x00, 0x00, 0x03, 0x03, 0x05, 0x00, 0xF7
+            ]),
+            Ok(OpenDeckRequest::Configuration(
+                Wish::Get,
+                Amount::Single,
+                Block::Analog,
+                0x0000,
+                0x0000
+            ))
         );
     }
 }

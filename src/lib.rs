@@ -57,7 +57,7 @@ pub enum MessageStatus {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum OpenDeckRequest {
     Special(SpecialRequest),
-    Configuration,
+    Configuration(Wish, Amount, Block, u16, u16),
     ComponentInfo,
 }
 
@@ -146,4 +146,50 @@ pub enum SpecialResponse {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum OpenDeckResponse {
     Special(SpecialResponse),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum GlobalSection {
+    Midi,
+    Reserved,
+    Presets,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum BlockId {
+    Global,
+    Button,
+    Encoder,
+    Analog,
+    Led,
+    Display,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum Block {
+    Global(GlobalSection),
+    Button,
+    Encoder,
+    Analog,
+    Led,
+    Display,
+    Touchscreen,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum Wish {
+    Get,
+    Set,
+    Backup,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum Amount {
+    Single,
+    All,
 }
