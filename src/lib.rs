@@ -104,6 +104,17 @@ pub enum ValueSize {
     OneByte = 1,
     TwoBytes = 2,
 }
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct FirmwareVersion {
+    major: u8,
+    minor: u8,
+    revision: u8,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct HardwareUid(u32);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -111,9 +122,9 @@ pub enum SpecialResponse {
     Handshake,
     ValueSize(ValueSize),
     ValuesPerMessage(u8),
-    FirmwareVersion(u8, u8, u8),
-    HardwareUUID(u32),
-    FirmwareVersionAndHardwareUUID(u8, u8, u8, u32),
+    FirmwareVersion(FirmwareVersion),
+    HardwareUUID(HardwareUid),
+    FirmwareVersionAndHardwareUUID(FirmwareVersion, HardwareUid),
     NrOfSupportedComponents(usize),
     NrOfSupportedPresets(usize),
     BootloaderSupport(bool),
