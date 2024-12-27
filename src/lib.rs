@@ -104,6 +104,7 @@ pub enum ValueSize {
     OneByte = 1,
     TwoBytes = 2,
 }
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct FirmwareVersion {
@@ -130,7 +131,7 @@ pub struct NrOfSupportedComponents {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum SpecialResponse {
     Handshake,
-    ValueSize(ValueSize),
+    ValueSize,
     ValuesPerMessage(u8),
     FirmwareVersion(FirmwareVersion),
     HardwareUID(HardwareUid),
