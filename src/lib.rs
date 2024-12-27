@@ -114,7 +114,7 @@ pub struct FirmwareVersion {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct HardwareUid(u32);
+pub struct HardwareUid(pub u32);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
