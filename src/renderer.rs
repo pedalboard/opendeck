@@ -35,7 +35,8 @@ impl OpenDeckRenderer {
                     buf = nr_of_comps.push(buf);
                     SpecialRequest::NrOfSupportedComponents as u8
                 }
-                SpecialResponse::NrOfSupportedPresets(_) => {
+                SpecialResponse::NrOfSupportedPresets(np) => {
+                    buf.push(np as u8).unwrap();
                     SpecialRequest::NrOfSupportedPresets as u8
                 }
                 SpecialResponse::FirmwareVersion(v) => {
@@ -52,7 +53,10 @@ impl OpenDeckRenderer {
                     SpecialRequest::FirmwareVersionAndHardwareUUID as u8
                 }
                 SpecialResponse::Backup => SpecialRequest::Backup as u8,
-                SpecialResponse::BootloaderSupport(_) => SpecialRequest::BootloaderSupport as u8,
+                SpecialResponse::BootloaderSupport(v) => {
+                    buf.push(v as u8).unwrap();
+                    SpecialRequest::BootloaderSupport as u8
+                }
             },
         };
 
@@ -170,6 +174,20 @@ mod tests {
                 MessageStatus::Response
             ),
             &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x4D, 0x08, 0x02, 0x02, 0x08, 0x01, 0xF7]
+        );
+        assert_eq!(
+            OpenDeckRenderer::render(
+                OpenDeckResponse::Special(SpecialResponse::NrOfSupportedPresets(10)),
+                MessageStatus::Response
+            ),
+            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x50, 0x0A, 0xF7]
+        );
+        assert_eq!(
+            OpenDeckRenderer::render(
+                OpenDeckResponse::Special(SpecialResponse::BootloaderSupport(true)),
+                MessageStatus::Response
+            ),
+            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x51, 0x01, 0xF7]
         );
     }
 }
