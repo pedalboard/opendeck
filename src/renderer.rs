@@ -41,9 +41,9 @@ impl OpenDeckRenderer {
                     buf = v.push(buf);
                     SpecialRequest::FirmwareVersion as u8
                 }
-                SpecialResponse::HardwareUUID(uid) => {
+                SpecialResponse::HardwareUID(uid) => {
                     buf = uid.push(buf);
-                    SpecialRequest::HardwareUUID as u8
+                    SpecialRequest::HardwareUID as u8
                 }
                 SpecialResponse::FirmwareVersionAndHardwareUUID(v, uid) => {
                     buf = v.push(buf);
@@ -122,7 +122,7 @@ mod tests {
         );
         assert_eq!(
             OpenDeckRenderer::render(
-                OpenDeckResponse::Special(SpecialResponse::HardwareUUID(HardwareUid(0x12345678))),
+                OpenDeckResponse::Special(SpecialResponse::HardwareUID(HardwareUid(0x12345678))),
                 MessageStatus::Response
             ),
             &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x42, 0x12, 0x34, 0x56, 0x78, 0xF7]

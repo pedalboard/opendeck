@@ -16,7 +16,7 @@ impl TryFrom<u8> for SpecialRequest {
             x if x == SpecialRequest::FirmwareVersionAndHardwareUUID as u8 => {
                 Ok(SpecialRequest::FirmwareVersionAndHardwareUUID)
             }
-            x if x == SpecialRequest::HardwareUUID as u8 => Ok(SpecialRequest::HardwareUUID),
+            x if x == SpecialRequest::HardwareUID as u8 => Ok(SpecialRequest::HardwareUID),
             x if x == SpecialRequest::NrOfSupportedComponents as u8 => {
                 Ok(SpecialRequest::NrOfSupportedComponents)
             }
@@ -105,7 +105,7 @@ mod tests {
         );
         assert_eq!(
             OpenDeckParser::parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x42, 0xF7]),
-            Ok(OpenDeckRequest::Special(SpecialRequest::HardwareUUID))
+            Ok(OpenDeckRequest::Special(SpecialRequest::HardwareUID))
         );
         assert_eq!(
             OpenDeckParser::parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x43, 0xF7]),
