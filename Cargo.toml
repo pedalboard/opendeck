@@ -6,3 +6,4 @@ categories = ["no-std", "embedded"]
 
 [dependencies]
 defmt = { version = "0.3.2", optional = true }
+heapless = { version = "0.8.0", features = ["defmt-03"] }

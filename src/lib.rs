@@ -3,6 +3,7 @@
 // see https://github.com/shanteacontrols/OpenDeck/wiki/Sysex-Configuration
 
 pub mod parser;
+pub mod renderer;
 
 const SYSEX_START: u8 = 0xF0;
 const SYSEX_END: u8 = 0xF7;
@@ -107,6 +108,7 @@ pub enum ValueSize {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum SpecialResponse {
+    Handshake,
     ValueSize(ValueSize),
     ValuesPerMessage(u8),
     FirmwareVersion(u8, u8, u8),
@@ -116,4 +118,10 @@ pub enum SpecialResponse {
     NrOfSupportedPresets(usize),
     BootloaderSupport(bool),
     Backup,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum OpenDeckResponse {
+    Special(SpecialResponse),
 }
