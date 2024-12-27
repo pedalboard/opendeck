@@ -5,5 +5,8 @@ edition = "2021"
 categories = ["no-std", "embedded"]
 
 [dependencies]
-defmt = { version = "0.3.2", optional = true }
+defmt = { version = "0.3.10", optional = true }
 heapless = { version = "0.8.0", features = ["defmt-03"] }
+
+[features]
+defmt = ["dep:defmt"]
