@@ -1,6 +1,7 @@
 use crate::{
     Amount, Block, BlockId, ByteOrder, GlobalSection, MessageStatus, OpenDeckRequest,
-    SpecialRequest, Wish, M_ID_0, M_ID_1, M_ID_2, SPECIAL_REQ_MSG_SIZE, SYSEX_END, SYSEX_START,
+    SpecialRequest, ValueSize, Wish, M_ID_0, M_ID_1, M_ID_2, SPECIAL_REQ_MSG_SIZE, SYSEX_END,
+    SYSEX_START,
 };
 
 impl TryFrom<u8> for SpecialRequest {
@@ -97,10 +98,16 @@ pub enum OpenDeckParseError {
     StatusError(MessageStatus),
 }
 
-pub struct OpenDeckParser {}
+pub struct OpenDeckParser {
+    value_size: ValueSize,
+}
 
 impl OpenDeckParser {
-    pub fn parse(buf: &[u8]) -> Result<OpenDeckRequest, OpenDeckParseError> {
+    pub fn new(value_size: ValueSize) -> Self {
+        OpenDeckParser { value_size }
+    }
+
+    pub fn parse(&self, buf: &[u8]) -> Result<OpenDeckRequest, OpenDeckParseError> {
         if buf.len() < 8 {
             return Err(OpenDeckParseError::BufferTooShort);
         }
@@ -122,24 +129,54 @@ impl OpenDeckParser {
             return Err(OpenDeckParseError::StatusError(MessageStatus::StatusError));
         }
         if buf.len() == SPECIAL_REQ_MSG_SIZE {
-            OpenDeckParser::parse_special_request(buf)
+            self.parse_special_request(buf)
         } else {
-            OpenDeckParser::parse_request(buf)
+            self.parse_request(buf)
         }
     }
 
-    pub fn parse_special_request(buf: &[u8]) -> Result<OpenDeckRequest, OpenDeckParseError> {
+    pub fn parse_special_request(&self, buf: &[u8]) -> Result<OpenDeckRequest, OpenDeckParseError> {
         let special = SpecialRequest::try_from(ByteOrder::Wish.get(buf))?;
         Ok(OpenDeckRequest::Special(special))
     }
 
-    pub fn parse_request(buf: &[u8]) -> Result<OpenDeckRequest, OpenDeckParseError> {
+    pub fn parse_request(&self, buf: &[u8]) -> Result<OpenDeckRequest, OpenDeckParseError> {
         let wish = Wish::try_from(ByteOrder::Wish.get(buf))?;
         let amount = Amount::try_from(ByteOrder::Amount.get(buf))?;
         let block = Block::try_from(buf)?;
+        let index = self.value_size.parse(buf, 0);
+        let value = self.value_size.parse(buf, 1);
         Ok(OpenDeckRequest::Configuration(
-            wish, amount, block, 0x0000, 0x0000,
+            wish, amount, block, index, value,
         ))
+    }
+}
+
+impl ValueSize {
+    fn parse(&self, buf: &[u8], index: usize) -> u16 {
+        let start = ByteOrder::Index as usize;
+        match self {
+            ValueSize::OneByte => buf[start + index] as u16,
+            ValueSize::TwoBytes => {
+                let mut high = buf[start + index * 2];
+                let mut low = buf[start + 1 + index * 2];
+
+                if (high & 0x01) > 0 {
+                    low |= 1 << 7;
+                } else {
+                    low &= !(1 << 7);
+                }
+
+                high >>= 1;
+
+                let mut joined: u16;
+
+                joined = high as u16;
+                joined <<= 8;
+                joined |= low as u16;
+                joined
+            }
+        }
     }
 }
 
@@ -149,78 +186,82 @@ mod tests {
 
     #[test]
     fn should_parse_special_messages() {
+        let p = OpenDeckParser {
+            value_size: ValueSize::OneByte,
+        };
         assert_eq!(
-            OpenDeckParser::parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x01, 0xF7]),
+            p.parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x01, 0xF7]),
             Ok(OpenDeckRequest::Special(SpecialRequest::Handshake))
         );
         assert_eq!(
-            OpenDeckParser::parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x02, 0xF7]),
+            p.parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x02, 0xF7]),
             Ok(OpenDeckRequest::Special(SpecialRequest::ValueSize))
         );
         assert_eq!(
-            OpenDeckParser::parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x03, 0xF7]),
+            p.parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x03, 0xF7]),
             Ok(OpenDeckRequest::Special(SpecialRequest::ValuesPerMessage))
         );
         assert_eq!(
-            OpenDeckParser::parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x56, 0xF7]),
+            p.parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x56, 0xF7]),
             Ok(OpenDeckRequest::Special(SpecialRequest::FirmwareVersion))
         );
         assert_eq!(
-            OpenDeckParser::parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x42, 0xF7]),
+            p.parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x42, 0xF7]),
             Ok(OpenDeckRequest::Special(SpecialRequest::HardwareUID))
         );
         assert_eq!(
-            OpenDeckParser::parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x43, 0xF7]),
+            p.parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x43, 0xF7]),
             Ok(OpenDeckRequest::Special(
                 SpecialRequest::FirmwareVersionAndHardwareUUID
             ))
         );
         assert_eq!(
-            OpenDeckParser::parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x4D, 0xF7]),
+            p.parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x4D, 0xF7]),
             Ok(OpenDeckRequest::Special(
                 SpecialRequest::NrOfSupportedComponents
             ))
         );
         assert_eq!(
-            OpenDeckParser::parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x7F, 0xF7]),
+            p.parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x7F, 0xF7]),
             Ok(OpenDeckRequest::Special(SpecialRequest::Reboot))
         );
         assert_eq!(
-            OpenDeckParser::parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x44, 0xF7]),
+            p.parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x44, 0xF7]),
             Ok(OpenDeckRequest::Special(SpecialRequest::FactoryReset))
         );
         assert_eq!(
-            OpenDeckParser::parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x55, 0xF7]),
+            p.parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x55, 0xF7]),
             Ok(OpenDeckRequest::Special(SpecialRequest::BootloaderMode))
         );
         assert_eq!(
-            OpenDeckParser::parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x50, 0xF7]),
+            p.parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x50, 0xF7]),
             Ok(OpenDeckRequest::Special(
                 SpecialRequest::NrOfSupportedPresets
             ))
         );
         assert_eq!(
-            OpenDeckParser::parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x51, 0xF7]),
+            p.parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x51, 0xF7]),
             Ok(OpenDeckRequest::Special(SpecialRequest::BootloaderSupport))
         );
         assert_eq!(
-            OpenDeckParser::parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x1B, 0xF7]),
+            p.parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x1B, 0xF7]),
             Ok(OpenDeckRequest::Special(SpecialRequest::Backup))
         );
     }
 
     #[test]
     fn should_parse_configuration_messages() {
+        let p = OpenDeckParser::new(ValueSize::OneByte);
         assert_eq!(
-            OpenDeckParser::parse(&[
-                0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x00, 0x00, 0x03, 0x03, 0x05, 0x00, 0xF7
+            p.parse(&[
+                0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x00, 0x00, 0x03, 0x03, 0x05, 0x01, 0xF7
             ]),
             Ok(OpenDeckRequest::Configuration(
                 Wish::Get,
                 Amount::Single,
                 Block::Analog,
-                0x0000,
-                0x0000
+                0x0005,
+                0x0001
             ))
         );
     }
