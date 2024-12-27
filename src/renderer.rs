@@ -1,8 +1,9 @@
 pub struct OpenDeckRenderer {}
 
 use crate::{
-    ByteOrder, FirmwareVersion, HardwareUid, MessageStatus, OpenDeckResponse, SpecialRequest,
-    SpecialResponse, MAX_MESSAGE_SIZE, M_ID_0, M_ID_1, M_ID_2, SYSEX_END, SYSEX_START,
+    ByteOrder, FirmwareVersion, HardwareUid, MessageStatus, NrOfSupportedComponents,
+    OpenDeckResponse, SpecialRequest, SpecialResponse, MAX_MESSAGE_SIZE, M_ID_0, M_ID_1, M_ID_2,
+    SYSEX_END, SYSEX_START,
 };
 use heapless::Vec;
 
@@ -31,7 +32,7 @@ impl OpenDeckRenderer {
                     SpecialRequest::ValuesPerMessage as u8
                 }
                 SpecialResponse::NrOfSupportedComponents(nr_of_comps) => {
-                    buf.push(nr_of_comps as u8).unwrap();
+                    buf = nr_of_comps.push(buf);
                     SpecialRequest::NrOfSupportedComponents as u8
                 }
                 SpecialResponse::NrOfSupportedPresets(_) => {
@@ -66,6 +67,17 @@ impl FirmwareVersion {
         buf.push(self.major).unwrap();
         buf.push(self.minor).unwrap();
         buf.push(self.revision).unwrap();
+        buf
+    }
+}
+
+impl NrOfSupportedComponents {
+    fn push(self, mut buf: Buffer) -> Buffer {
+        buf.push(self.buttons as u8).unwrap();
+        buf.push(self.encoders as u8).unwrap();
+        buf.push(self.analog as u8).unwrap();
+        buf.push(self.leds as u8).unwrap();
+        buf.push(self.touchscreen_buttons as u8).unwrap();
         buf
     }
 }
@@ -143,6 +155,21 @@ mod tests {
                 0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x43, 0x03, 0x04, 0x05, 0xA2, 0xB4, 0xC6, 0xD8,
                 0xF7
             ]
+        );
+        assert_eq!(
+            OpenDeckRenderer::render(
+                OpenDeckResponse::Special(SpecialResponse::NrOfSupportedComponents(
+                    crate::NrOfSupportedComponents {
+                        buttons: 8,
+                        encoders: 2,
+                        analog: 2,
+                        leds: 8,
+                        touchscreen_buttons: 1
+                    }
+                )),
+                MessageStatus::Response
+            ),
+            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x4D, 0x08, 0x02, 0x02, 0x08, 0x01, 0xF7]
         );
     }
 }

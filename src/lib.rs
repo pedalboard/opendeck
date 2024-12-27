@@ -118,6 +118,16 @@ pub struct HardwareUid(u32);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct NrOfSupportedComponents {
+    buttons: usize,
+    encoders: usize,
+    analog: usize,
+    leds: usize,
+    touchscreen_buttons: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum SpecialResponse {
     Handshake,
     ValueSize(ValueSize),
@@ -125,7 +135,7 @@ pub enum SpecialResponse {
     FirmwareVersion(FirmwareVersion),
     HardwareUID(HardwareUid),
     FirmwareVersionAndHardwareUUID(FirmwareVersion, HardwareUid),
-    NrOfSupportedComponents(usize),
+    NrOfSupportedComponents(NrOfSupportedComponents),
     NrOfSupportedPresets(usize),
     BootloaderSupport(bool),
     Backup,
