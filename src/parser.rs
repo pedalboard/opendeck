@@ -1,7 +1,7 @@
 use crate::{
     Amount, AnalogSection, Block, BlockId, ByteOrder, GlobalSection, MessageStatus,
-    OpenDeckRequest, SpecialRequest, ValueSize, Wish, M_ID_0, M_ID_1, M_ID_2, SPECIAL_REQ_MSG_SIZE,
-    SYSEX_END, SYSEX_START,
+    OpenDeckRequest, PresetIndex, SpecialRequest, ValueSize, Wish, M_ID_0, M_ID_1, M_ID_2,
+    SPECIAL_REQ_MSG_SIZE, SYSEX_END, SYSEX_START,
 };
 
 impl TryFrom<u8> for SpecialRequest {
@@ -109,6 +109,17 @@ impl TryFrom<&[u8]> for Block {
             }
             x if x == BlockId::Led as u8 => Ok(Block::Led),
             _ => Err(OpenDeckParseError::StatusError(MessageStatus::BlockError)),
+        }
+    }
+}
+
+impl TryFrom<u16> for PresetIndex {
+    type Error = OpenDeckParseError;
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        match value {
+            // FIXME support more values
+            x if x == PresetIndex::Active as u16 => Ok(PresetIndex::Active),
+            _ => Err(OpenDeckParseError::StatusError(MessageStatus::IndexError)),
         }
     }
 }
