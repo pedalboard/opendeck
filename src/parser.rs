@@ -1,7 +1,7 @@
 use crate::{
-    Amount, Block, BlockId, ByteOrder, GlobalSection, MessageStatus, OpenDeckRequest,
-    SpecialRequest, ValueSize, Wish, M_ID_0, M_ID_1, M_ID_2, SPECIAL_REQ_MSG_SIZE, SYSEX_END,
-    SYSEX_START,
+    Amount, AnalogSection, Block, BlockId, ByteOrder, GlobalSection, MessageStatus,
+    OpenDeckRequest, SpecialRequest, ValueSize, Wish, M_ID_0, M_ID_1, M_ID_2, SPECIAL_REQ_MSG_SIZE,
+    SYSEX_END, SYSEX_START,
 };
 
 impl TryFrom<u8> for SpecialRequest {
@@ -70,6 +70,27 @@ impl TryFrom<u8> for GlobalSection {
     }
 }
 
+impl TryFrom<u8> for AnalogSection {
+    type Error = OpenDeckParseError;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            x if x == AnalogSection::Enabled as u8 => Ok(AnalogSection::Enabled),
+            x if x == AnalogSection::InvertState as u8 => Ok(AnalogSection::InvertState),
+            x if x == AnalogSection::MessageType as u8 => Ok(AnalogSection::MessageType),
+            x if x == AnalogSection::MidiIdLSB as u8 => Ok(AnalogSection::MidiIdLSB),
+            x if x == AnalogSection::MidiIdMSB as u8 => Ok(AnalogSection::MidiIdMSB),
+            x if x == AnalogSection::LowerCCLimitLSB as u8 => Ok(AnalogSection::LowerCCLimitLSB),
+            x if x == AnalogSection::LowerCCLimitMSB as u8 => Ok(AnalogSection::LowerCCLimitMSB),
+            x if x == AnalogSection::UpperCCLimitLSB as u8 => Ok(AnalogSection::UpperCCLimitLSB),
+            x if x == AnalogSection::UpperCCLimitMSB as u8 => Ok(AnalogSection::UpperCCLimitMSB),
+            x if x == AnalogSection::Channel as u8 => Ok(AnalogSection::Channel),
+            x if x == AnalogSection::LowerADCOffset as u8 => Ok(AnalogSection::LowerADCOffset),
+            x if x == AnalogSection::UpperADCOffset as u8 => Ok(AnalogSection::UpperADCOffset),
+            _ => Err(OpenDeckParseError::StatusError(MessageStatus::SectionError)),
+        }
+    }
+}
+
 impl TryFrom<&[u8]> for Block {
     type Error = OpenDeckParseError;
     fn try_from(buf: &[u8]) -> Result<Self, Self::Error> {
@@ -82,7 +103,10 @@ impl TryFrom<&[u8]> for Block {
             }
             x if x == BlockId::Button as u8 => Ok(Block::Button),
             x if x == BlockId::Encoder as u8 => Ok(Block::Encoder),
-            x if x == BlockId::Analog as u8 => Ok(Block::Analog),
+            x if x == BlockId::Analog as u8 => {
+                let section = AnalogSection::try_from(section_id)?;
+                Ok(Block::Analog(section))
+            }
             x if x == BlockId::Led as u8 => Ok(Block::Led),
             _ => Err(OpenDeckParseError::StatusError(MessageStatus::BlockError)),
         }
@@ -259,10 +283,18 @@ mod tests {
             Ok(OpenDeckRequest::Configuration(
                 Wish::Get,
                 Amount::Single,
-                Block::Analog,
+                Block::Analog(AnalogSection::MidiIdLSB),
                 0x0005,
                 0x0001
             ))
         );
+    }
+    #[test]
+    fn should_split_u16() {
+        let buf = &[
+            0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x00, 0x00, 0x03, 0x03, 0x4E, 0x10, 0x00, 0x05,
+        ];
+        assert_eq!(10000, ValueSize::TwoBytes.parse(buf, 0));
+        assert_eq!(5, ValueSize::TwoBytes.parse(buf, 1));
     }
 }

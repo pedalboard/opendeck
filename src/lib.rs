@@ -1,6 +1,7 @@
 #![no_std]
 
 // see https://github.com/shanteacontrols/OpenDeck/wiki/Sysex-Configuration
+use heapless::Vec;
 
 pub mod parser;
 pub mod renderer;
@@ -142,10 +143,13 @@ pub enum SpecialResponse {
     Backup,
 }
 
+pub type NewValues = Vec<u16, PARAMS_PER_MESSAGE>;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum OpenDeckResponse {
     Special(SpecialResponse),
+    Configuration(Wish, Amount, Block, u16, u16, NewValues),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -158,6 +162,23 @@ pub enum GlobalSection {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum AnalogSection {
+    Enabled,
+    InvertState,
+    MessageType,
+    MidiIdLSB,
+    MidiIdMSB,
+    LowerCCLimitLSB,
+    LowerCCLimitMSB,
+    UpperCCLimitLSB,
+    UpperCCLimitMSB,
+    Channel,
+    LowerADCOffset,
+    UpperADCOffset,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum BlockId {
     Global,
     Button,
@@ -165,6 +186,7 @@ pub enum BlockId {
     Analog,
     Led,
     Display,
+    Touchscreen,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -173,7 +195,7 @@ pub enum Block {
     Global(GlobalSection),
     Button,
     Encoder,
-    Analog,
+    Analog(AnalogSection),
     Led,
     Display,
     Touchscreen,

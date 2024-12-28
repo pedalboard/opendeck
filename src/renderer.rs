@@ -3,9 +3,9 @@ pub struct OpenDeckRenderer {
 }
 
 use crate::{
-    ByteOrder, FirmwareVersion, HardwareUid, MessageStatus, NrOfSupportedComponents,
-    OpenDeckResponse, SpecialRequest, SpecialResponse, ValueSize, MAX_MESSAGE_SIZE, M_ID_0, M_ID_1,
-    M_ID_2, SYSEX_END, SYSEX_START,
+    Amount, Block, BlockId, ByteOrder, FirmwareVersion, HardwareUid, MessageStatus, NewValues,
+    NrOfSupportedComponents, OpenDeckResponse, SpecialRequest, SpecialResponse, ValueSize,
+    MAX_MESSAGE_SIZE, M_ID_0, M_ID_1, M_ID_2, SYSEX_END, SYSEX_START,
 };
 use heapless::Vec;
 
@@ -68,6 +68,16 @@ impl OpenDeckRenderer {
                     SpecialRequest::BootloaderSupport as u8
                 }
             },
+            OpenDeckResponse::Configuration(wish, amount, block, index, value, new_values) => {
+                buf = amount.push(buf);
+                buf = block.push(buf);
+                buf = self.value_size.push(index, buf);
+                buf = self.value_size.push(value, buf);
+                for new_value in new_values.into_iter() {
+                    buf = self.value_size.push(new_value, buf);
+                }
+                wish as u8
+            }
         };
 
         buf.insert(ByteOrder::Wish as usize, wish).unwrap();
@@ -131,11 +141,35 @@ impl HardwareUid {
     }
 }
 
+impl Amount {
+    fn push(self, mut buf: Buffer) -> Buffer {
+        buf.push(self as u8).unwrap();
+        buf
+    }
+}
+
+impl Block {
+    fn push(self, mut buf: Buffer) -> Buffer {
+        let (block_id, section) = match self {
+            Block::Global(section) => (BlockId::Global, section as u8),
+            Block::Button => (BlockId::Button, 0x00),
+            Block::Encoder => (BlockId::Encoder, 0x00),
+            Block::Analog(section) => (BlockId::Analog, section as u8),
+            Block::Led => (BlockId::Led, 0x00),
+            Block::Display => (BlockId::Display, 0x00),
+            Block::Touchscreen => (BlockId::Touchscreen, 0x00),
+        };
+        buf.push(block_id as u8).unwrap();
+        buf.push(section).unwrap();
+        buf
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
     use super::*;
-    use crate::{FirmwareVersion, HardwareUid, ValueSize};
+    use crate::{AnalogSection, FirmwareVersion, HardwareUid, ValueSize, Wish};
 
     #[test]
     fn should_render_special_messages_with_one_byte() {
@@ -324,6 +358,30 @@ mod tests {
                 MessageStatus::Response
             ),
             &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x51, 0x00, 0x01, 0xF7]
+        );
+    }
+
+    #[test]
+    fn should_render_configuration_messages_with_two_bytes() {
+        let renderer = OpenDeckRenderer {
+            value_size: ValueSize::TwoBytes,
+        };
+        assert_eq!(
+            renderer.render(
+                OpenDeckResponse::Configuration(
+                    Wish::Get,
+                    Amount::Single,
+                    Block::Analog(AnalogSection::MidiIdLSB),
+                    5,
+                    0,
+                    Vec::from_slice(&[5]).unwrap()
+                ),
+                MessageStatus::Response
+            ),
+            &[
+                0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x00, 0x00, 0x03, 0x03, 0x00, 0x05, 0x00, 0x00,
+                0x00, 0x05, 0xF7
+            ]
         );
     }
 
