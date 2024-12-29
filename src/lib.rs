@@ -2,6 +2,7 @@
 
 // see https://github.com/shanteacontrols/OpenDeck/wiki/Sysex-Configuration
 use heapless::Vec;
+use midi_types::{Channel, Value7};
 
 pub mod parser;
 pub mod renderer;
@@ -58,7 +59,7 @@ pub enum MessageStatus {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum OpenDeckRequest {
     Special(SpecialRequest),
-    Configuration(Wish, Amount, Block, u16, u16),
+    Configuration(Wish, Amount, Block),
     ComponentInfo,
 }
 
@@ -149,12 +150,10 @@ pub type NewValues = Vec<u16, PARAMS_PER_MESSAGE>;
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum OpenDeckResponse {
     Special(SpecialResponse),
-    Configuration(Wish, Amount, Block, u16, u16, NewValues),
+    Configuration(Wish, Amount, Block, NewValues),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum GlobalSection {
+pub enum GlobalSectionId {
     Midi,
     Reserved,
     Presets,
@@ -162,7 +161,12 @@ pub enum GlobalSection {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum AnalogSection {
+pub enum GlobalSection {
+    Midi(u16, u16),
+    Presets(u16, u16),
+}
+
+enum AnalogSectionId {
     Enabled,
     InvertState,
     MessageType,
@@ -175,6 +179,82 @@ pub enum AnalogSection {
     Channel,
     LowerADCOffset,
     UpperADCOffset,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum AnalogSection {
+    Enabled(u16, u16),
+    InvertState(u16, u16),
+    MessageType(u16, u16),
+    MidiIdLSB(u16, u16),
+    MidiIdMSB(u16, u16),
+    LowerCCLimitLSB(u16, u16),
+    LowerCCLimitMSB(u16, u16),
+    UpperCCLimitLSB(u16, u16),
+    UpperCCLimitMSB(u16, u16),
+    Channel(u16, u16),
+    LowerADCOffset(u16, u16),
+    UpperADCOffset(u16, u16),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum ButtonType {
+    Momentary,
+    Latching,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum MessageType {
+    Notes,
+    ProgramChange,
+    ControlChange,
+    ControlChangeWithReset,
+    MMCStop,
+    MMCPlay,
+    MMCRecord,
+    MMCPause,
+    RealTimeClock,
+    RealTimeStart,
+    RealTimeContinue,
+    RealTimeStop,
+    RealTimeActiveSensing,
+    RealTimeSystemReset,
+    ProgramChangeIncr,
+    ProgramChangeDecr,
+    NoMessage,
+    OpenDeckPresetChange,
+    MultiValueIncNote,
+    MultiValueDecNote,
+    MultiValueIncCC,
+    MultiValueDecCC,
+    NoteOffOnly,
+    ControlChangeWithValue0,
+    Reserved,
+    ProgramChangeOffsetIncr,
+    ProgramChangeOffsetDecr,
+    BPMIncr,
+    BPMDecr,
+}
+
+enum ButtonSectionId {
+    Type,
+    MessageType,
+    MidiId,
+    Value,
+    Channel,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum ButtonSection {
+    Type(u16, ButtonType),
+    MessageType(u16, MessageType),
+    MidiId(u16, Value7),
+    Value(u16, Value7),
+    Channel(u16, Channel),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -193,7 +273,7 @@ pub enum BlockId {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Block {
     Global(GlobalSection),
-    Button,
+    Button(ButtonSection),
     Encoder,
     Analog(AnalogSection),
     Led,
@@ -223,4 +303,9 @@ pub enum PresetIndex {
     Preservation,
     ForceValueRefresh,
     EnableMideChange,
+}
+struct Section {
+    id: u8,
+    value: u16,
+    index: u16,
 }

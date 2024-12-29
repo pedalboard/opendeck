@@ -7,6 +7,7 @@ categories = ["no-std", "embedded"]
 [dependencies]
 defmt = { version = "0.3.10", optional = true }
 heapless = { version = "0.8.0", features = ["defmt-03"] }
+midi-types = { version = "0.1.7", features = ["defmt"] }
 
 [features]
 defmt = ["dep:defmt"]

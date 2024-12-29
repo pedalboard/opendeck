@@ -1,8 +1,10 @@
 use crate::{
-    Amount, AnalogSection, Block, BlockId, ByteOrder, GlobalSection, MessageStatus,
-    OpenDeckRequest, PresetIndex, SpecialRequest, ValueSize, Wish, M_ID_0, M_ID_1, M_ID_2,
+    Amount, AnalogSection, AnalogSectionId, Block, BlockId, ButtonSection, ButtonSectionId,
+    ButtonType, ByteOrder, GlobalSection, GlobalSectionId, MessageStatus, MessageType,
+    OpenDeckRequest, PresetIndex, Section, SpecialRequest, ValueSize, Wish, M_ID_0, M_ID_1, M_ID_2,
     SPECIAL_REQ_MSG_SIZE, SYSEX_END, SYSEX_START,
 };
+use midi_types::{Channel, Value7};
 
 impl TryFrom<u8> for SpecialRequest {
     type Error = OpenDeckParseError;
@@ -59,56 +61,152 @@ impl TryFrom<u8> for Amount {
     }
 }
 
-impl TryFrom<u8> for GlobalSection {
+impl TryFrom<Section> for GlobalSection {
     type Error = OpenDeckParseError;
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
+    fn try_from(value: Section) -> Result<Self, Self::Error> {
         match value {
-            x if x == GlobalSection::Midi as u8 => Ok(GlobalSection::Midi),
-            x if x == GlobalSection::Presets as u8 => Ok(GlobalSection::Presets),
+            x if x.id == GlobalSectionId::Midi as u8 => Ok(GlobalSection::Midi(x.index, x.value)),
+            x if x.id == GlobalSectionId::Presets as u8 => {
+                Ok(GlobalSection::Presets(x.index, x.value))
+            }
+            _ => Err(OpenDeckParseError::StatusError(MessageStatus::SectionError)),
+        }
+    }
+}
+impl TryFrom<u16> for ButtonType {
+    type Error = OpenDeckParseError;
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        match value {
+            x if x == ButtonType::Momentary as u16 => Ok(ButtonType::Momentary),
+            x if x == ButtonType::Latching as u16 => Ok(ButtonType::Latching),
+            _ => Err(OpenDeckParseError::StatusError(
+                MessageStatus::NewValueError,
+            )),
+        }
+    }
+}
+
+impl TryFrom<u16> for MessageType {
+    type Error = OpenDeckParseError;
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        match value {
+            x if x == MessageType::Notes as u16 => Ok(MessageType::Notes),
+            x if x == MessageType::ProgramChange as u16 => Ok(MessageType::ProgramChange),
+            x if x == MessageType::ControlChange as u16 => Ok(MessageType::ControlChange),
+            x if x == MessageType::ControlChangeWithReset as u16 => {
+                Ok(MessageType::ControlChangeWithReset)
+            }
+            x if x == MessageType::MMCStop as u16 => Ok(MessageType::MMCStop),
+            x if x == MessageType::MMCPlay as u16 => Ok(MessageType::MMCPlay),
+            x if x == MessageType::MMCRecord as u16 => Ok(MessageType::MMCRecord),
+            x if x == MessageType::MMCPause as u16 => Ok(MessageType::MMCPause),
+            x if x == MessageType::RealTimeClock as u16 => Ok(MessageType::RealTimeClock),
+            x if x == MessageType::RealTimeStart as u16 => Ok(MessageType::RealTimeStart),
+            x if x == MessageType::RealTimeContinue as u16 => Ok(MessageType::RealTimeContinue),
+            x if x == MessageType::RealTimeStop as u16 => Ok(MessageType::RealTimeStop),
+            x if x == MessageType::RealTimeActiveSensing as u16 => {
+                Ok(MessageType::RealTimeActiveSensing)
+            }
+            x if x == MessageType::RealTimeSystemReset as u16 => {
+                Ok(MessageType::RealTimeSystemReset)
+            }
+            x if x == MessageType::ProgramChangeDecr as u16 => Ok(MessageType::ProgramChangeDecr),
+            x if x == MessageType::ProgramChangeIncr as u16 => Ok(MessageType::ProgramChangeIncr),
+            x if x == MessageType::NoMessage as u16 => Ok(MessageType::NoMessage),
+            x if x == MessageType::OpenDeckPresetChange as u16 => {
+                Ok(MessageType::OpenDeckPresetChange)
+            }
+            x if x == MessageType::MultiValueIncNote as u16 => Ok(MessageType::MultiValueIncNote),
+            x if x == MessageType::MultiValueDecNote as u16 => Ok(MessageType::MultiValueDecNote),
+            x if x == MessageType::MultiValueIncCC as u16 => Ok(MessageType::MultiValueIncCC),
+            x if x == MessageType::MultiValueDecCC as u16 => Ok(MessageType::MultiValueDecCC),
+            x if x == MessageType::NoteOffOnly as u16 => Ok(MessageType::NoteOffOnly),
+            x if x == MessageType::ControlChangeWithValue0 as u16 => {
+                Ok(MessageType::ControlChangeWithValue0)
+            }
+            x if x == MessageType::ProgramChangeOffsetIncr as u16 => {
+                Ok(MessageType::ProgramChangeOffsetIncr)
+            }
+            x if x == MessageType::ProgramChangeOffsetDecr as u16 => {
+                Ok(MessageType::ProgramChangeOffsetDecr)
+            }
+            x if x == MessageType::BPMIncr as u16 => Ok(MessageType::BPMIncr),
+            x if x == MessageType::BPMDecr as u16 => Ok(MessageType::BPMDecr),
+            _ => Err(OpenDeckParseError::StatusError(
+                MessageStatus::NewValueError,
+            )),
+        }
+    }
+}
+
+impl TryFrom<Section> for ButtonSection {
+    type Error = OpenDeckParseError;
+    fn try_from(value: Section) -> Result<Self, Self::Error> {
+        match value {
+            x if x.id == ButtonSectionId::MidiId as u8 => {
+                Ok(ButtonSection::MidiId(x.index, Value7::from(x.value as u8)))
+            }
+            x if x.id == ButtonSectionId::MessageType as u8 => {
+                let mt = MessageType::try_from(x.value)?;
+                Ok(ButtonSection::MessageType(x.index, mt))
+            }
+            x if x.id == ButtonSectionId::Type as u8 => {
+                let mt = ButtonType::try_from(x.value)?;
+                Ok(ButtonSection::Type(x.index, mt))
+            }
+            x if x.id == ButtonSectionId::Value as u8 => {
+                Ok(ButtonSection::Value(x.index, Value7::from(x.value as u8)))
+            }
+            x if x.id == ButtonSectionId::Channel as u8 => Ok(ButtonSection::Channel(
+                x.index,
+                Channel::from(x.value as u8),
+            )),
             _ => Err(OpenDeckParseError::StatusError(MessageStatus::SectionError)),
         }
     }
 }
 
-impl TryFrom<u8> for AnalogSection {
+impl TryFrom<Section> for AnalogSection {
     type Error = OpenDeckParseError;
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
+    fn try_from(value: Section) -> Result<Self, Self::Error> {
         match value {
-            x if x == AnalogSection::Enabled as u8 => Ok(AnalogSection::Enabled),
-            x if x == AnalogSection::InvertState as u8 => Ok(AnalogSection::InvertState),
-            x if x == AnalogSection::MessageType as u8 => Ok(AnalogSection::MessageType),
-            x if x == AnalogSection::MidiIdLSB as u8 => Ok(AnalogSection::MidiIdLSB),
-            x if x == AnalogSection::MidiIdMSB as u8 => Ok(AnalogSection::MidiIdMSB),
-            x if x == AnalogSection::LowerCCLimitLSB as u8 => Ok(AnalogSection::LowerCCLimitLSB),
-            x if x == AnalogSection::LowerCCLimitMSB as u8 => Ok(AnalogSection::LowerCCLimitMSB),
-            x if x == AnalogSection::UpperCCLimitLSB as u8 => Ok(AnalogSection::UpperCCLimitLSB),
-            x if x == AnalogSection::UpperCCLimitMSB as u8 => Ok(AnalogSection::UpperCCLimitMSB),
-            x if x == AnalogSection::Channel as u8 => Ok(AnalogSection::Channel),
-            x if x == AnalogSection::LowerADCOffset as u8 => Ok(AnalogSection::LowerADCOffset),
-            x if x == AnalogSection::UpperADCOffset as u8 => Ok(AnalogSection::UpperADCOffset),
+            x if x.id == AnalogSectionId::Enabled as u8 => {
+                Ok(AnalogSection::Enabled(x.index, x.value))
+            }
+            x if x.id == AnalogSectionId::InvertState as u8 => {
+                Ok(AnalogSection::InvertState(x.index, x.value))
+            }
+            x if x.id == AnalogSectionId::MessageType as u8 => {
+                Ok(AnalogSection::MessageType(x.index, x.value))
+            }
+            x if x.id == AnalogSectionId::MidiIdLSB as u8 => {
+                Ok(AnalogSection::MidiIdLSB(x.index, x.value))
+            }
+            x if x.id == AnalogSectionId::MidiIdMSB as u8 => {
+                Ok(AnalogSection::MidiIdMSB(x.index, x.value))
+            }
+            x if x.id == AnalogSectionId::LowerCCLimitLSB as u8 => {
+                Ok(AnalogSection::LowerCCLimitLSB(x.index, x.value))
+            }
+            x if x.id == AnalogSectionId::LowerCCLimitMSB as u8 => {
+                Ok(AnalogSection::LowerCCLimitMSB(x.index, x.value))
+            }
+            x if x.id == AnalogSectionId::UpperCCLimitLSB as u8 => {
+                Ok(AnalogSection::UpperCCLimitLSB(x.index, x.value))
+            }
+            x if x.id == AnalogSectionId::UpperCCLimitMSB as u8 => {
+                Ok(AnalogSection::UpperCCLimitMSB(x.index, x.value))
+            }
+            x if x.id == AnalogSectionId::Channel as u8 => {
+                Ok(AnalogSection::Channel(x.index, x.value))
+            }
+            x if x.id == AnalogSectionId::LowerADCOffset as u8 => {
+                Ok(AnalogSection::LowerADCOffset(x.index, x.value))
+            }
+            x if x.id == AnalogSectionId::UpperADCOffset as u8 => {
+                Ok(AnalogSection::UpperADCOffset(x.index, x.value))
+            }
             _ => Err(OpenDeckParseError::StatusError(MessageStatus::SectionError)),
-        }
-    }
-}
-
-impl TryFrom<&[u8]> for Block {
-    type Error = OpenDeckParseError;
-    fn try_from(buf: &[u8]) -> Result<Self, Self::Error> {
-        let block_id = ByteOrder::Block.get(buf);
-        let section_id = ByteOrder::Section.get(buf);
-        match block_id {
-            x if x == BlockId::Global as u8 => {
-                let section = GlobalSection::try_from(section_id)?;
-                Ok(Block::Global(section))
-            }
-            x if x == BlockId::Button as u8 => Ok(Block::Button),
-            x if x == BlockId::Encoder as u8 => Ok(Block::Encoder),
-            x if x == BlockId::Analog as u8 => {
-                let section = AnalogSection::try_from(section_id)?;
-                Ok(Block::Analog(section))
-            }
-            x if x == BlockId::Led as u8 => Ok(Block::Led),
-            _ => Err(OpenDeckParseError::StatusError(MessageStatus::BlockError)),
         }
     }
 }
@@ -117,7 +215,7 @@ impl TryFrom<u16> for PresetIndex {
     type Error = OpenDeckParseError;
     fn try_from(value: u16) -> Result<Self, Self::Error> {
         match value {
-            // FIXME support more values
+            // FIXME support more preset values
             x if x == PresetIndex::Active as u16 => Ok(PresetIndex::Active),
             _ => Err(OpenDeckParseError::StatusError(MessageStatus::IndexError)),
         }
@@ -178,12 +276,33 @@ impl OpenDeckParser {
     pub fn parse_request(&self, buf: &[u8]) -> Result<OpenDeckRequest, OpenDeckParseError> {
         let wish = Wish::try_from(ByteOrder::Wish.get(buf))?;
         let amount = Amount::try_from(ByteOrder::Amount.get(buf))?;
-        let block = Block::try_from(buf)?;
-        let index = self.value_size.parse(buf, 0);
-        let value = self.value_size.parse(buf, 1);
-        Ok(OpenDeckRequest::Configuration(
-            wish, amount, block, index, value,
-        ))
+        let block = self.parse_block(buf)?;
+        Ok(OpenDeckRequest::Configuration(wish, amount, block))
+    }
+    pub fn parse_block(&self, buf: &[u8]) -> Result<Block, OpenDeckParseError> {
+        let block_id = ByteOrder::Block.get(buf);
+        let section = Section {
+            id: ByteOrder::Section.get(buf),
+            index: self.value_size.parse(buf, 0),
+            value: self.value_size.parse(buf, 1),
+        };
+        match block_id {
+            x if x == BlockId::Global as u8 => {
+                let section = GlobalSection::try_from(section)?;
+                Ok(Block::Global(section))
+            }
+            x if x == BlockId::Button as u8 => {
+                let section = ButtonSection::try_from(section)?;
+                Ok(Block::Button(section))
+            }
+            x if x == BlockId::Encoder as u8 => Ok(Block::Encoder),
+            x if x == BlockId::Analog as u8 => {
+                let section = AnalogSection::try_from(section)?;
+                Ok(Block::Analog(section))
+            }
+            x if x == BlockId::Led as u8 => Ok(Block::Led),
+            _ => Err(OpenDeckParseError::StatusError(MessageStatus::BlockError)),
+        }
     }
 }
 
@@ -294,9 +413,17 @@ mod tests {
             Ok(OpenDeckRequest::Configuration(
                 Wish::Get,
                 Amount::Single,
-                Block::Analog(AnalogSection::MidiIdLSB),
-                0x0005,
-                0x0001
+                Block::Analog(AnalogSection::MidiIdLSB(0x005, 0x001)),
+            ))
+        );
+        assert_eq!(
+            p.parse(&[
+                0xF0, 0x00, 0x53, 0x43, 0x00, 0x7F, 0x00, 0x01, 0x01, 0x02, 0x00, 0x00, 0xF7
+            ]),
+            Ok(OpenDeckRequest::Configuration(
+                Wish::Get,
+                Amount::All,
+                Block::Button(ButtonSection::MidiId(0, Value7::from(0))),
             ))
         );
     }

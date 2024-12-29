@@ -3,8 +3,9 @@ pub struct OpenDeckRenderer {
 }
 
 use crate::{
-    Amount, Block, BlockId, ByteOrder, FirmwareVersion, HardwareUid, MessageStatus, NewValues,
-    NrOfSupportedComponents, OpenDeckResponse, SpecialRequest, SpecialResponse, ValueSize,
+    Amount, AnalogSection, AnalogSectionId, Block, BlockId, ButtonSection, ButtonSectionId,
+    ByteOrder, FirmwareVersion, GlobalSection, GlobalSectionId, HardwareUid, MessageStatus,
+    NrOfSupportedComponents, OpenDeckResponse, Section, SpecialRequest, SpecialResponse, ValueSize,
     MAX_MESSAGE_SIZE, M_ID_0, M_ID_1, M_ID_2, SYSEX_END, SYSEX_START,
 };
 use heapless::Vec;
@@ -68,11 +69,9 @@ impl OpenDeckRenderer {
                     SpecialRequest::BootloaderSupport as u8
                 }
             },
-            OpenDeckResponse::Configuration(wish, amount, block, index, value, new_values) => {
+            OpenDeckResponse::Configuration(wish, amount, block, new_values) => {
                 buf = amount.push(buf);
-                buf = block.push(buf);
-                buf = self.value_size.push(index, buf);
-                buf = self.value_size.push(value, buf);
+                buf = block.push(buf, &self.value_size);
                 for new_value in new_values.into_iter() {
                     buf = self.value_size.push(new_value, buf);
                 }
@@ -149,19 +148,174 @@ impl Amount {
 }
 
 impl Block {
-    fn push(self, mut buf: Buffer) -> Buffer {
+    fn push(self, mut buf: Buffer, value_size: &ValueSize) -> Buffer {
         let (block_id, section) = match self {
-            Block::Global(section) => (BlockId::Global, section as u8),
-            Block::Button => (BlockId::Button, 0x00),
-            Block::Encoder => (BlockId::Encoder, 0x00),
-            Block::Analog(section) => (BlockId::Analog, section as u8),
-            Block::Led => (BlockId::Led, 0x00),
-            Block::Display => (BlockId::Display, 0x00),
-            Block::Touchscreen => (BlockId::Touchscreen, 0x00),
+            Block::Global(section) => (BlockId::Global, section.into()),
+            Block::Button(section) => (BlockId::Button, section.into()),
+            Block::Encoder => (
+                BlockId::Encoder,
+                Section {
+                    id: 0,
+                    index: 0,
+                    value: 0,
+                },
+            ),
+            Block::Analog(section) => (BlockId::Analog, section.into()),
+            Block::Led => (
+                BlockId::Led,
+                Section {
+                    id: 0,
+                    index: 0,
+                    value: 0,
+                },
+            ),
+            Block::Display => (
+                BlockId::Display,
+                Section {
+                    id: 0,
+                    index: 0,
+                    value: 0,
+                },
+            ),
+            Block::Touchscreen => (
+                BlockId::Touchscreen,
+                Section {
+                    id: 0,
+                    index: 0,
+                    value: 0,
+                },
+            ),
         };
         buf.push(block_id as u8).unwrap();
-        buf.push(section).unwrap();
+        buf.push(section.id).unwrap();
+        buf = value_size.push(section.index, buf);
+        buf = value_size.push(section.value, buf);
         buf
+    }
+}
+
+impl From<ButtonSection> for Section {
+    fn from(s: ButtonSection) -> Section {
+        match s {
+            ButtonSection::Type(index, t) => Section {
+                id: ButtonSectionId::Type as u8,
+                value: t as u16,
+                index,
+            },
+            ButtonSection::MessageType(index, t) => Section {
+                id: ButtonSectionId::MessageType as u8,
+                value: t as u16,
+                index,
+            },
+            ButtonSection::MidiId(index, v) => {
+                let value: u8 = v.into();
+                Section {
+                    id: ButtonSectionId::MidiId as u8,
+                    value: value as u16,
+                    index,
+                }
+            }
+            ButtonSection::Value(index, v) => {
+                let value: u8 = v.into();
+                Section {
+                    id: ButtonSectionId::Value as u8,
+                    value: value as u16,
+                    index,
+                }
+            }
+            ButtonSection::Channel(index, v) => {
+                let value: u8 = v.into();
+                Section {
+                    id: ButtonSectionId::Channel as u8,
+                    value: value as u16,
+                    index,
+                }
+            }
+        }
+    }
+}
+
+impl From<GlobalSection> for Section {
+    fn from(s: GlobalSection) -> Section {
+        match s {
+            GlobalSection::Midi(index, value) => Section {
+                id: GlobalSectionId::Midi as u8,
+                value,
+                index,
+            },
+            GlobalSection::Presets(index, value) => Section {
+                id: GlobalSectionId::Presets as u8,
+                value,
+                index,
+            },
+        }
+    }
+}
+
+impl From<AnalogSection> for Section {
+    fn from(s: AnalogSection) -> Section {
+        match s {
+            AnalogSection::Enabled(index, value) => Section {
+                id: AnalogSectionId::Enabled as u8,
+                value,
+                index,
+            },
+            AnalogSection::InvertState(index, value) => Section {
+                id: AnalogSectionId::InvertState as u8,
+                value,
+                index,
+            },
+            AnalogSection::MessageType(index, value) => Section {
+                id: AnalogSectionId::MessageType as u8,
+                value,
+                index,
+            },
+            AnalogSection::MidiIdLSB(index, value) => Section {
+                id: AnalogSectionId::MidiIdLSB as u8,
+                value,
+                index,
+            },
+            AnalogSection::MidiIdMSB(index, value) => Section {
+                id: AnalogSectionId::MidiIdMSB as u8,
+                value,
+                index,
+            },
+            AnalogSection::LowerCCLimitLSB(index, value) => Section {
+                id: AnalogSectionId::LowerCCLimitLSB as u8,
+                value,
+                index,
+            },
+            AnalogSection::LowerCCLimitMSB(index, value) => Section {
+                id: AnalogSectionId::LowerCCLimitMSB as u8,
+                value,
+                index,
+            },
+            AnalogSection::UpperCCLimitLSB(index, value) => Section {
+                id: AnalogSectionId::UpperCCLimitLSB as u8,
+                value,
+                index,
+            },
+            AnalogSection::UpperCCLimitMSB(index, value) => Section {
+                id: AnalogSectionId::UpperCCLimitMSB as u8,
+                value,
+                index,
+            },
+            AnalogSection::Channel(index, value) => Section {
+                id: AnalogSectionId::Channel as u8,
+                value,
+                index,
+            },
+            AnalogSection::LowerADCOffset(index, value) => Section {
+                id: AnalogSectionId::LowerADCOffset as u8,
+                value,
+                index,
+            },
+            AnalogSection::UpperADCOffset(index, value) => Section {
+                id: AnalogSectionId::UpperADCOffset as u8,
+                value,
+                index,
+            },
+        }
     }
 }
 
@@ -371,9 +525,7 @@ mod tests {
                 OpenDeckResponse::Configuration(
                     Wish::Get,
                     Amount::Single,
-                    Block::Analog(AnalogSection::MidiIdLSB),
-                    5,
-                    0,
+                    Block::Analog(AnalogSection::MidiIdLSB(5, 0)),
                     Vec::from_slice(&[5]).unwrap()
                 ),
                 MessageStatus::Response

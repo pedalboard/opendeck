@@ -67,11 +67,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "midi-types"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef0bbe5256e5c434947d790788426bb65773502784aed7b23408f7e7fb4d8eb5"
+dependencies = [
+ "defmt",
+]
+
+[[package]]
 name = "opendeck"
 version = "0.1.0"
 dependencies = [
  "defmt",
  "heapless",
+ "midi-types",
 ]
 
 [[package]]
