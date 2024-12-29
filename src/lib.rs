@@ -198,7 +198,7 @@ pub enum AnalogSection {
     UpperADCOffset(u16, u16),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ButtonType {
     #[default]
@@ -206,7 +206,7 @@ pub enum ButtonType {
     Latching,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum MessageType {
     #[default]
