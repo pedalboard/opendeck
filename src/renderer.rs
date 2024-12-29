@@ -149,46 +149,18 @@ impl Amount {
 
 impl Block {
     fn push(self, mut buf: Buffer, value_size: &ValueSize) -> Buffer {
-        let (block_id, section) = match self {
-            Block::Global(section) => (BlockId::Global, section.into()),
-            Block::Button(section) => (BlockId::Button, section.into()),
-            Block::Encoder => (
-                BlockId::Encoder,
-                Section {
-                    id: 0,
-                    index: 0,
-                    value: 0,
-                },
-            ),
-            Block::Analog(section) => (BlockId::Analog, section.into()),
-            Block::Led => (
-                BlockId::Led,
-                Section {
-                    id: 0,
-                    index: 0,
-                    value: 0,
-                },
-            ),
-            Block::Display => (
-                BlockId::Display,
-                Section {
-                    id: 0,
-                    index: 0,
-                    value: 0,
-                },
-            ),
-            Block::Touchscreen => (
-                BlockId::Touchscreen,
-                Section {
-                    id: 0,
-                    index: 0,
-                    value: 0,
-                },
-            ),
+        let (i, block_id, section) = match self {
+            Block::Global(i, section) => (i, BlockId::Global, section.into()),
+            Block::Button(i, section) => (i, BlockId::Button, section.into()),
+            Block::Encoder => (0, BlockId::Encoder, Section { id: 0, value: 0 }),
+            Block::Analog(i, section) => (i, BlockId::Analog, section.into()),
+            Block::Led => (0, BlockId::Led, Section { id: 0, value: 0 }),
+            Block::Display => (0, BlockId::Display, Section { id: 0, value: 0 }),
+            Block::Touchscreen => (0, BlockId::Touchscreen, Section { id: 0, value: 0 }),
         };
         buf.push(block_id as u8).unwrap();
         buf.push(section.id).unwrap();
-        buf = value_size.push(section.index, buf);
+        buf = value_size.push(i, buf);
         buf = value_size.push(section.value, buf);
         buf
     }
@@ -197,38 +169,33 @@ impl Block {
 impl From<ButtonSection> for Section {
     fn from(s: ButtonSection) -> Section {
         match s {
-            ButtonSection::Type(index, t) => Section {
+            ButtonSection::Type(t) => Section {
                 id: ButtonSectionId::Type as u8,
                 value: t as u16,
-                index,
             },
-            ButtonSection::MessageType(index, t) => Section {
+            ButtonSection::MessageType(t) => Section {
                 id: ButtonSectionId::MessageType as u8,
                 value: t as u16,
-                index,
             },
-            ButtonSection::MidiId(index, v) => {
+            ButtonSection::MidiId(v) => {
                 let value: u8 = v.into();
                 Section {
                     id: ButtonSectionId::MidiId as u8,
                     value: value as u16,
-                    index,
                 }
             }
-            ButtonSection::Value(index, v) => {
+            ButtonSection::Value(v) => {
                 let value: u8 = v.into();
                 Section {
                     id: ButtonSectionId::Value as u8,
                     value: value as u16,
-                    index,
                 }
             }
-            ButtonSection::Channel(index, v) => {
+            ButtonSection::Channel(v) => {
                 let value: u8 = v.into();
                 Section {
                     id: ButtonSectionId::Channel as u8,
                     value: value as u16,
-                    index,
                 }
             }
         }
@@ -238,15 +205,13 @@ impl From<ButtonSection> for Section {
 impl From<GlobalSection> for Section {
     fn from(s: GlobalSection) -> Section {
         match s {
-            GlobalSection::Midi(index, value) => Section {
+            GlobalSection::Midi(value) => Section {
                 id: GlobalSectionId::Midi as u8,
                 value,
-                index,
             },
-            GlobalSection::Presets(index, value) => Section {
+            GlobalSection::Presets(value) => Section {
                 id: GlobalSectionId::Presets as u8,
                 value,
-                index,
             },
         }
     }
@@ -255,65 +220,53 @@ impl From<GlobalSection> for Section {
 impl From<AnalogSection> for Section {
     fn from(s: AnalogSection) -> Section {
         match s {
-            AnalogSection::Enabled(index, value) => Section {
+            AnalogSection::Enabled(value) => Section {
                 id: AnalogSectionId::Enabled as u8,
                 value,
-                index,
             },
-            AnalogSection::InvertState(index, value) => Section {
+            AnalogSection::InvertState(value) => Section {
                 id: AnalogSectionId::InvertState as u8,
                 value,
-                index,
             },
-            AnalogSection::MessageType(index, value) => Section {
+            AnalogSection::MessageType(value) => Section {
                 id: AnalogSectionId::MessageType as u8,
                 value,
-                index,
             },
-            AnalogSection::MidiIdLSB(index, value) => Section {
+            AnalogSection::MidiIdLSB(value) => Section {
                 id: AnalogSectionId::MidiIdLSB as u8,
                 value,
-                index,
             },
-            AnalogSection::MidiIdMSB(index, value) => Section {
+            AnalogSection::MidiIdMSB(value) => Section {
                 id: AnalogSectionId::MidiIdMSB as u8,
                 value,
-                index,
             },
-            AnalogSection::LowerCCLimitLSB(index, value) => Section {
+            AnalogSection::LowerCCLimitLSB(value) => Section {
                 id: AnalogSectionId::LowerCCLimitLSB as u8,
                 value,
-                index,
             },
-            AnalogSection::LowerCCLimitMSB(index, value) => Section {
+            AnalogSection::LowerCCLimitMSB(value) => Section {
                 id: AnalogSectionId::LowerCCLimitMSB as u8,
                 value,
-                index,
             },
-            AnalogSection::UpperCCLimitLSB(index, value) => Section {
+            AnalogSection::UpperCCLimitLSB(value) => Section {
                 id: AnalogSectionId::UpperCCLimitLSB as u8,
                 value,
-                index,
             },
-            AnalogSection::UpperCCLimitMSB(index, value) => Section {
+            AnalogSection::UpperCCLimitMSB(value) => Section {
                 id: AnalogSectionId::UpperCCLimitMSB as u8,
                 value,
-                index,
             },
-            AnalogSection::Channel(index, value) => Section {
+            AnalogSection::Channel(value) => Section {
                 id: AnalogSectionId::Channel as u8,
                 value,
-                index,
             },
-            AnalogSection::LowerADCOffset(index, value) => Section {
+            AnalogSection::LowerADCOffset(value) => Section {
                 id: AnalogSectionId::LowerADCOffset as u8,
                 value,
-                index,
             },
-            AnalogSection::UpperADCOffset(index, value) => Section {
+            AnalogSection::UpperADCOffset(value) => Section {
                 id: AnalogSectionId::UpperADCOffset as u8,
                 value,
-                index,
             },
         }
     }
@@ -525,7 +478,7 @@ mod tests {
                 OpenDeckResponse::Configuration(
                     Wish::Get,
                     Amount::Single,
-                    Block::Analog(AnalogSection::MidiIdLSB(5, 0)),
+                    Block::Analog(5, AnalogSection::MidiIdLSB(0)),
                     Vec::from_slice(&[5]).unwrap()
                 ),
                 MessageStatus::Response

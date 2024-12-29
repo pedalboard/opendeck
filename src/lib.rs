@@ -162,8 +162,8 @@ pub enum GlobalSectionId {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum GlobalSection {
-    Midi(u16, u16),
-    Presets(u16, u16),
+    Midi(u16),
+    Presets(u16),
 }
 
 enum AnalogSectionId {
@@ -184,18 +184,18 @@ enum AnalogSectionId {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum AnalogSection {
-    Enabled(u16, u16),
-    InvertState(u16, u16),
-    MessageType(u16, u16),
-    MidiIdLSB(u16, u16),
-    MidiIdMSB(u16, u16),
-    LowerCCLimitLSB(u16, u16),
-    LowerCCLimitMSB(u16, u16),
-    UpperCCLimitLSB(u16, u16),
-    UpperCCLimitMSB(u16, u16),
-    Channel(u16, u16),
-    LowerADCOffset(u16, u16),
-    UpperADCOffset(u16, u16),
+    Enabled(u16),
+    InvertState(u16),
+    MessageType(u16),
+    MidiIdLSB(u16),
+    MidiIdMSB(u16),
+    LowerCCLimitLSB(u16),
+    LowerCCLimitMSB(u16),
+    UpperCCLimitLSB(u16),
+    UpperCCLimitMSB(u16),
+    Channel(u16),
+    LowerADCOffset(u16),
+    UpperADCOffset(u16),
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
@@ -252,11 +252,11 @@ enum ButtonSectionId {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ButtonSection {
-    Type(u16, ButtonType),
-    MessageType(u16, MessageType),
-    MidiId(u16, Value7),
-    Value(u16, Value7),
-    Channel(u16, Channel),
+    Type(ButtonType),
+    MessageType(MessageType),
+    MidiId(Value7),
+    Value(Value7),
+    Channel(Channel),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -274,10 +274,10 @@ pub enum BlockId {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Block {
-    Global(GlobalSection),
-    Button(ButtonSection),
+    Global(u16, GlobalSection),
+    Button(u16, ButtonSection),
     Encoder,
-    Analog(AnalogSection),
+    Analog(u16, AnalogSection),
     Led,
     Display,
     Touchscreen,
@@ -309,5 +309,4 @@ pub enum PresetIndex {
 struct Section {
     id: u8,
     value: u16,
-    index: u16,
 }
