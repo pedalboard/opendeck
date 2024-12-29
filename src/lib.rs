@@ -240,6 +240,34 @@ pub enum MessageType {
     BPMIncr,
     BPMDecr,
 }
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum ChannelOrAll {
+    All,
+    Channel(Channel),
+}
+
+impl From<u16> for ChannelOrAll {
+    fn from(value: u16) -> Self {
+        if value > 16 {
+            ChannelOrAll::All
+        } else {
+            ChannelOrAll::Channel(Channel::new((value as u8) - 1))
+        }
+    }
+}
+
+impl From<ChannelOrAll> for u16 {
+    fn from(value: ChannelOrAll) -> u16 {
+        match value {
+            ChannelOrAll::All => 17,
+            ChannelOrAll::Channel(ch) => {
+                let out: u8 = ch.into();
+                (out + 1) as u16
+            }
+        }
+    }
+}
 
 enum ButtonSectionId {
     Type,
@@ -256,7 +284,7 @@ pub enum ButtonSection {
     MessageType(MessageType),
     MidiId(Value7),
     Value(Value7),
-    Channel(Channel),
+    Channel(ChannelOrAll),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

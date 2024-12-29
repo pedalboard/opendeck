@@ -1,10 +1,10 @@
 use crate::{
     Amount, AnalogSection, AnalogSectionId, Block, BlockId, ButtonSection, ButtonSectionId,
-    ButtonType, ByteOrder, GlobalSection, GlobalSectionId, MessageStatus, MessageType,
-    OpenDeckRequest, PresetIndex, Section, SpecialRequest, ValueSize, Wish, M_ID_0, M_ID_1, M_ID_2,
-    SPECIAL_REQ_MSG_SIZE, SYSEX_END, SYSEX_START,
+    ButtonType, ByteOrder, ChannelOrAll, GlobalSection, GlobalSectionId, MessageStatus,
+    MessageType, OpenDeckRequest, PresetIndex, Section, SpecialRequest, ValueSize, Wish, M_ID_0,
+    M_ID_1, M_ID_2, SPECIAL_REQ_MSG_SIZE, SYSEX_END, SYSEX_START,
 };
-use midi_types::{Channel, Value7};
+use midi_types::Value7;
 
 impl TryFrom<u8> for SpecialRequest {
     type Error = OpenDeckParseError;
@@ -156,7 +156,7 @@ impl TryFrom<Section> for ButtonSection {
                 Ok(ButtonSection::Value(Value7::from(x.value as u8)))
             }
             x if x.id == ButtonSectionId::Channel as u8 => {
-                Ok(ButtonSection::Channel(Channel::from(x.value as u8)))
+                Ok(ButtonSection::Channel(ChannelOrAll::from(x.value)))
             }
             _ => Err(OpenDeckParseError::StatusError(MessageStatus::SectionError)),
         }

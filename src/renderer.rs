@@ -191,13 +191,10 @@ impl From<ButtonSection> for Section {
                     value: value as u16,
                 }
             }
-            ButtonSection::Channel(v) => {
-                let value: u8 = v.into();
-                Section {
-                    id: ButtonSectionId::Channel as u8,
-                    value: value as u16,
-                }
-            }
+            ButtonSection::Channel(v) => Section {
+                id: ButtonSectionId::Channel as u8,
+                value: v.into(),
+            },
         }
     }
 }
