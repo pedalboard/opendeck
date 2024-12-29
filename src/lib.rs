@@ -201,6 +201,7 @@ pub enum AnalogSection {
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ButtonType {
+    #[default]
     Momentary,
     Latching,
 }
@@ -208,6 +209,7 @@ pub enum ButtonType {
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum MessageType {
+    #[default]
     Notes,
     ProgramChange,
     ControlChange,
