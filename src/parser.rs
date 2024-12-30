@@ -65,7 +65,7 @@ impl TryFrom<(u16, Section)> for GlobalSection {
     type Error = OpenDeckParseError;
     fn try_from(value: (u16, Section)) -> Result<Self, Self::Error> {
         match value {
-            x if x.1.id == GlobalSectionId::Midi as u8 => Ok(GlobalSection::Midi(x.1.value)),
+            x if x.1.id == GlobalSectionId::Midi as u8 => Ok(GlobalSection::Midi(x.0, x.1.value)),
             x if x.1.id == GlobalSectionId::Presets as u8 => {
                 let pi = PresetIndex::try_from(x.0)?;
                 Ok(GlobalSection::Presets(pi, x.1.value))

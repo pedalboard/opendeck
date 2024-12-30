@@ -162,7 +162,7 @@ pub enum GlobalSectionId {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum GlobalSection {
-    Midi(u16),
+    Midi(u16, u16),
     Presets(PresetIndex, u16),
 }
 

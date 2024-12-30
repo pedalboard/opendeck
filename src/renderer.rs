@@ -213,8 +213,8 @@ impl From<ButtonSection> for Section {
 impl From<GlobalSection> for (u16, Section) {
     fn from(section: GlobalSection) -> (u16, Section) {
         match section {
-            GlobalSection::Midi(value) => (
-                0x00,
+            GlobalSection::Midi(index, value) => (
+                index,
                 Section {
                     id: GlobalSectionId::Midi as u8,
                     value,
