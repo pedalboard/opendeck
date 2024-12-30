@@ -157,8 +157,11 @@ impl Amount {
 
 impl Block {
     fn push(self, mut buf: Buffer, value_size: &ValueSize) -> Buffer {
-        let (i, block_id, section) = match self {
-            Block::Global(i, section) => (i, BlockId::Global, section.into()),
+        let (index, block_id, section) = match self {
+            Block::Global(section) => {
+                let result: (u16, Section) = section.into();
+                (result.0, BlockId::Global, result.1)
+            }
             Block::Button(i, section) => (i, BlockId::Button, section.into()),
             Block::Encoder => (0, BlockId::Encoder, Section { id: 0, value: 0 }),
             Block::Analog(i, section) => (i, BlockId::Analog, section.into()),
@@ -168,7 +171,7 @@ impl Block {
         };
         buf.push(block_id as u8).unwrap();
         buf.push(section.id).unwrap();
-        buf = value_size.push(i, buf);
+        buf = value_size.push(index, buf);
         buf = value_size.push(section.value, buf);
         buf
     }
@@ -207,17 +210,23 @@ impl From<ButtonSection> for Section {
     }
 }
 
-impl From<GlobalSection> for Section {
-    fn from(s: GlobalSection) -> Section {
-        match s {
-            GlobalSection::Midi(value) => Section {
-                id: GlobalSectionId::Midi as u8,
-                value,
-            },
-            GlobalSection::Presets(value) => Section {
-                id: GlobalSectionId::Presets as u8,
-                value,
-            },
+impl From<GlobalSection> for (u16, Section) {
+    fn from(section: GlobalSection) -> (u16, Section) {
+        match section {
+            GlobalSection::Midi(value) => (
+                0x00,
+                Section {
+                    id: GlobalSectionId::Midi as u8,
+                    value,
+                },
+            ),
+            GlobalSection::Presets(index, value) => (
+                index as u16,
+                Section {
+                    id: GlobalSectionId::Presets as u8,
+                    value,
+                },
+            ),
         }
     }
 }
@@ -281,7 +290,7 @@ impl From<AnalogSection> for Section {
 mod tests {
 
     use super::*;
-    use crate::{AnalogSection, FirmwareVersion, HardwareUid, ValueSize, Wish};
+    use crate::{AnalogSection, FirmwareVersion, HardwareUid, PresetIndex, ValueSize, Wish};
 
     #[test]
     fn should_render_special_messages_with_one_byte() {
@@ -493,6 +502,22 @@ mod tests {
                 0x00, 0x05, 0xF7
             ]
         );
+        assert_eq!(
+            renderer.render(
+                OpenDeckResponse::Configuration(
+                    Wish::Get,
+                    Amount::Single,
+                    Block::Global(GlobalSection::Presets(PresetIndex::Active, 0x00)),
+                    Vec::new()
+                ),
+                MessageStatus::Response
+            ),
+            &[
+                0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00,
+                0xF7
+            ]
+        );
+
         assert_eq!(
             renderer.render(
                 OpenDeckResponse::Configuration(

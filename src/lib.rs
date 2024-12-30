@@ -163,7 +163,7 @@ pub enum GlobalSectionId {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum GlobalSection {
     Midi(u16),
-    Presets(u16),
+    Presets(PresetIndex, u16),
 }
 
 enum AnalogSectionId {
@@ -306,7 +306,7 @@ pub enum BlockId {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Block {
-    Global(u16, GlobalSection),
+    Global(GlobalSection),
     Button(u16, ButtonSection),
     Encoder,
     Analog(u16, AnalogSection),

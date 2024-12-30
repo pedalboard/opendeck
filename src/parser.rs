@@ -61,12 +61,15 @@ impl TryFrom<(u8, u8)> for Amount {
     }
 }
 
-impl TryFrom<Section> for GlobalSection {
+impl TryFrom<(u16, Section)> for GlobalSection {
     type Error = OpenDeckParseError;
-    fn try_from(value: Section) -> Result<Self, Self::Error> {
+    fn try_from(value: (u16, Section)) -> Result<Self, Self::Error> {
         match value {
-            x if x.id == GlobalSectionId::Midi as u8 => Ok(GlobalSection::Midi(x.value)),
-            x if x.id == GlobalSectionId::Presets as u8 => Ok(GlobalSection::Presets(x.value)),
+            x if x.1.id == GlobalSectionId::Midi as u8 => Ok(GlobalSection::Midi(x.1.value)),
+            x if x.1.id == GlobalSectionId::Presets as u8 => {
+                let pi = PresetIndex::try_from(x.0)?;
+                Ok(GlobalSection::Presets(pi, x.1.value))
+            }
             _ => Err(OpenDeckParseError::StatusError(MessageStatus::SectionError)),
         }
     }
@@ -277,8 +280,8 @@ impl OpenDeckParser {
         };
         match block_id {
             x if x == BlockId::Global as u8 => {
-                let section = GlobalSection::try_from(section)?;
-                Ok(Block::Global(index, section))
+                let section = GlobalSection::try_from((index, section))?;
+                Ok(Block::Global(section))
             }
             x if x == BlockId::Button as u8 => {
                 let bs = ButtonSection::try_from(section)?;
@@ -403,6 +406,16 @@ mod tests {
                 Wish::Get,
                 Amount::Single,
                 Block::Analog(5, AnalogSection::MidiIdLSB(1)),
+            ))
+        );
+        assert_eq!(
+            p.parse(&[
+                0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x01, 0x00, 0x00, 0x02, 0x00, 0x01, 0xF7
+            ]),
+            Ok(OpenDeckRequest::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Global(GlobalSection::Presets(PresetIndex::Active, 0x01)),
             ))
         );
         assert_eq!(
