@@ -2,7 +2,7 @@
 
 // see https://github.com/shanteacontrols/OpenDeck/wiki/Sysex-Configuration
 use heapless::Vec;
-use midi_types::{Channel, Value7};
+use midi_types::{Channel, Value14, Value7};
 
 pub mod parser;
 pub mod renderer;
@@ -355,7 +355,7 @@ pub enum EncoderSection {
     Enabled(bool),
     InvertState(bool),
     MessageType(EncoderMessageType),
-    MidiIdLSB(Value7),
+    MidiIdLSB(Value14),
     Channel(ChannelOrAll),
     PulsesPerStep(u8),
     Accelleration(Accelleration),

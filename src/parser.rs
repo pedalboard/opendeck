@@ -5,7 +5,7 @@ use crate::{
     PresetIndex, Section, SpecialRequest, ValueSize, Wish, M_ID_0, M_ID_1, M_ID_2,
     SPECIAL_REQ_MSG_SIZE, SYSEX_END, SYSEX_START,
 };
-use midi_types::Value7;
+use midi_types::{Value14, Value7};
 
 impl TryFrom<u8> for SpecialRequest {
     type Error = OpenDeckParseError;
@@ -292,7 +292,7 @@ impl TryFrom<Section> for EncoderSection {
                 Ok(EncoderSection::PulsesPerStep(x.value as u8))
             }
             x if x.id == EncoderSectionId::MidiIdLSB as u8 => {
-                Ok(EncoderSection::MidiIdLSB(Value7::from(x.value as u8)))
+                Ok(EncoderSection::MidiIdLSB(Value14::from(x.value)))
             }
             x if x.id == EncoderSectionId::MidiIdMSB as u8 => {
                 Ok(EncoderSection::MidiIdMSB(Value7::from(x.value as u8)))

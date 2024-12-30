@@ -318,13 +318,10 @@ impl From<EncoderSection> for Section {
                 id: EncoderSectionId::PulsesPerStep as u8,
                 value: value as u16,
             },
-            EncoderSection::MidiIdLSB(v) => {
-                let value: u8 = v.into();
-                Section {
-                    id: EncoderSectionId::MidiIdLSB as u8,
-                    value: value as u16,
-                }
-            }
+            EncoderSection::MidiIdLSB(v) => Section {
+                id: EncoderSectionId::MidiIdLSB as u8,
+                value: v.into(),
+            },
             EncoderSection::MidiIdMSB(v) => {
                 let value: u8 = v.into();
                 Section {
