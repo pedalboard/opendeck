@@ -280,6 +280,16 @@ impl TryFrom<Section> for EncoderSection {
             x if x.id == EncoderSectionId::MidiIdMSB as u8 => {
                 Ok(EncoderSection::MidiIdMSB(Value7::from(x.value as u8)))
             }
+            x if x.id == EncoderSectionId::LowerLimit as u8 => {
+                Ok(EncoderSection::LowerLimit(x.value))
+            }
+            x if x.id == EncoderSectionId::UpperLimit as u8 => {
+                Ok(EncoderSection::UpperLimit(x.value))
+            }
+            x if x.id == EncoderSectionId::B as u8 => Ok(EncoderSection::B(x.value)),
+            x if x.id == EncoderSectionId::SecondMidiId as u8 => {
+                Ok(EncoderSection::SecondMidiId(x.value))
+            }
             _ => Err(OpenDeckParseError::StatusError(MessageStatus::SectionError)),
         }
     }
