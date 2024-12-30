@@ -245,12 +245,15 @@ pub enum MessageType {
 pub enum ChannelOrAll {
     All,
     Channel(Channel),
+    None,
 }
 
 impl From<u16> for ChannelOrAll {
     fn from(value: u16) -> Self {
         if value > 16 {
             ChannelOrAll::All
+        } else if value == 0 {
+            ChannelOrAll::None
         } else {
             ChannelOrAll::Channel(Channel::new((value as u8) - 1))
         }
@@ -261,6 +264,7 @@ impl From<ChannelOrAll> for u16 {
     fn from(value: ChannelOrAll) -> u16 {
         match value {
             ChannelOrAll::All => 17,
+            ChannelOrAll::None => 0,
             ChannelOrAll::Channel(ch) => {
                 let out: u8 = ch.into();
                 (out + 1) as u16
