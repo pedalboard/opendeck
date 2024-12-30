@@ -361,9 +361,9 @@ pub enum EncoderSection {
     Accelleration(Accelleration),
     MidiIdMSB(Value7),
     RemoteSync(bool),
-    LowerLimit(u16),
-    UpperLimit(u16),
-    SecondMidiId(u16),
+    LowerLimit(Value14),
+    UpperLimit(Value14),
+    SecondMidiId(Value14),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

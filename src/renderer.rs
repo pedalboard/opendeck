@@ -331,15 +331,15 @@ impl From<EncoderSection> for Section {
             }
             EncoderSection::LowerLimit(v) => Section {
                 id: EncoderSectionId::LowerLimit as u8,
-                value: v,
+                value: v.into(),
             },
             EncoderSection::UpperLimit(v) => Section {
                 id: EncoderSectionId::UpperLimit as u8,
-                value: v,
+                value: v.into(),
             },
             EncoderSection::SecondMidiId(v) => Section {
                 id: EncoderSectionId::SecondMidiId as u8,
-                value: v,
+                value: v.into(),
             },
         }
     }
