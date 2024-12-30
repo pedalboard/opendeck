@@ -332,6 +332,7 @@ pub enum Accelleration {
     Fast,
 }
 
+#[allow(dead_code)]
 enum EncoderSectionId {
     Enabled,
     InvertState,
@@ -344,7 +345,7 @@ enum EncoderSectionId {
     RemoteSync,
     LowerLimit,
     UpperLimit,
-    B,
+    Reserved,
     SecondMidiId,
 }
 
@@ -362,7 +363,6 @@ pub enum EncoderSection {
     RemoteSync(bool),
     LowerLimit(u16),
     UpperLimit(u16),
-    B(u16),
     SecondMidiId(u16),
 }
 

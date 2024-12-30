@@ -303,7 +303,6 @@ impl TryFrom<Section> for EncoderSection {
             x if x.id == EncoderSectionId::UpperLimit as u8 => {
                 Ok(EncoderSection::UpperLimit(x.value))
             }
-            x if x.id == EncoderSectionId::B as u8 => Ok(EncoderSection::B(x.value)),
             x if x.id == EncoderSectionId::SecondMidiId as u8 => {
                 Ok(EncoderSection::SecondMidiId(x.value))
             }

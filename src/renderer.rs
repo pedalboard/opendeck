@@ -340,10 +340,6 @@ impl From<EncoderSection> for Section {
                 id: EncoderSectionId::UpperLimit as u8,
                 value: v,
             },
-            EncoderSection::B(v) => Section {
-                id: EncoderSectionId::B as u8,
-                value: v,
-            },
             EncoderSection::SecondMidiId(v) => Section {
                 id: EncoderSectionId::SecondMidiId as u8,
                 value: v,
