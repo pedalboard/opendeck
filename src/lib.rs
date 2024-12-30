@@ -240,6 +240,7 @@ pub enum MessageType {
     BPMIncr,
     BPMDecr,
 }
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ChannelOrAll {
@@ -303,12 +304,66 @@ pub enum BlockId {
     Touchscreen,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum EncoderMessageType {
+    #[default]
+    ControlChange7Fh01h,
+    ControlChange3Fh41h,
+    ProgramChange,
+    ControlChange,
+    PresetChange,
+    PitchBend,
+    NRPN7,
+    NRPN8,
+    ControlChange14bit,
+    ControlChange41h01h,
+    BPM,
+    Note,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum Accelleration {
+    #[default]
+    None,
+    Slow,
+    Medium,
+    Fast,
+}
+
+enum EncoderSectionId {
+    Enabled,
+    InvertState,
+    MessageType,
+    MidiIdLSB,
+    Channel,
+    PulsesPerStep,
+    Accelleration,
+    MidiIdMSB,
+    RemoteSync,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum EncoderSection {
+    Enabled(bool),
+    InvertState(bool),
+    MessageType(EncoderMessageType),
+    MidiIdLSB(Value7),
+    Channel(ChannelOrAll),
+    PulsesPerStep(u8),
+    Accelleration(Accelleration),
+    MidiIdMSB(Value7),
+    RemoteSync(bool),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Block {
     Global(GlobalSection),
     Button(u16, ButtonSection),
-    Encoder,
+    Encoder(u16, EncoderSection),
     Analog(u16, AnalogSection),
     Led,
     Display,

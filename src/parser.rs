@@ -1,8 +1,9 @@
 use crate::{
     Amount, AmountId, AnalogSection, AnalogSectionId, Block, BlockId, ButtonSection,
-    ButtonSectionId, ButtonType, ByteOrder, ChannelOrAll, GlobalSection, GlobalSectionId,
-    MessageStatus, MessageType, OpenDeckRequest, PresetIndex, Section, SpecialRequest, ValueSize,
-    Wish, M_ID_0, M_ID_1, M_ID_2, SPECIAL_REQ_MSG_SIZE, SYSEX_END, SYSEX_START,
+    ButtonSectionId, ButtonType, ByteOrder, ChannelOrAll, EncoderMessageType, EncoderSection,
+    EncoderSectionId, GlobalSection, GlobalSectionId, MessageStatus, MessageType, OpenDeckRequest,
+    PresetIndex, Section, SpecialRequest, ValueSize, Wish, M_ID_0, M_ID_1, M_ID_2,
+    SPECIAL_REQ_MSG_SIZE, SYSEX_END, SYSEX_START,
 };
 use midi_types::Value7;
 
@@ -80,6 +81,42 @@ impl TryFrom<u16> for ButtonType {
         match value {
             x if x == ButtonType::Momentary as u16 => Ok(ButtonType::Momentary),
             x if x == ButtonType::Latching as u16 => Ok(ButtonType::Latching),
+            _ => Err(OpenDeckParseError::StatusError(
+                MessageStatus::NewValueError,
+            )),
+        }
+    }
+}
+impl TryFrom<u16> for EncoderMessageType {
+    type Error = OpenDeckParseError;
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        match value {
+            x if x == EncoderMessageType::ControlChange7Fh01h as u16 => {
+                Ok(EncoderMessageType::ControlChange7Fh01h)
+            }
+            x if x == EncoderMessageType::ControlChange3Fh41h as u16 => {
+                Ok(EncoderMessageType::ControlChange3Fh41h)
+            }
+            x if x == EncoderMessageType::ProgramChange as u16 => {
+                Ok(EncoderMessageType::ProgramChange)
+            }
+            x if x == EncoderMessageType::ControlChange as u16 => {
+                Ok(EncoderMessageType::ControlChange)
+            }
+            x if x == EncoderMessageType::PresetChange as u16 => {
+                Ok(EncoderMessageType::PresetChange)
+            }
+            x if x == EncoderMessageType::PitchBend as u16 => Ok(EncoderMessageType::PitchBend),
+            x if x == EncoderMessageType::NRPN7 as u16 => Ok(EncoderMessageType::NRPN7),
+            x if x == EncoderMessageType::NRPN8 as u16 => Ok(EncoderMessageType::NRPN8),
+            x if x == EncoderMessageType::ControlChange14bit as u16 => {
+                Ok(EncoderMessageType::ControlChange14bit)
+            }
+            x if x == EncoderMessageType::ControlChange41h01h as u16 => {
+                Ok(EncoderMessageType::ControlChange41h01h)
+            }
+            x if x == EncoderMessageType::BPM as u16 => Ok(EncoderMessageType::BPM),
+            x if x == EncoderMessageType::Note as u16 => Ok(EncoderMessageType::Note),
             _ => Err(OpenDeckParseError::StatusError(
                 MessageStatus::NewValueError,
             )),
@@ -214,6 +251,40 @@ impl TryFrom<u16> for PresetIndex {
     }
 }
 
+impl TryFrom<Section> for EncoderSection {
+    type Error = OpenDeckParseError;
+    fn try_from(value: Section) -> Result<Self, Self::Error> {
+        match value {
+            x if x.id == EncoderSectionId::InvertState as u8 => {
+                Ok(EncoderSection::InvertState(x.value > 0))
+            }
+            x if x.id == EncoderSectionId::RemoteSync as u8 => {
+                Ok(EncoderSection::RemoteSync(x.value > 0))
+            }
+            x if x.id == EncoderSectionId::Enabled as u8 => {
+                Ok(EncoderSection::Enabled(x.value > 0))
+            }
+            x if x.id == EncoderSectionId::MessageType as u8 => {
+                let mt = EncoderMessageType::try_from(x.value)?;
+                Ok(EncoderSection::MessageType(mt))
+            }
+            x if x.id == EncoderSectionId::Channel as u8 => {
+                Ok(EncoderSection::Channel(ChannelOrAll::from(x.value)))
+            }
+            x if x.id == EncoderSectionId::PulsesPerStep as u8 => {
+                Ok(EncoderSection::PulsesPerStep(x.value as u8))
+            }
+            x if x.id == EncoderSectionId::MidiIdLSB as u8 => {
+                Ok(EncoderSection::MidiIdLSB(Value7::from(x.value as u8)))
+            }
+            x if x.id == EncoderSectionId::MidiIdMSB as u8 => {
+                Ok(EncoderSection::MidiIdMSB(Value7::from(x.value as u8)))
+            }
+            _ => Err(OpenDeckParseError::StatusError(MessageStatus::SectionError)),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum OpenDeckParseError {
@@ -287,7 +358,10 @@ impl OpenDeckParser {
                 let bs = ButtonSection::try_from(section)?;
                 Ok(Block::Button(index, bs))
             }
-            x if x == BlockId::Encoder as u8 => Ok(Block::Encoder),
+            x if x == BlockId::Encoder as u8 => {
+                let es = EncoderSection::try_from(section)?;
+                Ok(Block::Encoder(index, es))
+            }
             x if x == BlockId::Analog as u8 => {
                 let section = AnalogSection::try_from(section)?;
                 Ok(Block::Analog(index, section))
