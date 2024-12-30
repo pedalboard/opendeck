@@ -1,5 +1,5 @@
 use crate::{
-    Amount, AmountId, AnalogSection, AnalogSectionId, Block, BlockId, ButtonSection,
+    Accelleration, Amount, AmountId, AnalogSection, AnalogSectionId, Block, BlockId, ButtonSection,
     ButtonSectionId, ButtonType, ByteOrder, ChannelOrAll, EncoderMessageType, EncoderSection,
     EncoderSectionId, GlobalSection, GlobalSectionId, MessageStatus, MessageType, OpenDeckRequest,
     PresetIndex, Section, SpecialRequest, ValueSize, Wish, M_ID_0, M_ID_1, M_ID_2,
@@ -250,6 +250,19 @@ impl TryFrom<u16> for PresetIndex {
         }
     }
 }
+impl TryFrom<u16> for Accelleration {
+    type Error = OpenDeckParseError;
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        match value {
+            // FIXME support more preset values
+            x if x == Accelleration::None as u16 => Ok(Accelleration::None),
+            x if x == Accelleration::Slow as u16 => Ok(Accelleration::Slow),
+            x if x == Accelleration::Medium as u16 => Ok(Accelleration::Medium),
+            x if x == Accelleration::Fast as u16 => Ok(Accelleration::Fast),
+            _ => Err(OpenDeckParseError::StatusError(MessageStatus::IndexError)),
+        }
+    }
+}
 
 impl TryFrom<Section> for EncoderSection {
     type Error = OpenDeckParseError;
@@ -270,6 +283,10 @@ impl TryFrom<Section> for EncoderSection {
             }
             x if x.id == EncoderSectionId::Channel as u8 => {
                 Ok(EncoderSection::Channel(ChannelOrAll::from(x.value)))
+            }
+            x if x.id == EncoderSectionId::Accelleration as u8 => {
+                let ac = Accelleration::try_from(x.value)?;
+                Ok(EncoderSection::Accelleration(ac))
             }
             x if x.id == EncoderSectionId::PulsesPerStep as u8 => {
                 Ok(EncoderSection::PulsesPerStep(x.value as u8))
