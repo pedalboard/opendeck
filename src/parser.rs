@@ -1,8 +1,8 @@
 use crate::{
-    Amount, AnalogSection, AnalogSectionId, Block, BlockId, ButtonSection, ButtonSectionId,
-    ButtonType, ByteOrder, ChannelOrAll, GlobalSection, GlobalSectionId, MessageStatus,
-    MessageType, OpenDeckRequest, PresetIndex, Section, SpecialRequest, ValueSize, Wish, M_ID_0,
-    M_ID_1, M_ID_2, SPECIAL_REQ_MSG_SIZE, SYSEX_END, SYSEX_START,
+    Amount, AmountId, AnalogSection, AnalogSectionId, Block, BlockId, ButtonSection,
+    ButtonSectionId, ButtonType, ByteOrder, ChannelOrAll, GlobalSection, GlobalSectionId,
+    MessageStatus, MessageType, OpenDeckRequest, PresetIndex, Section, SpecialRequest, ValueSize,
+    Wish, M_ID_0, M_ID_1, M_ID_2, SPECIAL_REQ_MSG_SIZE, SYSEX_END, SYSEX_START,
 };
 use midi_types::Value7;
 
@@ -50,12 +50,12 @@ impl TryFrom<u8> for Wish {
     }
 }
 
-impl TryFrom<u8> for Amount {
+impl TryFrom<(u8, u8)> for Amount {
     type Error = OpenDeckParseError;
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
+    fn try_from(value: (u8, u8)) -> Result<Self, Self::Error> {
         match value {
-            x if x == Amount::Single as u8 => Ok(Amount::Single),
-            x if x == Amount::All as u8 => Ok(Amount::All),
+            x if x.0 == AmountId::Single as u8 => Ok(Amount::Single),
+            x if x.0 == AmountId::All as u8 => Ok(Amount::All(x.1)),
             _ => Err(OpenDeckParseError::StatusError(MessageStatus::AmountError)),
         }
     }
@@ -264,7 +264,7 @@ impl OpenDeckParser {
 
     pub fn parse_request(&self, buf: &[u8]) -> Result<OpenDeckRequest, OpenDeckParseError> {
         let wish = Wish::try_from(ByteOrder::Wish.get(buf))?;
-        let amount = Amount::try_from(ByteOrder::Amount.get(buf))?;
+        let amount = Amount::try_from((ByteOrder::Amount.get(buf), ByteOrder::Part.get(buf)))?;
         let block = self.parse_block(buf)?;
         Ok(OpenDeckRequest::Configuration(wish, amount, block))
     }
@@ -411,7 +411,7 @@ mod tests {
             ]),
             Ok(OpenDeckRequest::Configuration(
                 Wish::Get,
-                Amount::All,
+                Amount::All(0x7F),
                 Block::Button(0, ButtonSection::MidiId(Value7::from(0))),
             ))
         );

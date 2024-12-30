@@ -3,10 +3,10 @@ pub struct OpenDeckRenderer {
 }
 
 use crate::{
-    Amount, AnalogSection, AnalogSectionId, Block, BlockId, ButtonSection, ButtonSectionId,
-    ByteOrder, FirmwareVersion, GlobalSection, GlobalSectionId, HardwareUid, MessageStatus,
-    NrOfSupportedComponents, OpenDeckResponse, Section, SpecialRequest, SpecialResponse, ValueSize,
-    MAX_MESSAGE_SIZE, M_ID_0, M_ID_1, M_ID_2, SYSEX_END, SYSEX_START,
+    Amount, AmountId, AnalogSection, AnalogSectionId, Block, BlockId, ButtonSection,
+    ButtonSectionId, ByteOrder, FirmwareVersion, GlobalSection, GlobalSectionId, HardwareUid,
+    MessageStatus, NrOfSupportedComponents, OpenDeckResponse, Section, SpecialRequest,
+    SpecialResponse, ValueSize, MAX_MESSAGE_SIZE, M_ID_0, M_ID_1, M_ID_2, SYSEX_END, SYSEX_START,
 };
 use heapless::Vec;
 
@@ -142,7 +142,15 @@ impl HardwareUid {
 
 impl Amount {
     fn push(self, mut buf: Buffer) -> Buffer {
-        buf.push(self as u8).unwrap();
+        match self {
+            Amount::Single => {
+                buf.push(AmountId::Single as u8).unwrap();
+            }
+            Amount::All(part) => {
+                buf[ByteOrder::Part as usize] = part;
+                buf.push(AmountId::All as u8).unwrap();
+            }
+        };
         buf
     }
 }
@@ -483,6 +491,21 @@ mod tests {
             &[
                 0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x00, 0x00, 0x03, 0x03, 0x00, 0x05, 0x00, 0x00,
                 0x00, 0x05, 0xF7
+            ]
+        );
+        assert_eq!(
+            renderer.render(
+                OpenDeckResponse::Configuration(
+                    Wish::Get,
+                    Amount::All(0x00),
+                    Block::Analog(0, AnalogSection::MidiIdLSB(0)),
+                    Vec::from_slice(&[5, 6, 7, 8]).unwrap()
+                ),
+                MessageStatus::Response
+            ),
+            &[
+                0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x00, 0x01, 0x03, 0x03, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x05, 0x00, 0x06, 0x00, 0x07, 0x00, 0x08, 0xF7
             ]
         );
     }
