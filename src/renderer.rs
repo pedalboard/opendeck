@@ -3,9 +3,9 @@ pub struct OpenDeckRenderer {
 }
 
 use crate::{
-    Amount, AmountId, Block, BlockId, ByteOrder, FirmwareVersion, GlobalSection, GlobalSectionId,
-    HardwareUid, MessageStatus, NrOfSupportedComponents, OpenDeckResponse, Section, SpecialRequest,
-    SpecialResponse, ValueSize, MAX_MESSAGE_SIZE, M_ID_0, M_ID_1, M_ID_2, SYSEX_END, SYSEX_START,
+    Amount, AmountId, Block, BlockId, ByteOrder, FirmwareVersion, HardwareUid, MessageStatus,
+    NrOfSupportedComponents, OpenDeckResponse, Section, SpecialRequest, SpecialResponse, ValueSize,
+    MAX_MESSAGE_SIZE, M_ID_0, M_ID_1, M_ID_2, SYSEX_END, SYSEX_START,
 };
 use heapless::Vec;
 
@@ -176,32 +176,14 @@ impl Block {
     }
 }
 
-impl From<GlobalSection> for (u16, Section) {
-    fn from(section: GlobalSection) -> (u16, Section) {
-        match section {
-            GlobalSection::Midi(index, value) => (
-                index,
-                Section {
-                    id: GlobalSectionId::Midi as u8,
-                    value,
-                },
-            ),
-            GlobalSection::Presets(index, value) => (
-                index as u16,
-                Section {
-                    id: GlobalSectionId::Presets as u8,
-                    value,
-                },
-            ),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
 
     use super::*;
-    use crate::{AnalogSection, FirmwareVersion, HardwareUid, PresetIndex, ValueSize, Wish};
+    use crate::{
+        global::{GlobalSection, PresetIndex},
+        AnalogSection, FirmwareVersion, HardwareUid, ValueSize, Wish,
+    };
 
     #[test]
     fn should_render_special_messages_with_one_byte() {

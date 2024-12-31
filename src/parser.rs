@@ -1,6 +1,6 @@
 use crate::{
-    Amount, AmountId, AnalogSection, Block, BlockId, ButtonSection, ByteOrder, EncoderSection,
-    GlobalSection, GlobalSectionId, MessageStatus, OpenDeckRequest, PresetIndex, Section,
+    analog::AnalogSection, button::ButtonSection, encoder::EncoderSection, global::GlobalSection,
+    Amount, AmountId, Block, BlockId, ByteOrder, MessageStatus, OpenDeckRequest, Section,
     SpecialRequest, ValueSize, Wish, M_ID_0, M_ID_1, M_ID_2, SPECIAL_REQ_MSG_SIZE, SYSEX_END,
     SYSEX_START,
 };
@@ -60,29 +60,6 @@ impl TryFrom<(u8, u8)> for Amount {
     }
 }
 
-impl TryFrom<(u16, Section)> for GlobalSection {
-    type Error = OpenDeckParseError;
-    fn try_from(value: (u16, Section)) -> Result<Self, Self::Error> {
-        match value {
-            x if x.1.id == GlobalSectionId::Midi as u8 => Ok(GlobalSection::Midi(x.0, x.1.value)),
-            x if x.1.id == GlobalSectionId::Presets as u8 => {
-                let pi = PresetIndex::try_from(x.0)?;
-                Ok(GlobalSection::Presets(pi, x.1.value))
-            }
-            _ => Err(OpenDeckParseError::StatusError(MessageStatus::SectionError)),
-        }
-    }
-}
-impl TryFrom<u16> for PresetIndex {
-    type Error = OpenDeckParseError;
-    fn try_from(value: u16) -> Result<Self, Self::Error> {
-        match value {
-            // FIXME support more preset values
-            x if x == PresetIndex::Active as u16 => Ok(PresetIndex::Active),
-            _ => Err(OpenDeckParseError::StatusError(MessageStatus::IndexError)),
-        }
-    }
-}
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum OpenDeckParseError {
@@ -201,6 +178,7 @@ impl ValueSize {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::global::PresetIndex;
     use midi_types::Value7;
 
     #[test]

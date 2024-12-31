@@ -1,13 +1,16 @@
 #![no_std]
 
 // see https://github.com/shanteacontrols/OpenDeck/wiki/Sysex-Configuration
-use crate::{analog::AnalogSection, button::ButtonSection, encoder::EncoderSection};
+use crate::{
+    analog::AnalogSection, button::ButtonSection, encoder::EncoderSection, global::GlobalSection,
+};
 use heapless::Vec;
 use midi_types::Channel;
 
 pub mod analog;
 pub mod button;
 pub mod encoder;
+pub mod global;
 pub mod parser;
 pub mod renderer;
 
@@ -158,19 +161,6 @@ pub enum OpenDeckResponse {
     Configuration(Wish, Amount, Block, NewValues),
 }
 
-pub enum GlobalSectionId {
-    Midi,
-    Reserved,
-    Presets,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum GlobalSection {
-    Midi(u16, u16),
-    Presets(PresetIndex, u16),
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ChannelOrAll {
@@ -248,14 +238,6 @@ pub enum Amount {
     All(u8),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum PresetIndex {
-    Active,
-    Preservation,
-    ForceValueRefresh,
-    EnableMideChange,
-}
 struct Section {
     id: u8,
     value: u16,
