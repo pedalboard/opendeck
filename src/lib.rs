@@ -1,9 +1,11 @@
 #![no_std]
 
 // see https://github.com/shanteacontrols/OpenDeck/wiki/Sysex-Configuration
+use crate::button::{ButtonSection, MessageType};
 use heapless::Vec;
 use midi_types::{Channel, Value14, Value7};
 
+pub mod button;
 pub mod parser;
 pub mod renderer;
 
@@ -198,49 +200,6 @@ pub enum AnalogSection {
     UpperADCOffset(u16),
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum ButtonType {
-    #[default]
-    Momentary,
-    Latching,
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum MessageType {
-    #[default]
-    Notes,
-    ProgramChange,
-    ControlChange,
-    ControlChangeWithReset,
-    MMCStop,
-    MMCPlay,
-    MMCRecord,
-    MMCPause,
-    RealTimeClock,
-    RealTimeStart,
-    RealTimeContinue,
-    RealTimeStop,
-    RealTimeActiveSensing,
-    RealTimeSystemReset,
-    ProgramChangeIncr,
-    ProgramChangeDecr,
-    NoMessage,
-    OpenDeckPresetChange,
-    MultiValueIncNote,
-    MultiValueDecNote,
-    MultiValueIncCC,
-    MultiValueDecCC,
-    NoteOffOnly,
-    ControlChangeWithValue0,
-    Reserved,
-    ProgramChangeOffsetIncr,
-    ProgramChangeOffsetDecr,
-    BPMIncr,
-    BPMDecr,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ChannelOrAll {
@@ -272,24 +231,6 @@ impl From<ChannelOrAll> for u16 {
             }
         }
     }
-}
-
-enum ButtonSectionId {
-    Type,
-    MessageType,
-    MidiId,
-    Value,
-    Channel,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum ButtonSection {
-    Type(ButtonType),
-    MessageType(MessageType),
-    MidiId(Value7),
-    Value(Value7),
-    Channel(ChannelOrAll),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

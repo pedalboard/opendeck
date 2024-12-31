@@ -1,9 +1,9 @@
 use crate::{
     Accelleration, Amount, AmountId, AnalogSection, AnalogSectionId, Block, BlockId, ButtonSection,
-    ButtonSectionId, ButtonType, ByteOrder, ChannelOrAll, EncoderMessageType, EncoderSection,
-    EncoderSectionId, GlobalSection, GlobalSectionId, MessageStatus, MessageType, OpenDeckRequest,
-    PresetIndex, Section, SpecialRequest, ValueSize, Wish, M_ID_0, M_ID_1, M_ID_2,
-    SPECIAL_REQ_MSG_SIZE, SYSEX_END, SYSEX_START,
+    ByteOrder, ChannelOrAll, EncoderMessageType, EncoderSection, EncoderSectionId, GlobalSection,
+    GlobalSectionId, MessageStatus, MessageType, OpenDeckRequest, PresetIndex, Section,
+    SpecialRequest, ValueSize, Wish, M_ID_0, M_ID_1, M_ID_2, SPECIAL_REQ_MSG_SIZE, SYSEX_END,
+    SYSEX_START,
 };
 use midi_types::{Value14, Value7};
 
@@ -72,18 +72,6 @@ impl TryFrom<(u16, Section)> for GlobalSection {
                 Ok(GlobalSection::Presets(pi, x.1.value))
             }
             _ => Err(OpenDeckParseError::StatusError(MessageStatus::SectionError)),
-        }
-    }
-}
-impl TryFrom<u16> for ButtonType {
-    type Error = OpenDeckParseError;
-    fn try_from(value: u16) -> Result<Self, Self::Error> {
-        match value {
-            x if x == ButtonType::Momentary as u16 => Ok(ButtonType::Momentary),
-            x if x == ButtonType::Latching as u16 => Ok(ButtonType::Latching),
-            _ => Err(OpenDeckParseError::StatusError(
-                MessageStatus::NewValueError,
-            )),
         }
     }
 }
@@ -173,32 +161,6 @@ impl TryFrom<u16> for MessageType {
             _ => Err(OpenDeckParseError::StatusError(
                 MessageStatus::NewValueError,
             )),
-        }
-    }
-}
-
-impl TryFrom<Section> for ButtonSection {
-    type Error = OpenDeckParseError;
-    fn try_from(value: Section) -> Result<Self, Self::Error> {
-        match value {
-            x if x.id == ButtonSectionId::MidiId as u8 => {
-                Ok(ButtonSection::MidiId(Value7::from(x.value as u8)))
-            }
-            x if x.id == ButtonSectionId::MessageType as u8 => {
-                let mt = MessageType::try_from(x.value)?;
-                Ok(ButtonSection::MessageType(mt))
-            }
-            x if x.id == ButtonSectionId::Type as u8 => {
-                let mt = ButtonType::try_from(x.value)?;
-                Ok(ButtonSection::Type(mt))
-            }
-            x if x.id == ButtonSectionId::Value as u8 => {
-                Ok(ButtonSection::Value(Value7::from(x.value as u8)))
-            }
-            x if x.id == ButtonSectionId::Channel as u8 => {
-                Ok(ButtonSection::Channel(ChannelOrAll::from(x.value)))
-            }
-            _ => Err(OpenDeckParseError::StatusError(MessageStatus::SectionError)),
         }
     }
 }

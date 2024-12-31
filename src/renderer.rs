@@ -3,11 +3,10 @@ pub struct OpenDeckRenderer {
 }
 
 use crate::{
-    Amount, AmountId, AnalogSection, AnalogSectionId, Block, BlockId, ButtonSection,
-    ButtonSectionId, ByteOrder, EncoderSection, EncoderSectionId, FirmwareVersion, GlobalSection,
-    GlobalSectionId, HardwareUid, MessageStatus, NrOfSupportedComponents, OpenDeckResponse,
-    Section, SpecialRequest, SpecialResponse, ValueSize, MAX_MESSAGE_SIZE, M_ID_0, M_ID_1, M_ID_2,
-    SYSEX_END, SYSEX_START,
+    Amount, AmountId, AnalogSection, AnalogSectionId, Block, BlockId, ByteOrder, EncoderSection,
+    EncoderSectionId, FirmwareVersion, GlobalSection, GlobalSectionId, HardwareUid, MessageStatus,
+    NrOfSupportedComponents, OpenDeckResponse, Section, SpecialRequest, SpecialResponse, ValueSize,
+    MAX_MESSAGE_SIZE, M_ID_0, M_ID_1, M_ID_2, SYSEX_END, SYSEX_START,
 };
 use heapless::Vec;
 
@@ -175,39 +174,6 @@ impl Block {
         buf = value_size.push(index, buf);
         buf = value_size.push(section.value, buf);
         buf
-    }
-}
-
-impl From<ButtonSection> for Section {
-    fn from(s: ButtonSection) -> Section {
-        match s {
-            ButtonSection::Type(t) => Section {
-                id: ButtonSectionId::Type as u8,
-                value: t as u16,
-            },
-            ButtonSection::MessageType(t) => Section {
-                id: ButtonSectionId::MessageType as u8,
-                value: t as u16,
-            },
-            ButtonSection::MidiId(v) => {
-                let value: u8 = v.into();
-                Section {
-                    id: ButtonSectionId::MidiId as u8,
-                    value: value as u16,
-                }
-            }
-            ButtonSection::Value(v) => {
-                let value: u8 = v.into();
-                Section {
-                    id: ButtonSectionId::Value as u8,
-                    value: value as u16,
-                }
-            }
-            ButtonSection::Channel(v) => Section {
-                id: ButtonSectionId::Channel as u8,
-                value: v.into(),
-            },
-        }
     }
 }
 
