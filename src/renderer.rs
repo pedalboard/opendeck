@@ -3,10 +3,9 @@ pub struct OpenDeckRenderer {
 }
 
 use crate::{
-    Amount, AmountId, AnalogSection, AnalogSectionId, Block, BlockId, ByteOrder, FirmwareVersion,
-    GlobalSection, GlobalSectionId, HardwareUid, MessageStatus, NrOfSupportedComponents,
-    OpenDeckResponse, Section, SpecialRequest, SpecialResponse, ValueSize, MAX_MESSAGE_SIZE,
-    M_ID_0, M_ID_1, M_ID_2, SYSEX_END, SYSEX_START,
+    Amount, AmountId, Block, BlockId, ByteOrder, FirmwareVersion, GlobalSection, GlobalSectionId,
+    HardwareUid, MessageStatus, NrOfSupportedComponents, OpenDeckResponse, Section, SpecialRequest,
+    SpecialResponse, ValueSize, MAX_MESSAGE_SIZE, M_ID_0, M_ID_1, M_ID_2, SYSEX_END, SYSEX_START,
 };
 use heapless::Vec;
 
@@ -194,61 +193,6 @@ impl From<GlobalSection> for (u16, Section) {
                     value,
                 },
             ),
-        }
-    }
-}
-
-impl From<AnalogSection> for Section {
-    fn from(s: AnalogSection) -> Section {
-        match s {
-            AnalogSection::Enabled(value) => Section {
-                id: AnalogSectionId::Enabled as u8,
-                value,
-            },
-            AnalogSection::InvertState(value) => Section {
-                id: AnalogSectionId::InvertState as u8,
-                value,
-            },
-            AnalogSection::MessageType(value) => Section {
-                id: AnalogSectionId::MessageType as u8,
-                value,
-            },
-            AnalogSection::MidiIdLSB(value) => Section {
-                id: AnalogSectionId::MidiIdLSB as u8,
-                value,
-            },
-            AnalogSection::MidiIdMSB(value) => Section {
-                id: AnalogSectionId::MidiIdMSB as u8,
-                value,
-            },
-            AnalogSection::LowerCCLimitLSB(value) => Section {
-                id: AnalogSectionId::LowerCCLimitLSB as u8,
-                value,
-            },
-            AnalogSection::LowerCCLimitMSB(value) => Section {
-                id: AnalogSectionId::LowerCCLimitMSB as u8,
-                value,
-            },
-            AnalogSection::UpperCCLimitLSB(value) => Section {
-                id: AnalogSectionId::UpperCCLimitLSB as u8,
-                value,
-            },
-            AnalogSection::UpperCCLimitMSB(value) => Section {
-                id: AnalogSectionId::UpperCCLimitMSB as u8,
-                value,
-            },
-            AnalogSection::Channel(value) => Section {
-                id: AnalogSectionId::Channel as u8,
-                value,
-            },
-            AnalogSection::LowerADCOffset(value) => Section {
-                id: AnalogSectionId::LowerADCOffset as u8,
-                value,
-            },
-            AnalogSection::UpperADCOffset(value) => Section {
-                id: AnalogSectionId::UpperADCOffset as u8,
-                value,
-            },
         }
     }
 }

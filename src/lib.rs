@@ -1,10 +1,11 @@
 #![no_std]
 
 // see https://github.com/shanteacontrols/OpenDeck/wiki/Sysex-Configuration
-use crate::{button::ButtonSection, encoder::EncoderSection};
+use crate::{analog::AnalogSection, button::ButtonSection, encoder::EncoderSection};
 use heapless::Vec;
 use midi_types::Channel;
 
+pub mod analog;
 pub mod button;
 pub mod encoder;
 pub mod parser;
@@ -103,6 +104,7 @@ pub enum SpecialRequest {
     BootloaderSupport = 0x51,
     Backup = 0x1B,
 }
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ValueSize {
@@ -167,38 +169,6 @@ pub enum GlobalSectionId {
 pub enum GlobalSection {
     Midi(u16, u16),
     Presets(PresetIndex, u16),
-}
-
-enum AnalogSectionId {
-    Enabled,
-    InvertState,
-    MessageType,
-    MidiIdLSB,
-    MidiIdMSB,
-    LowerCCLimitLSB,
-    LowerCCLimitMSB,
-    UpperCCLimitLSB,
-    UpperCCLimitMSB,
-    Channel,
-    LowerADCOffset,
-    UpperADCOffset,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum AnalogSection {
-    Enabled(u16),
-    InvertState(u16),
-    MessageType(u16),
-    MidiIdLSB(u16),
-    MidiIdMSB(u16),
-    LowerCCLimitLSB(u16),
-    LowerCCLimitMSB(u16),
-    UpperCCLimitLSB(u16),
-    UpperCCLimitMSB(u16),
-    Channel(u16),
-    LowerADCOffset(u16),
-    UpperADCOffset(u16),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

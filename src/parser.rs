@@ -1,8 +1,8 @@
 use crate::{
-    Amount, AmountId, AnalogSection, AnalogSectionId, Block, BlockId, ButtonSection, ByteOrder,
-    EncoderSection, GlobalSection, GlobalSectionId, MessageStatus, OpenDeckRequest, PresetIndex,
-    Section, SpecialRequest, ValueSize, Wish, M_ID_0, M_ID_1, M_ID_2, SPECIAL_REQ_MSG_SIZE,
-    SYSEX_END, SYSEX_START,
+    Amount, AmountId, AnalogSection, Block, BlockId, ButtonSection, ByteOrder, EncoderSection,
+    GlobalSection, GlobalSectionId, MessageStatus, OpenDeckRequest, PresetIndex, Section,
+    SpecialRequest, ValueSize, Wish, M_ID_0, M_ID_1, M_ID_2, SPECIAL_REQ_MSG_SIZE, SYSEX_END,
+    SYSEX_START,
 };
 
 impl TryFrom<u8> for SpecialRequest {
@@ -73,43 +73,6 @@ impl TryFrom<(u16, Section)> for GlobalSection {
         }
     }
 }
-impl TryFrom<Section> for AnalogSection {
-    type Error = OpenDeckParseError;
-    fn try_from(value: Section) -> Result<Self, Self::Error> {
-        match value {
-            x if x.id == AnalogSectionId::Enabled as u8 => Ok(AnalogSection::Enabled(x.value)),
-            x if x.id == AnalogSectionId::InvertState as u8 => {
-                Ok(AnalogSection::InvertState(x.value))
-            }
-            x if x.id == AnalogSectionId::MessageType as u8 => {
-                Ok(AnalogSection::MessageType(x.value))
-            }
-            x if x.id == AnalogSectionId::MidiIdLSB as u8 => Ok(AnalogSection::MidiIdLSB(x.value)),
-            x if x.id == AnalogSectionId::MidiIdMSB as u8 => Ok(AnalogSection::MidiIdMSB(x.value)),
-            x if x.id == AnalogSectionId::LowerCCLimitLSB as u8 => {
-                Ok(AnalogSection::LowerCCLimitLSB(x.value))
-            }
-            x if x.id == AnalogSectionId::LowerCCLimitMSB as u8 => {
-                Ok(AnalogSection::LowerCCLimitMSB(x.value))
-            }
-            x if x.id == AnalogSectionId::UpperCCLimitLSB as u8 => {
-                Ok(AnalogSection::UpperCCLimitLSB(x.value))
-            }
-            x if x.id == AnalogSectionId::UpperCCLimitMSB as u8 => {
-                Ok(AnalogSection::UpperCCLimitMSB(x.value))
-            }
-            x if x.id == AnalogSectionId::Channel as u8 => Ok(AnalogSection::Channel(x.value)),
-            x if x.id == AnalogSectionId::LowerADCOffset as u8 => {
-                Ok(AnalogSection::LowerADCOffset(x.value))
-            }
-            x if x.id == AnalogSectionId::UpperADCOffset as u8 => {
-                Ok(AnalogSection::UpperADCOffset(x.value))
-            }
-            _ => Err(OpenDeckParseError::StatusError(MessageStatus::SectionError)),
-        }
-    }
-}
-
 impl TryFrom<u16> for PresetIndex {
     type Error = OpenDeckParseError;
     fn try_from(value: u16) -> Result<Self, Self::Error> {
