@@ -64,6 +64,59 @@ pub enum MessageType {
 
 // parsing
 
+impl TryFrom<u16> for MessageType {
+    type Error = OpenDeckParseError;
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        match value {
+            x if x == MessageType::Notes as u16 => Ok(MessageType::Notes),
+            x if x == MessageType::ProgramChange as u16 => Ok(MessageType::ProgramChange),
+            x if x == MessageType::ControlChange as u16 => Ok(MessageType::ControlChange),
+            x if x == MessageType::ControlChangeWithReset as u16 => {
+                Ok(MessageType::ControlChangeWithReset)
+            }
+            x if x == MessageType::MMCStop as u16 => Ok(MessageType::MMCStop),
+            x if x == MessageType::MMCPlay as u16 => Ok(MessageType::MMCPlay),
+            x if x == MessageType::MMCRecord as u16 => Ok(MessageType::MMCRecord),
+            x if x == MessageType::MMCPause as u16 => Ok(MessageType::MMCPause),
+            x if x == MessageType::RealTimeClock as u16 => Ok(MessageType::RealTimeClock),
+            x if x == MessageType::RealTimeStart as u16 => Ok(MessageType::RealTimeStart),
+            x if x == MessageType::RealTimeContinue as u16 => Ok(MessageType::RealTimeContinue),
+            x if x == MessageType::RealTimeStop as u16 => Ok(MessageType::RealTimeStop),
+            x if x == MessageType::RealTimeActiveSensing as u16 => {
+                Ok(MessageType::RealTimeActiveSensing)
+            }
+            x if x == MessageType::RealTimeSystemReset as u16 => {
+                Ok(MessageType::RealTimeSystemReset)
+            }
+            x if x == MessageType::ProgramChangeDecr as u16 => Ok(MessageType::ProgramChangeDecr),
+            x if x == MessageType::ProgramChangeIncr as u16 => Ok(MessageType::ProgramChangeIncr),
+            x if x == MessageType::NoMessage as u16 => Ok(MessageType::NoMessage),
+            x if x == MessageType::OpenDeckPresetChange as u16 => {
+                Ok(MessageType::OpenDeckPresetChange)
+            }
+            x if x == MessageType::MultiValueIncNote as u16 => Ok(MessageType::MultiValueIncNote),
+            x if x == MessageType::MultiValueDecNote as u16 => Ok(MessageType::MultiValueDecNote),
+            x if x == MessageType::MultiValueIncCC as u16 => Ok(MessageType::MultiValueIncCC),
+            x if x == MessageType::MultiValueDecCC as u16 => Ok(MessageType::MultiValueDecCC),
+            x if x == MessageType::NoteOffOnly as u16 => Ok(MessageType::NoteOffOnly),
+            x if x == MessageType::ControlChangeWithValue0 as u16 => {
+                Ok(MessageType::ControlChangeWithValue0)
+            }
+            x if x == MessageType::ProgramChangeOffsetIncr as u16 => {
+                Ok(MessageType::ProgramChangeOffsetIncr)
+            }
+            x if x == MessageType::ProgramChangeOffsetDecr as u16 => {
+                Ok(MessageType::ProgramChangeOffsetDecr)
+            }
+            x if x == MessageType::BPMIncr as u16 => Ok(MessageType::BPMIncr),
+            x if x == MessageType::BPMDecr as u16 => Ok(MessageType::BPMDecr),
+            _ => Err(OpenDeckParseError::StatusError(
+                MessageStatus::NewValueError,
+            )),
+        }
+    }
+}
+
 impl TryFrom<u16> for ButtonType {
     type Error = OpenDeckParseError;
     fn try_from(value: u16) -> Result<Self, Self::Error> {

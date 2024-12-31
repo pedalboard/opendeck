@@ -3,10 +3,10 @@ pub struct OpenDeckRenderer {
 }
 
 use crate::{
-    Amount, AmountId, AnalogSection, AnalogSectionId, Block, BlockId, ByteOrder, EncoderSection,
-    EncoderSectionId, FirmwareVersion, GlobalSection, GlobalSectionId, HardwareUid, MessageStatus,
-    NrOfSupportedComponents, OpenDeckResponse, Section, SpecialRequest, SpecialResponse, ValueSize,
-    MAX_MESSAGE_SIZE, M_ID_0, M_ID_1, M_ID_2, SYSEX_END, SYSEX_START,
+    Amount, AmountId, AnalogSection, AnalogSectionId, Block, BlockId, ByteOrder, FirmwareVersion,
+    GlobalSection, GlobalSectionId, HardwareUid, MessageStatus, NrOfSupportedComponents,
+    OpenDeckResponse, Section, SpecialRequest, SpecialResponse, ValueSize, MAX_MESSAGE_SIZE,
+    M_ID_0, M_ID_1, M_ID_2, SYSEX_END, SYSEX_START,
 };
 use heapless::Vec;
 
@@ -248,68 +248,6 @@ impl From<AnalogSection> for Section {
             AnalogSection::UpperADCOffset(value) => Section {
                 id: AnalogSectionId::UpperADCOffset as u8,
                 value,
-            },
-        }
-    }
-}
-
-impl From<EncoderSection> for Section {
-    fn from(s: EncoderSection) -> Section {
-        match s {
-            EncoderSection::Enabled(value) => Section {
-                id: EncoderSectionId::Enabled as u8,
-                value: value as u16,
-            },
-            EncoderSection::RemoteSync(value) => Section {
-                id: EncoderSectionId::RemoteSync as u8,
-                value: value as u16,
-            },
-            EncoderSection::InvertState(value) => Section {
-                id: EncoderSectionId::InvertState as u8,
-                value: value as u16,
-            },
-            EncoderSection::Channel(value) => Section {
-                id: EncoderSectionId::Channel as u8,
-                value: value.into(),
-            },
-            EncoderSection::MessageType(value) => Section {
-                id: EncoderSectionId::MessageType as u8,
-                value: value as u16,
-            },
-            EncoderSection::Accelleration(value) => Section {
-                id: EncoderSectionId::Accelleration as u8,
-                value: value as u16,
-            },
-            EncoderSection::PulsesPerStep(value) => Section {
-                id: EncoderSectionId::PulsesPerStep as u8,
-                value: value as u16,
-            },
-            EncoderSection::MidiIdLSB(v) => Section {
-                id: EncoderSectionId::MidiIdLSB as u8,
-                value: v.into(),
-            },
-            EncoderSection::MidiIdMSB(v) => {
-                let value: u8 = v.into();
-                Section {
-                    id: EncoderSectionId::MidiIdMSB as u8,
-                    value: value as u16,
-                }
-            }
-            EncoderSection::LowerLimit(v) => Section {
-                id: EncoderSectionId::LowerLimit as u8,
-                value: v.into(),
-            },
-            EncoderSection::UpperLimit(v) => Section {
-                id: EncoderSectionId::UpperLimit as u8,
-                value: v.into(),
-            },
-            EncoderSection::RepeatedValue(v) => Section {
-                id: EncoderSectionId::RepeatedValue as u8,
-                value: v.into(),
-            },
-            EncoderSection::SecondMidiId(v) => Section {
-                id: EncoderSectionId::SecondMidiId as u8,
-                value: v.into(),
             },
         }
     }

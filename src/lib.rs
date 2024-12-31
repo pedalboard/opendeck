@@ -1,11 +1,12 @@
 #![no_std]
 
 // see https://github.com/shanteacontrols/OpenDeck/wiki/Sysex-Configuration
-use crate::button::{ButtonSection, MessageType};
+use crate::{button::ButtonSection, encoder::EncoderSection};
 use heapless::Vec;
-use midi_types::{Channel, Value14, Value7};
+use midi_types::Channel;
 
 pub mod button;
+pub mod encoder;
 pub mod parser;
 pub mod renderer;
 
@@ -243,69 +244,6 @@ pub enum BlockId {
     Led,
     Display,
     Touchscreen,
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum EncoderMessageType {
-    #[default]
-    ControlChange7Fh01h,
-    ControlChange3Fh41h,
-    ProgramChange,
-    ControlChange,
-    PresetChange,
-    PitchBend,
-    NRPN7,
-    NRPN8,
-    ControlChange14bit,
-    ControlChange41h01h,
-    BPM,
-    Note,
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum Accelleration {
-    #[default]
-    None,
-    Slow,
-    Medium,
-    Fast,
-}
-
-#[allow(dead_code)]
-enum EncoderSectionId {
-    Enabled,
-    InvertState,
-    MessageType,
-    MidiIdLSB,
-    Channel,
-    PulsesPerStep,
-    Accelleration,
-    MidiIdMSB,
-    RemoteSync,
-    LowerLimit,
-    UpperLimit,
-    RepeatedValue,
-    SecondMidiId,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum EncoderSection {
-    Enabled(bool),
-    InvertState(bool),
-    MessageType(EncoderMessageType),
-    MidiIdLSB(Value14),
-    Channel(ChannelOrAll),
-    PulsesPerStep(u8),
-    Accelleration(Accelleration),
-    MidiIdMSB(Value7),
-    RemoteSync(bool),
-    LowerLimit(Value14),
-    UpperLimit(Value14),
-    RepeatedValue(Value14),
-    SecondMidiId(Value14),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
