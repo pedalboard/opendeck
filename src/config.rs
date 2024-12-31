@@ -1,14 +1,13 @@
 use crate::{
-    button::{ButtonSection, ButtonType, MessageType},
-    encoder::{Accelleration, EncoderMessageType, EncoderSection},
+    button::Button,
+    encoder::Encoder,
     global::{GlobalSection, PresetIndex},
     parser::{OpenDeckParseError, OpenDeckParser},
     renderer::{Buffer, OpenDeckRenderer},
-    Amount, Block, ChannelOrAll, FirmwareVersion, HardwareUid, MessageStatus, NewValues,
-    NrOfSupportedComponents, OpenDeckRequest, OpenDeckResponse, SpecialRequest, SpecialResponse,
-    ValueSize, Wish,
+    Amount, Block, FirmwareVersion, HardwareUid, MessageStatus, NewValues, NrOfSupportedComponents,
+    OpenDeckRequest, OpenDeckResponse, SpecialRequest, SpecialResponse, ValueSize, Wish,
 };
-use midi_types::{Channel, Value14, Value7};
+use midi_types::{Value14, Value7};
 
 const OPENDECK_UID: u32 = 0x12345677;
 const OPENDECK_ANALOG: usize = 2;
@@ -19,128 +18,6 @@ const OPENDECK_NR_PRESETS: usize = 2;
 const OPENDECK_MAX_NR_MESSAGES: usize = 2;
 
 use heapless::Vec;
-
-#[derive(Debug, Clone)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct Button {
-    button_type: ButtonType,
-    value: Value7,
-    midi_id: Value7,
-    message_type: MessageType,
-    channel: ChannelOrAll,
-}
-
-impl Button {
-    fn new(midi_id: Value7) -> Self {
-        Button {
-            button_type: ButtonType::default(),
-            value: Value7::new(0x01),
-            midi_id,
-            message_type: MessageType::default(),
-            channel: ChannelOrAll::Channel(Channel::C1),
-        }
-    }
-    fn set(&mut self, section: &ButtonSection) {
-        match section {
-            ButtonSection::Type(t) => self.button_type = *t,
-            ButtonSection::Value(v) => self.value = *v,
-            ButtonSection::MidiId(id) => self.midi_id = *id,
-            ButtonSection::MessageType(t) => self.message_type = *t,
-            ButtonSection::Channel(c) => self.channel = c.clone(),
-        }
-    }
-    fn get(&self, section: &ButtonSection) -> u16 {
-        match section {
-            ButtonSection::Type(_) => self.button_type as u16,
-            ButtonSection::MessageType(_) => self.message_type as u16,
-            ButtonSection::Value(_) => {
-                let v: u8 = self.value.into();
-                v as u16
-            }
-            ButtonSection::MidiId(_) => {
-                let v: u8 = self.midi_id.into();
-                v as u16
-            }
-            ButtonSection::Channel(_) => self.channel.clone().into(),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct Encoder {
-    enabled: bool,
-    invert_state: bool,
-    message_type: EncoderMessageType,
-    midi_id: Value14,
-    channel: ChannelOrAll,
-    pulses_per_step: u8,
-    accelleration: Accelleration,
-    remote_sync: bool,
-    upper_limit: Value14,
-    lower_limit: Value14,
-    repeated_value: Value14,
-    second_midi_id: Value14,
-}
-
-impl Encoder {
-    fn new(midi_id: Value14) -> Self {
-        Encoder {
-            enabled: true,
-            invert_state: false,
-            message_type: EncoderMessageType::ControlChange,
-            channel: ChannelOrAll::Channel(Channel::C1),
-            pulses_per_step: 2,
-            midi_id,
-            accelleration: Accelleration::None,
-            remote_sync: false,
-            lower_limit: Value14::from(u16::MIN),
-            upper_limit: Value14::from(u16::MIN),
-            second_midi_id: Value14::from(u16::MIN),
-            repeated_value: Value14::from(u16::MIN),
-        }
-    }
-    fn set(&mut self, section: &EncoderSection) {
-        match section {
-            EncoderSection::MessageType(v) => self.message_type = *v,
-            EncoderSection::Channel(v) => self.channel = v.clone(),
-            EncoderSection::Enabled(v) => self.enabled = *v,
-            EncoderSection::MidiIdLSB(v) => self.midi_id = *v,
-            EncoderSection::InvertState(v) => self.invert_state = *v,
-            EncoderSection::PulsesPerStep(v) => self.pulses_per_step = *v,
-            EncoderSection::RemoteSync(v) => self.remote_sync = *v,
-            EncoderSection::Accelleration(v) => self.accelleration = *v,
-            EncoderSection::LowerLimit(v) => self.lower_limit = *v,
-            EncoderSection::UpperLimit(v) => self.upper_limit = *v,
-            EncoderSection::SecondMidiId(v) => self.second_midi_id = *v,
-            EncoderSection::RepeatedValue(v) => self.repeated_value = *v,
-            EncoderSection::MidiIdMSB(_) => {}
-        }
-    }
-    fn get(&self, section: &EncoderSection) -> u16 {
-        match section {
-            EncoderSection::MessageType(_) => self.message_type as u16,
-            EncoderSection::Channel(_) => self.channel.clone().into(),
-            EncoderSection::Enabled(_) => self.enabled as u16,
-            EncoderSection::MidiIdLSB(_) => self.midi_id.into(),
-            EncoderSection::InvertState(_) => self.invert_state as u16,
-            EncoderSection::PulsesPerStep(_) => self.pulses_per_step as u16,
-            EncoderSection::RemoteSync(_) => self.remote_sync as u16,
-            EncoderSection::Accelleration(_) => self.accelleration as u16,
-            EncoderSection::LowerLimit(_) => self.lower_limit.into(),
-            EncoderSection::UpperLimit(_) => self.upper_limit.into(),
-            EncoderSection::SecondMidiId(_) => self.second_midi_id.into(),
-            EncoderSection::RepeatedValue(_) => self.repeated_value.into(),
-            EncoderSection::MidiIdMSB(_) => 0x00,
-        }
-    }
-}
-
-impl Default for Button {
-    fn default() -> Self {
-        Button::new(Value7::new(0x00))
-    }
-}
 
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]

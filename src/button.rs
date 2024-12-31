@@ -1,5 +1,57 @@
 use crate::{parser::OpenDeckParseError, ChannelOrAll, MessageStatus, Section};
-use midi_types::Value7;
+use midi_types::{Channel, Value7};
+
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct Button {
+    button_type: ButtonType,
+    value: Value7,
+    midi_id: Value7,
+    message_type: MessageType,
+    channel: ChannelOrAll,
+}
+
+impl Button {
+    pub fn new(midi_id: Value7) -> Self {
+        Button {
+            button_type: ButtonType::default(),
+            value: Value7::new(0x01),
+            midi_id,
+            message_type: MessageType::default(),
+            channel: ChannelOrAll::Channel(Channel::C1),
+        }
+    }
+    pub fn set(&mut self, section: &ButtonSection) {
+        match section {
+            ButtonSection::Type(t) => self.button_type = *t,
+            ButtonSection::Value(v) => self.value = *v,
+            ButtonSection::MidiId(id) => self.midi_id = *id,
+            ButtonSection::MessageType(t) => self.message_type = *t,
+            ButtonSection::Channel(c) => self.channel = c.clone(),
+        }
+    }
+    pub fn get(&self, section: &ButtonSection) -> u16 {
+        match section {
+            ButtonSection::Type(_) => self.button_type as u16,
+            ButtonSection::MessageType(_) => self.message_type as u16,
+            ButtonSection::Value(_) => {
+                let v: u8 = self.value.into();
+                v as u16
+            }
+            ButtonSection::MidiId(_) => {
+                let v: u8 = self.midi_id.into();
+                v as u16
+            }
+            ButtonSection::Channel(_) => self.channel.clone().into(),
+        }
+    }
+}
+
+impl Default for Button {
+    fn default() -> Self {
+        Button::new(Value7::new(0x00))
+    }
+}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]

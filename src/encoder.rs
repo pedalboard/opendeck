@@ -1,5 +1,75 @@
 use crate::{parser::OpenDeckParseError, ChannelOrAll, MessageStatus, Section};
-use midi_types::{Value14, Value7};
+use midi_types::{Channel, Value14, Value7};
+
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct Encoder {
+    enabled: bool,
+    invert_state: bool,
+    message_type: EncoderMessageType,
+    midi_id: Value14,
+    channel: ChannelOrAll,
+    pulses_per_step: u8,
+    accelleration: Accelleration,
+    remote_sync: bool,
+    upper_limit: Value14,
+    lower_limit: Value14,
+    repeated_value: Value14,
+    second_midi_id: Value14,
+}
+
+impl Encoder {
+    pub fn new(midi_id: Value14) -> Self {
+        Encoder {
+            enabled: true,
+            invert_state: false,
+            message_type: EncoderMessageType::ControlChange,
+            channel: ChannelOrAll::Channel(Channel::C1),
+            pulses_per_step: 2,
+            midi_id,
+            accelleration: Accelleration::None,
+            remote_sync: false,
+            lower_limit: Value14::from(u16::MIN),
+            upper_limit: Value14::from(u16::MIN),
+            second_midi_id: Value14::from(u16::MIN),
+            repeated_value: Value14::from(u16::MIN),
+        }
+    }
+    pub fn set(&mut self, section: &EncoderSection) {
+        match section {
+            EncoderSection::MessageType(v) => self.message_type = *v,
+            EncoderSection::Channel(v) => self.channel = v.clone(),
+            EncoderSection::Enabled(v) => self.enabled = *v,
+            EncoderSection::MidiIdLSB(v) => self.midi_id = *v,
+            EncoderSection::InvertState(v) => self.invert_state = *v,
+            EncoderSection::PulsesPerStep(v) => self.pulses_per_step = *v,
+            EncoderSection::RemoteSync(v) => self.remote_sync = *v,
+            EncoderSection::Accelleration(v) => self.accelleration = *v,
+            EncoderSection::LowerLimit(v) => self.lower_limit = *v,
+            EncoderSection::UpperLimit(v) => self.upper_limit = *v,
+            EncoderSection::SecondMidiId(v) => self.second_midi_id = *v,
+            EncoderSection::RepeatedValue(v) => self.repeated_value = *v,
+            EncoderSection::MidiIdMSB(_) => {}
+        }
+    }
+    pub fn get(&self, section: &EncoderSection) -> u16 {
+        match section {
+            EncoderSection::MessageType(_) => self.message_type as u16,
+            EncoderSection::Channel(_) => self.channel.clone().into(),
+            EncoderSection::Enabled(_) => self.enabled as u16,
+            EncoderSection::MidiIdLSB(_) => self.midi_id.into(),
+            EncoderSection::InvertState(_) => self.invert_state as u16,
+            EncoderSection::PulsesPerStep(_) => self.pulses_per_step as u16,
+            EncoderSection::RemoteSync(_) => self.remote_sync as u16,
+            EncoderSection::Accelleration(_) => self.accelleration as u16,
+            EncoderSection::LowerLimit(_) => self.lower_limit.into(),
+            EncoderSection::UpperLimit(_) => self.upper_limit.into(),
+            EncoderSection::SecondMidiId(_) => self.second_midi_id.into(),
+            EncoderSection::RepeatedValue(_) => self.repeated_value.into(),
+            EncoderSection::MidiIdMSB(_) => 0x00,
+        }
+    }
+}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
