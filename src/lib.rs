@@ -345,7 +345,7 @@ enum EncoderSectionId {
     RemoteSync,
     LowerLimit,
     UpperLimit,
-    Reserved,
+    RepeatedValue,
     SecondMidiId,
 }
 
@@ -363,6 +363,7 @@ pub enum EncoderSection {
     RemoteSync(bool),
     LowerLimit(Value14),
     UpperLimit(Value14),
+    RepeatedValue(Value14),
     SecondMidiId(Value14),
 }
 

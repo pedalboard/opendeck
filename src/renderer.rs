@@ -337,6 +337,10 @@ impl From<EncoderSection> for Section {
                 id: EncoderSectionId::UpperLimit as u8,
                 value: v.into(),
             },
+            EncoderSection::RepeatedValue(v) => Section {
+                id: EncoderSectionId::RepeatedValue as u8,
+                value: v.into(),
+            },
             EncoderSection::SecondMidiId(v) => Section {
                 id: EncoderSectionId::SecondMidiId as u8,
                 value: v.into(),
