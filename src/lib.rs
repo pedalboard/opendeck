@@ -9,6 +9,7 @@ use midi_types::Channel;
 
 pub mod analog;
 pub mod button;
+pub mod config;
 pub mod encoder;
 pub mod global;
 pub mod parser;
