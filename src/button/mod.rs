@@ -1,6 +1,9 @@
-use crate::{parser::OpenDeckParseError, ChannelOrAll, MessageStatus, Section};
+use crate::ChannelOrAll;
 use int_enum::IntEnum;
 use midi_types::Value7;
+
+pub mod parser;
+pub mod renderer;
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -117,73 +120,4 @@ pub enum MessageType {
     ProgramChangeOffsetDecr = 0x1A,
     BPMIncr = 0x1B,
     BPMDecr = 0x1C,
-}
-
-// parsing
-impl TryFrom<Section> for ButtonSection {
-    type Error = OpenDeckParseError;
-    fn try_from(v: Section) -> Result<Self, Self::Error> {
-        if let Ok(id) = ButtonSectionId::try_from(v.id) {
-            match id {
-                ButtonSectionId::MidiId => Ok(ButtonSection::MidiId(Value7::from(v.value as u8))),
-                ButtonSectionId::MessageType => {
-                    if let Ok(mt) = MessageType::try_from(v.value) {
-                        Ok(ButtonSection::MessageType(mt))
-                    } else {
-                        Err(OpenDeckParseError::StatusError(
-                            MessageStatus::NewValueError,
-                        ))
-                    }
-                }
-                ButtonSectionId::Type => {
-                    if let Ok(bt) = ButtonType::try_from(v.value) {
-                        Ok(ButtonSection::Type(bt))
-                    } else {
-                        Err(OpenDeckParseError::StatusError(
-                            MessageStatus::NewValueError,
-                        ))
-                    }
-                }
-                ButtonSectionId::Value => Ok(ButtonSection::Value(Value7::from(v.value as u8))),
-                ButtonSectionId::Channel => Ok(ButtonSection::Channel(ChannelOrAll::from(v.value))),
-            }
-        } else {
-            Err(OpenDeckParseError::StatusError(MessageStatus::SectionError))
-        }
-    }
-}
-
-// rendering
-
-impl From<ButtonSection> for Section {
-    fn from(s: ButtonSection) -> Section {
-        match s {
-            ButtonSection::Type(t) => Section {
-                id: ButtonSectionId::Type.into(),
-                value: t.into(),
-            },
-            ButtonSection::MessageType(t) => Section {
-                id: ButtonSectionId::MessageType.into(),
-                value: t.into(),
-            },
-            ButtonSection::MidiId(v) => {
-                let value: u8 = v.into();
-                Section {
-                    id: ButtonSectionId::MidiId.into(),
-                    value: value as u16,
-                }
-            }
-            ButtonSection::Value(v) => {
-                let value: u8 = v.into();
-                Section {
-                    id: ButtonSectionId::Value.into(),
-                    value: value as u16,
-                }
-            }
-            ButtonSection::Channel(v) => Section {
-                id: ButtonSectionId::Channel.into(),
-                value: v.into(),
-            },
-        }
-    }
 }
