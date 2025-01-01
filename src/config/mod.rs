@@ -10,11 +10,7 @@ use crate::{
 };
 use midi_types::{Value14, Value7};
 
-const OPENDECK_ANALOGS: usize = 2;
-const OPENDECK_ENCODERS: usize = 2;
-const OPENDECK_LEDS: usize = 8;
-const OPENDECK_BUTTONS: usize = 8;
-const OPENDECK_NR_PRESETS: usize = 2;
+// FIXME calculate value based on generic const
 const OPENDECK_MAX_NR_MESSAGES: usize = 2;
 
 use heapless::Vec;
@@ -29,26 +25,26 @@ pub struct FirmwareVersion {
 
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct Preset {
-    buttons: Vec<Button, OPENDECK_BUTTONS>,
-    encoders: Vec<Encoder, OPENDECK_ENCODERS>,
-    analogs: Vec<Analog, OPENDECK_ANALOGS>,
+pub struct Preset<const B: usize, const A: usize, const E: usize> {
+    buttons: Vec<Button, B>,
+    encoders: Vec<Encoder, E>,
+    analogs: Vec<Analog, A>,
 }
 
-impl Default for Preset {
+impl<const B: usize, const A: usize, const E: usize> Default for Preset<B, E, A> {
     fn default() -> Self {
         let mut buttons = Vec::new();
-        for i in 0..OPENDECK_BUTTONS {
+        for i in 0..B {
             buttons.push(Button::new(Value7::new(i as u8))).unwrap();
         }
         let mut encoders = Vec::new();
-        for i in 0..OPENDECK_ENCODERS {
+        for i in 0..E {
             encoders
                 .push(Encoder::new(Value14::new(i16::MIN + i as i16)))
                 .unwrap();
         }
         let mut analogs = Vec::new();
-        for i in 0..OPENDECK_ANALOGS {
+        for i in 0..E {
             analogs
                 .push(Analog::new(Value14::new(i16::MIN + i as i16)))
                 .unwrap();
@@ -62,7 +58,7 @@ impl Default for Preset {
     }
 }
 
-impl Preset {
+impl<const B: usize, const A: usize, const E: usize> Preset<B, E, A> {
     fn button_mut(&mut self, index: &u16) -> Option<&mut Button> {
         self.buttons.get_mut(*index as usize)
     }
@@ -83,20 +79,22 @@ impl Preset {
     }
 }
 
-pub struct Config {
+pub struct Config<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize> {
     enabled: bool,
     current_preset: usize,
-    presets: Vec<Preset, OPENDECK_NR_PRESETS>,
+    presets: Vec<Preset<B, A, E>, P>,
     version: FirmwareVersion,
     uid: u32,
 }
 
 type Responses = Vec<Buffer, OPENDECK_MAX_NR_MESSAGES>;
 
-impl Config {
+impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize>
+    Config<P, B, A, E, L>
+{
     pub fn new(version: FirmwareVersion, uid: u32) -> Self {
         let mut presets = Vec::new();
-        for _ in 0..OPENDECK_NR_PRESETS {
+        for _ in 0..P {
             presets.push(Preset::default()).unwrap();
         }
 
@@ -206,15 +204,13 @@ impl Config {
                 ))
             }
             SpecialRequest::BootloaderSupport => Some(SpecialResponse::BootloaderSupport(true)),
-            SpecialRequest::NrOfSupportedPresets => {
-                Some(SpecialResponse::NrOfSupportedPresets(OPENDECK_NR_PRESETS))
-            }
+            SpecialRequest::NrOfSupportedPresets => Some(SpecialResponse::NrOfSupportedPresets(P)),
             SpecialRequest::NrOfSupportedComponents => Some(
                 SpecialResponse::NrOfSupportedComponents(NrOfSupportedComponents {
-                    buttons: OPENDECK_BUTTONS,
-                    encoders: OPENDECK_ENCODERS,
-                    analog: OPENDECK_ANALOGS,
-                    leds: OPENDECK_LEDS,
+                    buttons: B,
+                    encoders: E,
+                    analog: A,
+                    leds: L,
                     touchscreen_buttons: 0,
                 }),
             ),
@@ -318,7 +314,7 @@ impl Config {
         (res_values, for_amount)
     }
 
-    fn current_preset_mut(&mut self) -> Option<&mut Preset> {
+    fn current_preset_mut(&mut self) -> Option<&mut Preset<B, A, E>> {
         self.presets.get_mut(self.current_preset)
     }
 }

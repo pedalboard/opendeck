@@ -22,10 +22,12 @@ const M_ID_0: u8 = 0x00;
 const M_ID_1: u8 = 0x53;
 const M_ID_2: u8 = 0x43;
 
-const PARAMS_PER_MESSAGE: usize = 32;
 const BYTES_PER_VALUE: usize = 2;
 const SPECIAL_REQ_MSG_SIZE: usize = 6 + 1 + 1; // extra byte for end
 const STD_REQ_MIN_MSG_SIZE: usize = 10 + BYTES_PER_VALUE * 2 + 1;
+
+// FIXME calculate value based on generic const
+const PARAMS_PER_MESSAGE: usize = 32;
 const MAX_MESSAGE_SIZE: usize = STD_REQ_MIN_MSG_SIZE + (PARAMS_PER_MESSAGE * BYTES_PER_VALUE);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
