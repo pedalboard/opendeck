@@ -100,6 +100,8 @@ pub struct Config<const P: usize, const B: usize, const A: usize, const E: usize
     presets: Vec<Preset<B, A, E, L>, P>,
     version: FirmwareVersion,
     uid: u32,
+    reboot: fn(),
+    bootloader: fn(),
 }
 
 type Responses = Vec<Buffer, OPENDECK_MAX_NR_MESSAGES>;
@@ -107,7 +109,7 @@ type Responses = Vec<Buffer, OPENDECK_MAX_NR_MESSAGES>;
 impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize>
     Config<P, B, A, E, L>
 {
-    pub fn new(version: FirmwareVersion, uid: u32) -> Self {
+    pub fn new(version: FirmwareVersion, uid: u32, reboot: fn(), bootloader: fn()) -> Self {
         let mut presets = Vec::new();
         for _ in 0..P {
             presets.push(Preset::default()).unwrap();
@@ -119,6 +121,8 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
             presets,
             version,
             uid,
+            reboot,
+            bootloader,
         }
     }
     /// Processes a SysEx request and returns an optional responses.
@@ -191,13 +195,11 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
     fn process_special_req(&mut self, special: &SpecialRequest) -> Option<SpecialResponse> {
         match special {
             SpecialRequest::BootloaderMode => {
-                // FIXME callback
-                //                rp2040_hal::rom_data::reset_to_usb_boot(0, 0);
+                (self.bootloader)();
                 None
             }
             SpecialRequest::Reboot => {
-                // FIXME callback
-                //              cortex_m::peripheral::SCB::sys_reset();
+                (self.reboot)();
                 None
             }
             SpecialRequest::Handshake => {
