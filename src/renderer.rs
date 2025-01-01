@@ -3,9 +3,9 @@ pub struct OpenDeckRenderer {
 }
 
 use crate::{
-    Amount, AmountId, Block, BlockId, ByteOrder, ChannelOrAll, FirmwareVersion, HardwareUid,
-    MessageStatus, NrOfSupportedComponents, OpenDeckResponse, Section, SpecialRequest,
-    SpecialResponse, ValueSize, MAX_MESSAGE_SIZE, M_ID_0, M_ID_1, M_ID_2, SYSEX_END, SYSEX_START,
+    Amount, AmountId, Block, BlockId, ByteOrder, ChannelOrAll, HardwareUid, MessageStatus,
+    NrOfSupportedComponents, OpenDeckResponse, Section, SpecialRequest, SpecialResponse, ValueSize,
+    MAX_MESSAGE_SIZE, M_ID_0, M_ID_1, M_ID_2, SYSEX_END, SYSEX_START,
 };
 
 use heapless::Vec;
@@ -113,7 +113,7 @@ impl ValueSize {
     }
 }
 
-impl FirmwareVersion {
+impl crate::config::FirmwareVersion {
     fn push(self, mut buf: Buffer, value_size: &ValueSize) -> Buffer {
         buf = value_size.push(self.major as u16, buf);
         buf = value_size.push(self.minor as u16, buf);
@@ -195,8 +195,9 @@ mod tests {
 
     use super::*;
     use crate::{
+        config::FirmwareVersion,
         global::{GlobalSection, PresetIndex},
-        AnalogSection, FirmwareVersion, HardwareUid, ValueSize, Wish,
+        AnalogSection, HardwareUid, ValueSize, Wish,
     };
     use midi_types::Value14;
 

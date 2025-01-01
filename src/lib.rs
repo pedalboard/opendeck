@@ -2,7 +2,8 @@
 
 // see https://github.com/shanteacontrols/OpenDeck/wiki/Sysex-Configuration
 use crate::{
-    analog::AnalogSection, button::ButtonSection, encoder::EncoderSection, global::GlobalSection,
+    analog::AnalogSection, button::ButtonSection, config::FirmwareVersion, encoder::EncoderSection,
+    global::GlobalSection,
 };
 use heapless::Vec;
 use midi_types::Channel;
@@ -114,14 +115,6 @@ pub enum SpecialRequest {
 pub enum ValueSize {
     OneByte = 1,
     TwoBytes = 2,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct FirmwareVersion {
-    pub major: u8,
-    pub minor: u8,
-    pub revision: u8,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

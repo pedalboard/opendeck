@@ -5,12 +5,11 @@ use crate::{
     global::{GlobalSection, PresetIndex},
     parser::{OpenDeckParseError, OpenDeckParser},
     renderer::{Buffer, OpenDeckRenderer},
-    Amount, Block, FirmwareVersion, HardwareUid, MessageStatus, NewValues, NrOfSupportedComponents,
-    OpenDeckRequest, OpenDeckResponse, SpecialRequest, SpecialResponse, ValueSize, Wish,
+    Amount, Block, HardwareUid, MessageStatus, NewValues, NrOfSupportedComponents, OpenDeckRequest,
+    OpenDeckResponse, SpecialRequest, SpecialResponse, ValueSize, Wish,
 };
 use midi_types::{Value14, Value7};
 
-const OPENDECK_UID: u32 = 0x12345677;
 const OPENDECK_ANALOGS: usize = 2;
 const OPENDECK_ENCODERS: usize = 2;
 const OPENDECK_LEDS: usize = 8;
@@ -19,6 +18,14 @@ const OPENDECK_NR_PRESETS: usize = 2;
 const OPENDECK_MAX_NR_MESSAGES: usize = 2;
 
 use heapless::Vec;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct FirmwareVersion {
+    pub major: u8,
+    pub minor: u8,
+    pub revision: u8,
+}
 
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -76,17 +83,18 @@ impl Preset {
     }
 }
 
-#[derive(Default)]
 pub struct Config {
     enabled: bool,
     current_preset: usize,
     presets: Vec<Preset, OPENDECK_NR_PRESETS>,
+    version: FirmwareVersion,
+    uid: u32,
 }
 
 type Responses = Vec<Buffer, OPENDECK_MAX_NR_MESSAGES>;
 
 impl Config {
-    pub fn new() -> Self {
+    pub fn new(version: FirmwareVersion, uid: u32) -> Self {
         let mut presets = Vec::new();
         for _ in 0..OPENDECK_NR_PRESETS {
             presets.push(Preset::default()).unwrap();
@@ -96,6 +104,8 @@ impl Config {
             enabled: false,
             current_preset: 0,
             presets,
+            version,
+            uid,
         }
     }
     /// Processes a SysEx request and returns an optional responses.
@@ -184,15 +194,15 @@ impl Config {
             SpecialRequest::ValueSize => Some(SpecialResponse::ValueSize),
             SpecialRequest::ValuesPerMessage => Some(SpecialResponse::ValuesPerMessage(32)),
             SpecialRequest::FirmwareVersion => {
-                Some(SpecialResponse::FirmwareVersion(firmware_version()))
+                Some(SpecialResponse::FirmwareVersion(self.version.clone()))
             }
             SpecialRequest::HardwareUID => {
-                Some(SpecialResponse::HardwareUID(HardwareUid(OPENDECK_UID)))
+                Some(SpecialResponse::HardwareUID(HardwareUid(self.uid)))
             }
             SpecialRequest::FirmwareVersionAndHardwareUUID => {
                 Some(SpecialResponse::FirmwareVersionAndHardwareUUID(
-                    firmware_version(),
-                    HardwareUid(OPENDECK_UID),
+                    self.version.clone(),
+                    HardwareUid(self.uid),
                 ))
             }
             SpecialRequest::BootloaderSupport => Some(SpecialResponse::BootloaderSupport(true)),
@@ -310,13 +320,5 @@ impl Config {
 
     fn current_preset_mut(&mut self) -> Option<&mut Preset> {
         self.presets.get_mut(self.current_preset)
-    }
-}
-
-fn firmware_version() -> FirmwareVersion {
-    FirmwareVersion {
-        major: 1,
-        minor: 0,
-        revision: 0,
     }
 }
