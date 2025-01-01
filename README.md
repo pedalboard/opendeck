@@ -8,4 +8,3 @@ Implementation of the [OpenDeck MIDI Sysex Protocol](https://github.com/shanteac
 * implement callbacks
 * value_size feature
 * configuration input options
-
