@@ -1,4 +1,5 @@
 use crate::{parser::OpenDeckParseError, ChannelOrAll, MessageStatus, Section};
+use int_enum::IntEnum;
 use midi_types::Value7;
 
 #[derive(Debug, Clone)]
@@ -53,12 +54,13 @@ impl Default for Button {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, IntEnum, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[repr(u16)]
 pub enum ButtonType {
     #[default]
-    Momentary,
-    Latching,
+    Momentary = 0,
+    Latching = 1,
 }
 
 enum ButtonSectionId {
@@ -79,109 +81,43 @@ pub enum ButtonSection {
     Channel(ChannelOrAll),
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, IntEnum, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[repr(u16)]
 pub enum MessageType {
     #[default]
-    Notes,
-    ProgramChange,
-    ControlChange,
-    ControlChangeWithReset,
-    MMCStop,
-    MMCPlay,
-    MMCRecord,
-    MMCPause,
-    RealTimeClock,
-    RealTimeStart,
-    RealTimeContinue,
-    RealTimeStop,
-    RealTimeActiveSensing,
-    RealTimeSystemReset,
-    ProgramChangeIncr,
-    ProgramChangeDecr,
-    NoMessage,
-    OpenDeckPresetChange,
-    MultiValueIncNote,
-    MultiValueDecNote,
-    MultiValueIncCC,
-    MultiValueDecCC,
-    NoteOffOnly,
-    ControlChangeWithValue0,
-    Reserved,
-    ProgramChangeOffsetIncr,
-    ProgramChangeOffsetDecr,
-    BPMIncr,
-    BPMDecr,
+    Notes = 0x00,
+    ProgramChange = 0x01,
+    ControlChange = 0x02,
+    ControlChangeWithReset = 0x03,
+    MMCStop = 0x04,
+    MMCPlay = 0x05,
+    MMCRecord = 0x06,
+    MMCPause = 0x07,
+    RealTimeClock = 0x08,
+    RealTimeStart = 0x09,
+    RealTimeContinue = 0x0A,
+    RealTimeStop = 0x0B,
+    RealTimeActiveSensing = 0x0C,
+    RealTimeSystemReset = 0x0D,
+    ProgramChangeIncr = 0x0E,
+    ProgramChangeDecr = 0x0F,
+    NoMessage = 0x10,
+    OpenDeckPresetChange = 0x11,
+    MultiValueIncNote = 0x12,
+    MultiValueDecNote = 0x13,
+    MultiValueIncCC = 0x14,
+    MultiValueDecCC = 0x15,
+    NoteOffOnly = 0x16,
+    ControlChangeWithValue0 = 0x17,
+    Reserved = 0x18,
+    ProgramChangeOffsetIncr = 0x19,
+    ProgramChangeOffsetDecr = 0x1A,
+    BPMIncr = 0x1B,
+    BPMDecr = 0x1C,
 }
 
 // parsing
-
-impl TryFrom<u16> for MessageType {
-    type Error = OpenDeckParseError;
-    fn try_from(value: u16) -> Result<Self, Self::Error> {
-        match value {
-            x if x == MessageType::Notes as u16 => Ok(MessageType::Notes),
-            x if x == MessageType::ProgramChange as u16 => Ok(MessageType::ProgramChange),
-            x if x == MessageType::ControlChange as u16 => Ok(MessageType::ControlChange),
-            x if x == MessageType::ControlChangeWithReset as u16 => {
-                Ok(MessageType::ControlChangeWithReset)
-            }
-            x if x == MessageType::MMCStop as u16 => Ok(MessageType::MMCStop),
-            x if x == MessageType::MMCPlay as u16 => Ok(MessageType::MMCPlay),
-            x if x == MessageType::MMCRecord as u16 => Ok(MessageType::MMCRecord),
-            x if x == MessageType::MMCPause as u16 => Ok(MessageType::MMCPause),
-            x if x == MessageType::RealTimeClock as u16 => Ok(MessageType::RealTimeClock),
-            x if x == MessageType::RealTimeStart as u16 => Ok(MessageType::RealTimeStart),
-            x if x == MessageType::RealTimeContinue as u16 => Ok(MessageType::RealTimeContinue),
-            x if x == MessageType::RealTimeStop as u16 => Ok(MessageType::RealTimeStop),
-            x if x == MessageType::RealTimeActiveSensing as u16 => {
-                Ok(MessageType::RealTimeActiveSensing)
-            }
-            x if x == MessageType::RealTimeSystemReset as u16 => {
-                Ok(MessageType::RealTimeSystemReset)
-            }
-            x if x == MessageType::ProgramChangeDecr as u16 => Ok(MessageType::ProgramChangeDecr),
-            x if x == MessageType::ProgramChangeIncr as u16 => Ok(MessageType::ProgramChangeIncr),
-            x if x == MessageType::NoMessage as u16 => Ok(MessageType::NoMessage),
-            x if x == MessageType::OpenDeckPresetChange as u16 => {
-                Ok(MessageType::OpenDeckPresetChange)
-            }
-            x if x == MessageType::MultiValueIncNote as u16 => Ok(MessageType::MultiValueIncNote),
-            x if x == MessageType::MultiValueDecNote as u16 => Ok(MessageType::MultiValueDecNote),
-            x if x == MessageType::MultiValueIncCC as u16 => Ok(MessageType::MultiValueIncCC),
-            x if x == MessageType::MultiValueDecCC as u16 => Ok(MessageType::MultiValueDecCC),
-            x if x == MessageType::NoteOffOnly as u16 => Ok(MessageType::NoteOffOnly),
-            x if x == MessageType::ControlChangeWithValue0 as u16 => {
-                Ok(MessageType::ControlChangeWithValue0)
-            }
-            x if x == MessageType::ProgramChangeOffsetIncr as u16 => {
-                Ok(MessageType::ProgramChangeOffsetIncr)
-            }
-            x if x == MessageType::ProgramChangeOffsetDecr as u16 => {
-                Ok(MessageType::ProgramChangeOffsetDecr)
-            }
-            x if x == MessageType::BPMIncr as u16 => Ok(MessageType::BPMIncr),
-            x if x == MessageType::BPMDecr as u16 => Ok(MessageType::BPMDecr),
-            _ => Err(OpenDeckParseError::StatusError(
-                MessageStatus::NewValueError,
-            )),
-        }
-    }
-}
-
-impl TryFrom<u16> for ButtonType {
-    type Error = OpenDeckParseError;
-    fn try_from(value: u16) -> Result<Self, Self::Error> {
-        match value {
-            x if x == ButtonType::Momentary as u16 => Ok(ButtonType::Momentary),
-            x if x == ButtonType::Latching as u16 => Ok(ButtonType::Latching),
-            _ => Err(OpenDeckParseError::StatusError(
-                MessageStatus::NewValueError,
-            )),
-        }
-    }
-}
-
 impl TryFrom<Section> for ButtonSection {
     type Error = OpenDeckParseError;
     fn try_from(value: Section) -> Result<Self, Self::Error> {
@@ -190,12 +126,22 @@ impl TryFrom<Section> for ButtonSection {
                 Ok(ButtonSection::MidiId(Value7::from(x.value as u8)))
             }
             x if x.id == ButtonSectionId::MessageType as u8 => {
-                let mt = MessageType::try_from(x.value)?;
-                Ok(ButtonSection::MessageType(mt))
+                if let Ok(mt) = MessageType::try_from(x.value) {
+                    Ok(ButtonSection::MessageType(mt))
+                } else {
+                    Err(OpenDeckParseError::StatusError(
+                        MessageStatus::NewValueError,
+                    ))
+                }
             }
             x if x.id == ButtonSectionId::Type as u8 => {
-                let mt = ButtonType::try_from(x.value)?;
-                Ok(ButtonSection::Type(mt))
+                if let Ok(bt) = ButtonType::try_from(x.value) {
+                    Ok(ButtonSection::Type(bt))
+                } else {
+                    Err(OpenDeckParseError::StatusError(
+                        MessageStatus::NewValueError,
+                    ))
+                }
             }
             x if x.id == ButtonSectionId::Value as u8 => {
                 Ok(ButtonSection::Value(Value7::from(x.value as u8)))
@@ -215,11 +161,11 @@ impl From<ButtonSection> for Section {
         match s {
             ButtonSection::Type(t) => Section {
                 id: ButtonSectionId::Type as u8,
-                value: t as u16,
+                value: t.into(),
             },
             ButtonSection::MessageType(t) => Section {
                 id: ButtonSectionId::MessageType as u8,
-                value: t as u16,
+                value: t.into(),
             },
             ButtonSection::MidiId(v) => {
                 let value: u8 = v.into();
