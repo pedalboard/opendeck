@@ -1,9 +1,11 @@
 use crate::{
     analog::AnalogSection, button::ButtonSection, encoder::EncoderSection, global::GlobalSection,
-    Amount, AmountId, Block, BlockId, ByteOrder, MessageStatus, OpenDeckRequest, Section,
-    SpecialRequest, ValueSize, Wish, M_ID_0, M_ID_1, M_ID_2, SPECIAL_REQ_MSG_SIZE, SYSEX_END,
-    SYSEX_START,
+    Amount, AmountId, Block, BlockId, ByteOrder, ChannelOrAll, MessageStatus, OpenDeckRequest,
+    Section, SpecialRequest, ValueSize, Wish, M_ID_0, M_ID_1, M_ID_2, SPECIAL_REQ_MSG_SIZE,
+    SYSEX_END, SYSEX_START,
 };
+
+use midi_types::Channel;
 
 impl TryFrom<u8> for SpecialRequest {
     type Error = OpenDeckParseError;
@@ -56,6 +58,18 @@ impl TryFrom<(u8, u8)> for Amount {
             x if x.0 == AmountId::Single as u8 => Ok(Amount::Single),
             x if x.0 == AmountId::All as u8 => Ok(Amount::All(x.1)),
             _ => Err(OpenDeckParseError::StatusError(MessageStatus::AmountError)),
+        }
+    }
+}
+
+impl From<u16> for ChannelOrAll {
+    fn from(value: u16) -> Self {
+        if value > 16 {
+            ChannelOrAll::All
+        } else if value == 0 {
+            ChannelOrAll::None
+        } else {
+            ChannelOrAll::Channel(Channel::new((value as u8) - 1))
         }
     }
 }

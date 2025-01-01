@@ -3,9 +3,9 @@ pub struct OpenDeckRenderer {
 }
 
 use crate::{
-    Amount, AmountId, Block, BlockId, ByteOrder, FirmwareVersion, HardwareUid, MessageStatus,
-    NrOfSupportedComponents, OpenDeckResponse, Section, SpecialRequest, SpecialResponse, ValueSize,
-    MAX_MESSAGE_SIZE, M_ID_0, M_ID_1, M_ID_2, SYSEX_END, SYSEX_START,
+    Amount, AmountId, Block, BlockId, ByteOrder, ChannelOrAll, FirmwareVersion, HardwareUid,
+    MessageStatus, NrOfSupportedComponents, OpenDeckResponse, Section, SpecialRequest,
+    SpecialResponse, ValueSize, MAX_MESSAGE_SIZE, M_ID_0, M_ID_1, M_ID_2, SYSEX_END, SYSEX_START,
 };
 use heapless::Vec;
 
@@ -151,6 +151,19 @@ impl Amount {
             }
         };
         buf
+    }
+}
+
+impl From<ChannelOrAll> for u16 {
+    fn from(value: ChannelOrAll) -> u16 {
+        match value {
+            ChannelOrAll::All => 17,
+            ChannelOrAll::None => 0,
+            ChannelOrAll::Channel(ch) => {
+                let out: u8 = ch.into();
+                (out + 1) as u16
+            }
+        }
     }
 }
 

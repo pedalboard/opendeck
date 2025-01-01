@@ -35,6 +35,7 @@ impl TryFrom<(u16, Section)> for GlobalSection {
         }
     }
 }
+
 impl TryFrom<u16> for PresetIndex {
     type Error = OpenDeckParseError;
     fn try_from(value: u16) -> Result<Self, Self::Error> {
