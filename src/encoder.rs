@@ -94,14 +94,15 @@ pub enum EncoderMessageType {
     TwoNoteWithFixedValueBothDirections = 0xE,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, IntEnum, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[repr(u16)]
 pub enum Accelleration {
     #[default]
-    None,
-    Slow,
-    Medium,
-    Fast,
+    None = 0,
+    Slow = 1,
+    Medium = 2,
+    Fast = 3,
 }
 
 #[allow(dead_code)]
@@ -137,19 +138,6 @@ pub enum EncoderSection {
     UpperLimit(Value14),
     RepeatedValue(Value14),
     SecondMidiId(Value14),
-}
-
-impl TryFrom<u16> for Accelleration {
-    type Error = OpenDeckParseError;
-    fn try_from(value: u16) -> Result<Self, Self::Error> {
-        match value {
-            x if x == Accelleration::None as u16 => Ok(Accelleration::None),
-            x if x == Accelleration::Slow as u16 => Ok(Accelleration::Slow),
-            x if x == Accelleration::Medium as u16 => Ok(Accelleration::Medium),
-            x if x == Accelleration::Fast as u16 => Ok(Accelleration::Fast),
-            _ => Err(OpenDeckParseError::StatusError(MessageStatus::IndexError)),
-        }
-    }
 }
 
 impl From<EncoderSection> for Section {
@@ -240,8 +228,13 @@ impl TryFrom<Section> for EncoderSection {
                 Ok(EncoderSection::Channel(ChannelOrAll::from(x.value)))
             }
             x if x.id == EncoderSectionId::Accelleration as u8 => {
-                let ac = Accelleration::try_from(x.value)?;
-                Ok(EncoderSection::Accelleration(ac))
+                if let Ok(a) = Accelleration::try_from(x.value) {
+                    Ok(EncoderSection::Accelleration(a))
+                } else {
+                    Err(OpenDeckParseError::StatusError(
+                        MessageStatus::NewValueError,
+                    ))
+                }
             }
             x if x.id == EncoderSectionId::PulsesPerStep as u8 => {
                 Ok(EncoderSection::PulsesPerStep(x.value as u8))
