@@ -3,6 +3,7 @@ use crate::{
     button::Button,
     encoder::Encoder,
     global::{GlobalSection, PresetIndex},
+    led::Led,
     parser::{OpenDeckParseError, OpenDeckParser},
     renderer::{Buffer, OpenDeckRenderer},
     Amount, Block, HardwareUid, MessageStatus, NewValues, NrOfSupportedComponents, OpenDeckRequest,
@@ -25,13 +26,16 @@ pub struct FirmwareVersion {
 
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct Preset<const B: usize, const A: usize, const E: usize> {
+pub struct Preset<const B: usize, const A: usize, const E: usize, const L: usize> {
     buttons: Vec<Button, B>,
     encoders: Vec<Encoder, E>,
     analogs: Vec<Analog, A>,
+    leds: Vec<Led, L>,
 }
 
-impl<const B: usize, const A: usize, const E: usize> Default for Preset<B, E, A> {
+impl<const B: usize, const A: usize, const E: usize, const L: usize> Default
+    for Preset<B, E, A, L>
+{
     fn default() -> Self {
         let mut buttons = Vec::new();
         for i in 0..B {
@@ -44,21 +48,26 @@ impl<const B: usize, const A: usize, const E: usize> Default for Preset<B, E, A>
                 .unwrap();
         }
         let mut analogs = Vec::new();
-        for i in 0..E {
+        for i in 0..A {
             analogs
                 .push(Analog::new(Value14::new(i16::MIN + i as i16)))
                 .unwrap();
+        }
+        let mut leds = Vec::new();
+        for i in 0..L {
+            leds.push(Led::new(Value7::new(i as u8))).unwrap();
         }
 
         Preset {
             buttons,
             encoders,
             analogs,
+            leds,
         }
     }
 }
 
-impl<const B: usize, const A: usize, const E: usize> Preset<B, E, A> {
+impl<const B: usize, const A: usize, const E: usize, const L: usize> Preset<B, E, A, L> {
     fn button_mut(&mut self, index: &u16) -> Option<&mut Button> {
         self.buttons.get_mut(*index as usize)
     }
@@ -82,7 +91,7 @@ impl<const B: usize, const A: usize, const E: usize> Preset<B, E, A> {
 pub struct Config<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize> {
     enabled: bool,
     current_preset: usize,
-    presets: Vec<Preset<B, A, E>, P>,
+    presets: Vec<Preset<B, A, E, L>, P>,
     version: FirmwareVersion,
     uid: u32,
 }
@@ -314,7 +323,7 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
         (res_values, for_amount)
     }
 
-    fn current_preset_mut(&mut self) -> Option<&mut Preset<B, A, E>> {
+    fn current_preset_mut(&mut self) -> Option<&mut Preset<B, A, E, L>> {
         self.presets.get_mut(self.current_preset)
     }
 }
