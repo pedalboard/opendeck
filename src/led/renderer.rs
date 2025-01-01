@@ -33,6 +33,13 @@ impl From<LedSection> for Section {
                     value: value.into(),
                 }
             }
+            LedSection::ActivationValue(v) => {
+                let value: u8 = v.into();
+                Section {
+                    id: LedSectionId::ActivationValue.into(),
+                    value: value.into(),
+                }
+            }
             LedSection::Channel(v) => Section {
                 id: LedSectionId::Channel.into(),
                 value: v.into(),

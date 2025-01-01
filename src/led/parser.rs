@@ -15,6 +15,9 @@ impl TryFrom<Section> for LedSection {
                 LedSectionId::ActivationId => {
                     Ok(LedSection::ActivationId(Value7::from(v.value as u8)))
                 }
+                LedSectionId::ActivationValue => {
+                    Ok(LedSection::ActivationValue(Value7::from(v.value as u8)))
+                }
                 LedSectionId::ColorTesting => {
                     if let Ok(c) = Color::try_from(v.value) {
                         Ok(LedSection::ColorTesting(c))

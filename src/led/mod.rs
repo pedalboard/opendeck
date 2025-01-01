@@ -11,6 +11,7 @@ pub struct Led {
     color_testing: Color,
     blink_testing: bool,
     activation_id: Value7,
+    activation_value: Value7,
     rgb_enabled: bool,
     control_type: ControlType,
     channel: ChannelOrAll,
@@ -22,6 +23,7 @@ impl Led {
             color_testing: Color::default(),
             blink_testing: false,
             activation_id: midi_id,
+            activation_value: Value7::new(0),
             rgb_enabled: true,
             control_type: ControlType::default(),
             channel: ChannelOrAll::default(),
@@ -34,6 +36,7 @@ impl Led {
             LedSection::RGBEnabled(v) => self.rgb_enabled = *v,
             LedSection::ControlType(v) => self.control_type = *v,
             LedSection::ActivationId(v) => self.activation_id = *v,
+            LedSection::ActivationValue(v) => self.activation_value = *v,
             LedSection::Channel(v) => self.channel = *v,
             LedSection::Global(_) => {}
         }
@@ -46,6 +49,10 @@ impl Led {
             LedSection::ControlType(_) => self.control_type.into(),
             LedSection::ActivationId(_) => {
                 let v: u8 = self.activation_id.into();
+                v as u16
+            }
+            LedSection::ActivationValue(_) => {
+                let v: u8 = self.activation_value.into();
                 v as u16
             }
             LedSection::Channel(_) => self.channel.into(),
@@ -102,7 +109,8 @@ enum LedSectionId {
     ActivationId = 3,
     RGBEnabled = 4,
     ControlType = 5,
-    Channel = 6,
+    ActivationValue = 6,
+    Channel = 7,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -112,6 +120,7 @@ pub enum LedSection {
     BlinkTesting(bool),
     Global(u16),
     ActivationId(Value7),
+    ActivationValue(Value7),
     RGBEnabled(bool),
     ControlType(ControlType),
     Channel(ChannelOrAll),
