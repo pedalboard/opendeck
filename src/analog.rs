@@ -78,16 +78,16 @@ pub enum AnalogMessageType {
 enum AnalogSectionId {
     Enabled = 0x0,
     InvertState = 0x1,
-    MessageType = 0x3,
-    MidiIdLSB = 0x4,
-    // MidiIdMSB = 0x5, // only used in 1 byte protocol
-    LowerCCLimitLSB = 0x6,
-    //LowerCCLimitMSB = 0x7, // only used in 1 byte protocol
-    UpperCCLimitLSB = 0x8,
-    // UpperCCLimitMSB = 0x9, // only used in 1 byte protocol
-    Channel = 0xA,
-    LowerADCOffset = 0xB,
-    UpperADCOffset = 0xC,
+    MessageType = 0x2,
+    MidiIdLSB = 0x3,
+    // MidiIdMSB = 0x4, // only used in 1 byte protocol
+    LowerCCLimitLSB = 0x5,
+    //LowerCCLimitMSB = 0x6, // only used in 1 byte protocol
+    UpperCCLimitLSB = 0x7,
+    // UpperCCLimitMSB = 0x8, // only used in 1 byte protocol
+    Channel = 0x9,
+    LowerADCOffset = 0xA,
+    UpperADCOffset = 0xB,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

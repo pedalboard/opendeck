@@ -1,10 +1,12 @@
 use crate::{parser::OpenDeckParseError, MessageStatus, Section};
 use int_enum::IntEnum;
 
+#[derive(IntEnum)]
+#[repr(u8)]
 pub enum GlobalSectionId {
-    Midi,
-    Reserved,
-    Presets,
+    Midi = 0,
+    // Reserved = 1,
+    Presets = 2,
 }
 
 #[derive(Debug, Clone, PartialEq, IntEnum, Eq)]
@@ -28,17 +30,20 @@ pub enum GlobalSection {
 
 impl TryFrom<(u16, Section)> for GlobalSection {
     type Error = OpenDeckParseError;
-    fn try_from(value: (u16, Section)) -> Result<Self, Self::Error> {
-        match value {
-            x if x.1.id == GlobalSectionId::Midi as u8 => Ok(GlobalSection::Midi(x.0, x.1.value)),
-            x if x.1.id == GlobalSectionId::Presets as u8 => {
-                if let Ok(pi) = PresetIndex::try_from(x.0) {
-                    Ok(GlobalSection::Presets(pi, x.1.value))
-                } else {
-                    Err(OpenDeckParseError::StatusError(MessageStatus::IndexError))
+    fn try_from(v: (u16, Section)) -> Result<Self, Self::Error> {
+        if let Ok(id) = GlobalSectionId::try_from(v.1.id) {
+            match id {
+                GlobalSectionId::Midi => Ok(GlobalSection::Midi(v.0, v.1.value)),
+                GlobalSectionId::Presets => {
+                    if let Ok(pi) = PresetIndex::try_from(v.0) {
+                        Ok(GlobalSection::Presets(pi, v.1.value))
+                    } else {
+                        Err(OpenDeckParseError::StatusError(MessageStatus::IndexError))
+                    }
                 }
             }
-            _ => Err(OpenDeckParseError::StatusError(MessageStatus::SectionError)),
+        } else {
+            Err(OpenDeckParseError::StatusError(MessageStatus::SectionError))
         }
     }
 }
@@ -51,14 +56,14 @@ impl From<GlobalSection> for (u16, Section) {
             GlobalSection::Midi(index, value) => (
                 index,
                 Section {
-                    id: GlobalSectionId::Midi as u8,
+                    id: GlobalSectionId::Midi.into(),
                     value,
                 },
             ),
             GlobalSection::Presets(index, value) => (
                 index.into(),
                 Section {
-                    id: GlobalSectionId::Presets as u8,
+                    id: GlobalSectionId::Presets.into(),
                     value,
                 },
             ),
