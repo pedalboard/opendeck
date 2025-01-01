@@ -105,21 +105,22 @@ pub enum Accelleration {
     Fast = 3,
 }
 
-#[allow(dead_code)]
+#[derive(IntEnum)]
+#[repr(u8)]
 enum EncoderSectionId {
-    Enabled,
-    InvertState,
-    MessageType,
-    MidiIdLSB,
-    Channel,
-    PulsesPerStep,
-    Accelleration,
-    MidiIdMSB, // only used in 1 byte protocol
-    RemoteSync,
-    LowerLimit,
-    UpperLimit,
-    RepeatedValue,
-    SecondMidiId,
+    Enabled = 0x0,
+    InvertState = 0x1,
+    MessageType = 0x2,
+    MidiIdLSB = 0x3,
+    Channel = 0x4,
+    PulsesPerStep = 0x5,
+    Accelleration = 0x6,
+    MidiIdMSB = 0x7, // only used in 1 byte protocol
+    RemoteSync = 0x8,
+    LowerLimit = 0x9,
+    UpperLimit = 0xA,
+    RepeatedValue = 0xB,
+    SecondMidiId = 0xC,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -144,58 +145,58 @@ impl From<EncoderSection> for Section {
     fn from(s: EncoderSection) -> Section {
         match s {
             EncoderSection::Enabled(value) => Section {
-                id: EncoderSectionId::Enabled as u8,
+                id: EncoderSectionId::Enabled.into(),
                 value: value as u16,
             },
             EncoderSection::RemoteSync(value) => Section {
-                id: EncoderSectionId::RemoteSync as u8,
+                id: EncoderSectionId::RemoteSync.into(),
                 value: value as u16,
             },
             EncoderSection::InvertState(value) => Section {
-                id: EncoderSectionId::InvertState as u8,
+                id: EncoderSectionId::InvertState.into(),
                 value: value as u16,
             },
             EncoderSection::Channel(value) => Section {
-                id: EncoderSectionId::Channel as u8,
+                id: EncoderSectionId::Channel.into(),
                 value: value.into(),
             },
             EncoderSection::MessageType(value) => Section {
-                id: EncoderSectionId::MessageType as u8,
+                id: EncoderSectionId::MessageType.into(),
                 value: value as u16,
             },
             EncoderSection::Accelleration(value) => Section {
-                id: EncoderSectionId::Accelleration as u8,
+                id: EncoderSectionId::Accelleration.into(),
                 value: value as u16,
             },
             EncoderSection::PulsesPerStep(value) => Section {
-                id: EncoderSectionId::PulsesPerStep as u8,
+                id: EncoderSectionId::PulsesPerStep.into(),
                 value: value as u16,
             },
             EncoderSection::MidiIdLSB(v) => Section {
-                id: EncoderSectionId::MidiIdLSB as u8,
+                id: EncoderSectionId::MidiIdLSB.into(),
                 value: v.into(),
             },
             EncoderSection::MidiIdMSB(v) => {
                 let value: u8 = v.into();
                 Section {
-                    id: EncoderSectionId::MidiIdMSB as u8,
+                    id: EncoderSectionId::MidiIdMSB.into(),
                     value: value as u16,
                 }
             }
             EncoderSection::LowerLimit(v) => Section {
-                id: EncoderSectionId::LowerLimit as u8,
+                id: EncoderSectionId::LowerLimit.into(),
                 value: v.into(),
             },
             EncoderSection::UpperLimit(v) => Section {
-                id: EncoderSectionId::UpperLimit as u8,
+                id: EncoderSectionId::UpperLimit.into(),
                 value: v.into(),
             },
             EncoderSection::RepeatedValue(v) => Section {
-                id: EncoderSectionId::RepeatedValue as u8,
+                id: EncoderSectionId::RepeatedValue.into(),
                 value: v.into(),
             },
             EncoderSection::SecondMidiId(v) => Section {
-                id: EncoderSectionId::SecondMidiId as u8,
+                id: EncoderSectionId::SecondMidiId.into(),
                 value: v.into(),
             },
         }
@@ -204,60 +205,55 @@ impl From<EncoderSection> for Section {
 
 impl TryFrom<Section> for EncoderSection {
     type Error = OpenDeckParseError;
-    fn try_from(value: Section) -> Result<Self, Self::Error> {
-        match value {
-            x if x.id == EncoderSectionId::InvertState as u8 => {
-                Ok(EncoderSection::InvertState(x.value > 0))
-            }
-            x if x.id == EncoderSectionId::RemoteSync as u8 => {
-                Ok(EncoderSection::RemoteSync(x.value > 0))
-            }
-            x if x.id == EncoderSectionId::Enabled as u8 => {
-                Ok(EncoderSection::Enabled(x.value > 0))
-            }
-            x if x.id == EncoderSectionId::MessageType as u8 => {
-                if let Ok(mt) = EncoderMessageType::try_from(x.value) {
-                    Ok(EncoderSection::MessageType(mt))
-                } else {
-                    Err(OpenDeckParseError::StatusError(
-                        MessageStatus::NewValueError,
-                    ))
+    fn try_from(x: Section) -> Result<Self, Self::Error> {
+        if let Ok(id) = EncoderSectionId::try_from(x.id) {
+            match id {
+                EncoderSectionId::InvertState => Ok(EncoderSection::InvertState(x.value > 0)),
+                EncoderSectionId::RemoteSync => Ok(EncoderSection::RemoteSync(x.value > 0)),
+                EncoderSectionId::Enabled => Ok(EncoderSection::Enabled(x.value > 0)),
+                EncoderSectionId::MessageType => {
+                    if let Ok(mt) = EncoderMessageType::try_from(x.value) {
+                        Ok(EncoderSection::MessageType(mt))
+                    } else {
+                        Err(OpenDeckParseError::StatusError(
+                            MessageStatus::NewValueError,
+                        ))
+                    }
+                }
+                EncoderSectionId::Channel => {
+                    Ok(EncoderSection::Channel(ChannelOrAll::from(x.value)))
+                }
+                EncoderSectionId::Accelleration => {
+                    if let Ok(a) = Accelleration::try_from(x.value) {
+                        Ok(EncoderSection::Accelleration(a))
+                    } else {
+                        Err(OpenDeckParseError::StatusError(
+                            MessageStatus::NewValueError,
+                        ))
+                    }
+                }
+                EncoderSectionId::PulsesPerStep => Ok(EncoderSection::PulsesPerStep(x.value as u8)),
+                EncoderSectionId::MidiIdLSB => {
+                    Ok(EncoderSection::MidiIdLSB(Value14::from(x.value)))
+                }
+                EncoderSectionId::MidiIdMSB => {
+                    Ok(EncoderSection::MidiIdMSB(Value7::from(x.value as u8)))
+                }
+                EncoderSectionId::LowerLimit => {
+                    Ok(EncoderSection::LowerLimit(Value14::from(x.value)))
+                }
+                EncoderSectionId::UpperLimit => {
+                    Ok(EncoderSection::UpperLimit(Value14::from(x.value)))
+                }
+                EncoderSectionId::RepeatedValue => {
+                    Ok(EncoderSection::RepeatedValue(Value14::from(x.value)))
+                }
+                EncoderSectionId::SecondMidiId => {
+                    Ok(EncoderSection::SecondMidiId(Value14::from(x.value)))
                 }
             }
-            x if x.id == EncoderSectionId::Channel as u8 => {
-                Ok(EncoderSection::Channel(ChannelOrAll::from(x.value)))
-            }
-            x if x.id == EncoderSectionId::Accelleration as u8 => {
-                if let Ok(a) = Accelleration::try_from(x.value) {
-                    Ok(EncoderSection::Accelleration(a))
-                } else {
-                    Err(OpenDeckParseError::StatusError(
-                        MessageStatus::NewValueError,
-                    ))
-                }
-            }
-            x if x.id == EncoderSectionId::PulsesPerStep as u8 => {
-                Ok(EncoderSection::PulsesPerStep(x.value as u8))
-            }
-            x if x.id == EncoderSectionId::MidiIdLSB as u8 => {
-                Ok(EncoderSection::MidiIdLSB(Value14::from(x.value)))
-            }
-            x if x.id == EncoderSectionId::MidiIdMSB as u8 => {
-                Ok(EncoderSection::MidiIdMSB(Value7::from(x.value as u8)))
-            }
-            x if x.id == EncoderSectionId::LowerLimit as u8 => {
-                Ok(EncoderSection::LowerLimit(Value14::from(x.value)))
-            }
-            x if x.id == EncoderSectionId::UpperLimit as u8 => {
-                Ok(EncoderSection::UpperLimit(Value14::from(x.value)))
-            }
-            x if x.id == EncoderSectionId::RepeatedValue as u8 => {
-                Ok(EncoderSection::RepeatedValue(Value14::from(x.value)))
-            }
-            x if x.id == EncoderSectionId::SecondMidiId as u8 => {
-                Ok(EncoderSection::SecondMidiId(Value14::from(x.value)))
-            }
-            _ => Err(OpenDeckParseError::StatusError(MessageStatus::SectionError)),
+        } else {
+            Err(OpenDeckParseError::StatusError(MessageStatus::SectionError))
         }
     }
 }
