@@ -17,6 +17,13 @@ pub struct Led {
     channel: ChannelOrAll,
 }
 
+#[derive(Default)]
+pub struct GlobalLed {
+    blink_with_midi_clock: bool,
+    startup_animtation: bool,
+    use_midi_program_change_offset: bool,
+}
+
 impl Led {
     pub fn new(midi_id: Value7) -> Self {
         Led {

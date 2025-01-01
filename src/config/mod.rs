@@ -2,8 +2,8 @@ use crate::{
     analog::Analog,
     button::Button,
     encoder::Encoder,
-    global::{GlobalSection, PresetIndex},
-    led::Led,
+    global::{GlobalMidi, GlobalPreset, GlobalSection},
+    led::{GlobalLed, Led},
     parser::{OpenDeckParseError, OpenDeckParser},
     renderer::{Buffer, OpenDeckRenderer},
     Amount, Block, HardwareUid, MessageStatus, NewValues, NrOfSupportedComponents, OpenDeckRequest,
@@ -94,9 +94,16 @@ impl<const B: usize, const A: usize, const E: usize, const L: usize> Preset<B, E
     }
 }
 
+#[derive(Default)]
+pub struct GlobalConfig {
+    led: GlobalLed,
+    midi: GlobalMidi,
+    preset: GlobalPreset,
+}
+
 pub struct Config<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize> {
+    global: GlobalConfig,
     enabled: bool,
-    current_preset: usize,
     presets: Vec<Preset<B, A, E, L>, P>,
     version: FirmwareVersion,
     uid: u32,
@@ -117,12 +124,12 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
 
         Config {
             enabled: false,
-            current_preset: 0,
             presets,
             version,
             uid,
             reboot,
             bootloader,
+            global: GlobalConfig::default(),
         }
     }
     /// Processes a SysEx request and returns an optional responses.
@@ -247,20 +254,12 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
         if let Some(preset) = self.current_preset_mut() {
             match block {
                 Block::Global(GlobalSection::Midi(_, _)) => {}
-                Block::Global(GlobalSection::Presets(pi, value)) => {
-                    match pi {
-                        PresetIndex::Active => match wish {
-                            Wish::Set => self.current_preset = *value as usize,
-                            Wish::Get | Wish::Backup => {
-                                res_values.push(self.current_preset as u16).unwrap()
-                            }
-                        },
-                        // FIXME implement more preset features
-                        PresetIndex::Preservation => {}
-                        PresetIndex::EnableMideChange => {}
-                        PresetIndex::ForceValueRefresh => {}
+                Block::Global(GlobalSection::Presets(pi, value)) => match wish {
+                    Wish::Set => self.global.preset.set(pi, value),
+                    Wish::Get | Wish::Backup => {
+                        res_values.push(self.global.preset.get(pi)).unwrap();
                     }
-                }
+                },
                 Block::Button(index, section) => match wish {
                     Wish::Set => {
                         if let Some(b) = preset.button_mut(index) {
@@ -351,6 +350,6 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
     }
 
     fn current_preset_mut(&mut self) -> Option<&mut Preset<B, A, E, L>> {
-        self.presets.get_mut(self.current_preset)
+        self.presets.get_mut(self.global.preset.current)
     }
 }
