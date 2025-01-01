@@ -7,6 +7,7 @@ use crate::{
     MessageStatus, NrOfSupportedComponents, OpenDeckResponse, Section, SpecialRequest,
     SpecialResponse, ValueSize, MAX_MESSAGE_SIZE, M_ID_0, M_ID_1, M_ID_2, SYSEX_END, SYSEX_START,
 };
+
 use heapless::Vec;
 
 pub type Buffer = Vec<u8, MAX_MESSAGE_SIZE>;

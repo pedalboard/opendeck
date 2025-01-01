@@ -1,6 +1,9 @@
-use crate::{parser::OpenDeckParseError, ChannelOrAll, MessageStatus, Section};
+use crate::ChannelOrAll;
 use int_enum::IntEnum;
 use midi_types::Value14;
+
+pub mod parser;
+pub mod renderer;
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -102,82 +105,4 @@ pub enum AnalogSection {
     Channel(ChannelOrAll),
     LowerADCOffset(u8),
     UpperADCOffset(u8),
-}
-
-impl TryFrom<Section> for AnalogSection {
-    type Error = OpenDeckParseError;
-    fn try_from(v: Section) -> Result<Self, Self::Error> {
-        if let Ok(id) = AnalogSectionId::try_from(v.id) {
-            match id {
-                AnalogSectionId::Enabled => Ok(AnalogSection::Enabled(v.value > 0)),
-                AnalogSectionId::InvertState => Ok(AnalogSection::InvertState(v.value > 0)),
-                AnalogSectionId::MessageType => {
-                    if let Ok(mt) = AnalogMessageType::try_from(v.value) {
-                        Ok(AnalogSection::MessageType(mt))
-                    } else {
-                        Err(OpenDeckParseError::StatusError(
-                            MessageStatus::NewValueError,
-                        ))
-                    }
-                }
-                AnalogSectionId::MidiIdLSB => Ok(AnalogSection::MidiId(Value14::from(v.value))),
-                AnalogSectionId::LowerCCLimitLSB => {
-                    Ok(AnalogSection::LowerCCLimit(Value14::from(v.value)))
-                }
-                AnalogSectionId::UpperCCLimitLSB => {
-                    Ok(AnalogSection::UpperCCLimit(Value14::from(v.value)))
-                }
-                AnalogSectionId::Channel => Ok(AnalogSection::Channel(ChannelOrAll::from(v.value))),
-                AnalogSectionId::LowerADCOffset => Ok(AnalogSection::LowerADCOffset(v.value as u8)),
-                AnalogSectionId::UpperADCOffset => Ok(AnalogSection::UpperADCOffset(v.value as u8)),
-            }
-        } else {
-            Err(OpenDeckParseError::StatusError(MessageStatus::SectionError))
-        }
-    }
-}
-
-// render
-
-impl From<AnalogSection> for Section {
-    fn from(s: AnalogSection) -> Section {
-        match s {
-            AnalogSection::Enabled(value) => Section {
-                id: AnalogSectionId::Enabled.into(),
-                value: value as u16,
-            },
-            AnalogSection::InvertState(value) => Section {
-                id: AnalogSectionId::InvertState.into(),
-                value: value as u16,
-            },
-            AnalogSection::MessageType(value) => Section {
-                id: AnalogSectionId::MessageType.into(),
-                value: value.into(),
-            },
-            AnalogSection::MidiId(value) => Section {
-                id: AnalogSectionId::MidiIdLSB.into(),
-                value: value.into(),
-            },
-            AnalogSection::LowerCCLimit(value) => Section {
-                id: AnalogSectionId::LowerCCLimitLSB.into(),
-                value: value.into(),
-            },
-            AnalogSection::UpperCCLimit(value) => Section {
-                id: AnalogSectionId::UpperCCLimitLSB.into(),
-                value: value.into(),
-            },
-            AnalogSection::Channel(value) => Section {
-                id: AnalogSectionId::Channel.into(),
-                value: value.into(),
-            },
-            AnalogSection::LowerADCOffset(value) => Section {
-                id: AnalogSectionId::LowerADCOffset.into(),
-                value: value as u16,
-            },
-            AnalogSection::UpperADCOffset(value) => Section {
-                id: AnalogSectionId::UpperADCOffset.into(),
-                value: value as u16,
-            },
-        }
-    }
 }
