@@ -11,7 +11,7 @@ pub struct Button {
     button_type: ButtonType,
     value: Value7,
     midi_id: Value7,
-    message_type: MessageType,
+    message_type: ButtonMessageType,
     channel: ChannelOrAll,
 }
 
@@ -21,7 +21,7 @@ impl Button {
             button_type: ButtonType::default(),
             value: Value7::new(0x01),
             midi_id,
-            message_type: MessageType::default(),
+            message_type: ButtonMessageType::default(),
             channel: ChannelOrAll::default(),
         }
     }
@@ -80,7 +80,7 @@ enum ButtonSectionId {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ButtonSection {
     Type(ButtonType),
-    MessageType(MessageType),
+    MessageType(ButtonMessageType),
     MidiId(Value7),
     Value(Value7),
     Channel(ChannelOrAll),
@@ -89,7 +89,7 @@ pub enum ButtonSection {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, IntEnum, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[repr(u16)]
-pub enum MessageType {
+pub enum ButtonMessageType {
     #[default]
     Notes = 0x00,
     ProgramChange = 0x01,
