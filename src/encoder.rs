@@ -1,4 +1,5 @@
 use crate::{parser::OpenDeckParseError, ChannelOrAll, MessageStatus, Section};
+use int_enum::IntEnum;
 use midi_types::{Value14, Value7};
 
 #[derive(Debug, Clone)]
@@ -71,22 +72,23 @@ impl Encoder {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, IntEnum, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[repr(u16)]
 pub enum EncoderMessageType {
     #[default]
-    ControlChange7Fh01h,
-    ControlChange3Fh41h,
-    ProgramChange,
-    ControlChange,
-    PresetChange,
-    PitchBend,
-    NRPN7,
-    NRPN8,
-    ControlChange14bit,
-    ControlChange41h01h,
-    BPM,
-    Note,
+    ControlChange7Fh01h = 0x0,
+    ControlChange3Fh41h = 0x1,
+    ProgramChange = 0x2,
+    ControlChange = 0x3,
+    PresetChange = 0x4,
+    PitchBend = 0x5,
+    NRPN7 = 0x6,
+    NRPN8 = 0x7,
+    ControlChange14bit = 0x8,
+    ControlChange41h01h = 0x9,
+    BPM = 0xA,
+    Note = 0xB,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
@@ -209,43 +211,6 @@ impl From<EncoderSection> for Section {
     }
 }
 
-impl TryFrom<u16> for EncoderMessageType {
-    type Error = OpenDeckParseError;
-    fn try_from(value: u16) -> Result<Self, Self::Error> {
-        match value {
-            x if x == EncoderMessageType::ControlChange7Fh01h as u16 => {
-                Ok(EncoderMessageType::ControlChange7Fh01h)
-            }
-            x if x == EncoderMessageType::ControlChange3Fh41h as u16 => {
-                Ok(EncoderMessageType::ControlChange3Fh41h)
-            }
-            x if x == EncoderMessageType::ProgramChange as u16 => {
-                Ok(EncoderMessageType::ProgramChange)
-            }
-            x if x == EncoderMessageType::ControlChange as u16 => {
-                Ok(EncoderMessageType::ControlChange)
-            }
-            x if x == EncoderMessageType::PresetChange as u16 => {
-                Ok(EncoderMessageType::PresetChange)
-            }
-            x if x == EncoderMessageType::PitchBend as u16 => Ok(EncoderMessageType::PitchBend),
-            x if x == EncoderMessageType::NRPN7 as u16 => Ok(EncoderMessageType::NRPN7),
-            x if x == EncoderMessageType::NRPN8 as u16 => Ok(EncoderMessageType::NRPN8),
-            x if x == EncoderMessageType::ControlChange14bit as u16 => {
-                Ok(EncoderMessageType::ControlChange14bit)
-            }
-            x if x == EncoderMessageType::ControlChange41h01h as u16 => {
-                Ok(EncoderMessageType::ControlChange41h01h)
-            }
-            x if x == EncoderMessageType::BPM as u16 => Ok(EncoderMessageType::BPM),
-            x if x == EncoderMessageType::Note as u16 => Ok(EncoderMessageType::Note),
-            _ => Err(OpenDeckParseError::StatusError(
-                MessageStatus::NewValueError,
-            )),
-        }
-    }
-}
-
 impl TryFrom<Section> for EncoderSection {
     type Error = OpenDeckParseError;
     fn try_from(value: Section) -> Result<Self, Self::Error> {
@@ -260,8 +225,13 @@ impl TryFrom<Section> for EncoderSection {
                 Ok(EncoderSection::Enabled(x.value > 0))
             }
             x if x.id == EncoderSectionId::MessageType as u8 => {
-                let mt = EncoderMessageType::try_from(x.value)?;
-                Ok(EncoderSection::MessageType(mt))
+                if let Ok(mt) = EncoderMessageType::try_from(x.value) {
+                    Ok(EncoderSection::MessageType(mt))
+                } else {
+                    Err(OpenDeckParseError::StatusError(
+                        MessageStatus::NewValueError,
+                    ))
+                }
             }
             x if x.id == EncoderSectionId::Channel as u8 => {
                 Ok(EncoderSection::Channel(ChannelOrAll::from(x.value)))

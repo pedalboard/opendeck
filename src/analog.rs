@@ -1,4 +1,5 @@
 use crate::{parser::OpenDeckParseError, ChannelOrAll, MessageStatus, Section};
+use int_enum::IntEnum;
 use midi_types::Value14;
 
 #[derive(Debug, Clone)]
@@ -57,18 +58,19 @@ impl Analog {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, IntEnum, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[repr(u16)]
 pub enum AnalogMessageType {
     #[default]
-    PotentiometerWithCCMessage7Bit,
-    PotentiometerWithNoteMessage,
-    FSR,
-    Button,
-    NRPN7,
-    NRPN8,
-    PitchBend,
-    PotentiometerWithCCMessage14Bit,
+    PotentiometerWithCCMessage7Bit = 0,
+    PotentiometerWithNoteMessage = 1,
+    FSR = 2,
+    Button = 3,
+    NRPN7 = 4,
+    NRPN8 = 5,
+    PitchBend = 6,
+    PotentiometerWithCCMessage14Bit = 7,
 }
 
 #[allow(dead_code)]
@@ -110,8 +112,13 @@ impl TryFrom<Section> for AnalogSection {
                 Ok(AnalogSection::InvertState(x.value > 0))
             }
             x if x.id == AnalogSectionId::MessageType as u8 => {
-                let mt = AnalogMessageType::try_from(x.value)?;
-                Ok(AnalogSection::MessageType(mt))
+                if let Ok(mt) = AnalogMessageType::try_from(x.value) {
+                    Ok(AnalogSection::MessageType(mt))
+                } else {
+                    Err(OpenDeckParseError::StatusError(
+                        MessageStatus::NewValueError,
+                    ))
+                }
             }
             x if x.id == AnalogSectionId::MidiIdLSB as u8 => {
                 Ok(AnalogSection::MidiId(Value14::from(x.value)))
@@ -151,7 +158,7 @@ impl From<AnalogSection> for Section {
             },
             AnalogSection::MessageType(value) => Section {
                 id: AnalogSectionId::MessageType as u8,
-                value: value as u16,
+                value: value.into(),
             },
             AnalogSection::MidiId(value) => Section {
                 id: AnalogSectionId::MidiIdLSB as u8,
@@ -177,31 +184,6 @@ impl From<AnalogSection> for Section {
                 id: AnalogSectionId::UpperADCOffset as u8,
                 value: value as u16,
             },
-        }
-    }
-}
-
-impl TryFrom<u16> for AnalogMessageType {
-    type Error = OpenDeckParseError;
-    fn try_from(value: u16) -> Result<Self, Self::Error> {
-        match value {
-            x if x == AnalogMessageType::PotentiometerWithCCMessage7Bit as u16 => {
-                Ok(AnalogMessageType::PotentiometerWithCCMessage7Bit)
-            }
-            x if x == AnalogMessageType::PotentiometerWithNoteMessage as u16 => {
-                Ok(AnalogMessageType::PotentiometerWithNoteMessage)
-            }
-            x if x == AnalogMessageType::FSR as u16 => Ok(AnalogMessageType::FSR),
-            x if x == AnalogMessageType::Button as u16 => Ok(AnalogMessageType::Button),
-            x if x == AnalogMessageType::NRPN7 as u16 => Ok(AnalogMessageType::NRPN7),
-            x if x == AnalogMessageType::NRPN8 as u16 => Ok(AnalogMessageType::NRPN8),
-            x if x == AnalogMessageType::PitchBend as u16 => Ok(AnalogMessageType::PitchBend),
-            x if x == AnalogMessageType::PotentiometerWithCCMessage14Bit as u16 => {
-                Ok(AnalogMessageType::PotentiometerWithCCMessage14Bit)
-            }
-            _ => Err(OpenDeckParseError::StatusError(
-                MessageStatus::NewValueError,
-            )),
         }
     }
 }
