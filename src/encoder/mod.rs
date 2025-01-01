@@ -42,7 +42,7 @@ impl Encoder {
     pub fn set(&mut self, section: &EncoderSection) {
         match section {
             EncoderSection::MessageType(v) => self.message_type = *v,
-            EncoderSection::Channel(v) => self.channel = v.clone(),
+            EncoderSection::Channel(v) => self.channel = *v,
             EncoderSection::Enabled(v) => self.enabled = *v,
             EncoderSection::MidiIdLSB(v) => self.midi_id = *v,
             EncoderSection::InvertState(v) => self.invert_state = *v,
@@ -58,14 +58,14 @@ impl Encoder {
     }
     pub fn get(&self, section: &EncoderSection) -> u16 {
         match section {
-            EncoderSection::MessageType(_) => self.message_type as u16,
-            EncoderSection::Channel(_) => self.channel.clone().into(),
-            EncoderSection::Enabled(_) => self.enabled as u16,
+            EncoderSection::MessageType(_) => self.message_type.into(),
+            EncoderSection::Channel(_) => self.channel.into(),
+            EncoderSection::Enabled(_) => self.enabled.into(),
             EncoderSection::MidiIdLSB(_) => self.midi_id.into(),
-            EncoderSection::InvertState(_) => self.invert_state as u16,
-            EncoderSection::PulsesPerStep(_) => self.pulses_per_step as u16,
-            EncoderSection::RemoteSync(_) => self.remote_sync as u16,
-            EncoderSection::Accelleration(_) => self.accelleration as u16,
+            EncoderSection::InvertState(_) => self.invert_state.into(),
+            EncoderSection::PulsesPerStep(_) => self.pulses_per_step.into(),
+            EncoderSection::RemoteSync(_) => self.remote_sync.into(),
+            EncoderSection::Accelleration(_) => self.accelleration.into(),
             EncoderSection::LowerLimit(_) => self.lower_limit.into(),
             EncoderSection::UpperLimit(_) => self.upper_limit.into(),
             EncoderSection::SecondMidiId(_) => self.second_midi_id.into(),

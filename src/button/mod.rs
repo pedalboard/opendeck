@@ -31,7 +31,7 @@ impl Button {
             ButtonSection::Value(v) => self.value = *v,
             ButtonSection::MidiId(id) => self.midi_id = *id,
             ButtonSection::MessageType(t) => self.message_type = *t,
-            ButtonSection::Channel(c) => self.channel = c.clone(),
+            ButtonSection::Channel(c) => self.channel = *c,
         }
     }
     pub fn get(&self, section: &ButtonSection) -> u16 {
@@ -46,7 +46,7 @@ impl Button {
                 let v: u8 = self.midi_id.into();
                 v as u16
             }
-            ButtonSection::Channel(_) => self.channel.clone().into(),
+            ButtonSection::Channel(_) => self.channel.into(),
         }
     }
 }

@@ -13,6 +13,7 @@ pub mod button;
 pub mod config;
 pub mod encoder;
 pub mod global;
+pub mod led;
 pub mod parser;
 pub mod renderer;
 
@@ -157,7 +158,7 @@ pub enum OpenDeckResponse {
     Configuration(Wish, Amount, Block, NewValues),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ChannelOrAll {
     All,

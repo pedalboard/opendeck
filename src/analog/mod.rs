@@ -36,7 +36,7 @@ impl Analog {
     pub fn set(&mut self, section: &AnalogSection) {
         match section {
             AnalogSection::MessageType(v) => self.message_type = *v,
-            AnalogSection::Channel(v) => self.channel = v.clone(),
+            AnalogSection::Channel(v) => self.channel = *v,
             AnalogSection::Enabled(v) => self.enabled = *v,
             AnalogSection::MidiId(v) => self.midi_id = *v,
             AnalogSection::InvertState(v) => self.invert_state = *v,
@@ -49,7 +49,7 @@ impl Analog {
     pub fn get(&self, section: &AnalogSection) -> u16 {
         match section {
             AnalogSection::MessageType(_) => self.message_type as u16,
-            AnalogSection::Channel(_) => self.channel.clone().into(),
+            AnalogSection::Channel(_) => self.channel.into(),
             AnalogSection::Enabled(_) => self.enabled as u16,
             AnalogSection::MidiId(_) => self.midi_id.into(),
             AnalogSection::InvertState(_) => self.invert_state as u16,
