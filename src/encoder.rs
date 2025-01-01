@@ -88,7 +88,10 @@ pub enum EncoderMessageType {
     ControlChange14bit = 0x8,
     ControlChange41h01h = 0x9,
     BPM = 0xA,
-    Note = 0xB,
+    SingleNoteWithVariableValue = 0xB,
+    SingleNoteWithFixedValueBothDirections = 0xC,
+    SingleNoteWithFixedValueOneDirection0OtherDirection = 0xD,
+    TwoNoteWithFixedValueBothDirections = 0xE,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
