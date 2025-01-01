@@ -86,6 +86,12 @@ impl<const B: usize, const A: usize, const E: usize, const L: usize> Preset<B, E
     fn analog(&mut self, index: &u16) -> Option<&Analog> {
         self.analogs.get(*index as usize)
     }
+    fn led_mut(&mut self, index: &u16) -> Option<&mut Led> {
+        self.leds.get_mut(*index as usize)
+    }
+    fn led(&mut self, index: &u16) -> Option<&Led> {
+        self.leds.get(*index as usize)
+    }
 }
 
 pub struct Config<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize> {
@@ -313,9 +319,28 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
                         }
                     },
                 },
+                Block::Led(index, section) => match wish {
+                    Wish::Set => {
+                        if let Some(b) = preset.led_mut(index) {
+                            b.set(section)
+                        }
+                    }
+                    Wish::Get | Wish::Backup => match amount {
+                        Amount::Single => {
+                            if let Some(b) = preset.led(index) {
+                                res_values.push(b.get(section)).unwrap();
+                            }
+                        }
+                        Amount::All(_) => {
+                            for b in preset.leds.iter() {
+                                res_values.push(b.get(section)).unwrap();
+                            }
+                            for_amount = Amount::All(0)
+                        }
+                    },
+                },
 
                 Block::Display => {}
-                Block::Led => {}
                 Block::Touchscreen => {}
             };
         };

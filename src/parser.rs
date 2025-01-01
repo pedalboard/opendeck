@@ -1,8 +1,8 @@
 use crate::{
     analog::AnalogSection, button::ButtonSection, encoder::EncoderSection, global::GlobalSection,
-    Amount, AmountId, Block, BlockId, ByteOrder, ChannelOrAll, MessageStatus, OpenDeckRequest,
-    Section, SpecialRequest, ValueSize, Wish, M_ID_0, M_ID_1, M_ID_2, SPECIAL_REQ_MSG_SIZE,
-    SYSEX_END, SYSEX_START,
+    led::LedSection, Amount, AmountId, Block, BlockId, ByteOrder, ChannelOrAll, MessageStatus,
+    OpenDeckRequest, Section, SpecialRequest, ValueSize, Wish, M_ID_0, M_ID_1, M_ID_2,
+    SPECIAL_REQ_MSG_SIZE, SYSEX_END, SYSEX_START,
 };
 
 use midi_types::Channel;
@@ -155,7 +155,10 @@ impl OpenDeckParser {
                 let section = AnalogSection::try_from(section)?;
                 Ok(Block::Analog(index, section))
             }
-            x if x == BlockId::Led as u8 => Ok(Block::Led),
+            x if x == BlockId::Led as u8 => {
+                let section = LedSection::try_from(section)?;
+                Ok(Block::Led(index, section))
+            }
             _ => Err(OpenDeckParseError::StatusError(MessageStatus::BlockError)),
         }
     }

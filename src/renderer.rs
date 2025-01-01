@@ -178,7 +178,7 @@ impl Block {
             Block::Button(i, section) => (i, BlockId::Button, section.into()),
             Block::Encoder(i, section) => (i, BlockId::Encoder, section.into()),
             Block::Analog(i, section) => (i, BlockId::Analog, section.into()),
-            Block::Led => (0, BlockId::Led, Section { id: 0, value: 0 }),
+            Block::Led(i, section) => (i, BlockId::Led, section.into()),
             Block::Display => (0, BlockId::Display, Section { id: 0, value: 0 }),
             Block::Touchscreen => (0, BlockId::Touchscreen, Section { id: 0, value: 0 }),
         };

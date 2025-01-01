@@ -3,7 +3,7 @@
 // see https://github.com/shanteacontrols/OpenDeck/wiki/Sysex-Configuration
 use crate::{
     analog::AnalogSection, button::ButtonSection, config::FirmwareVersion, encoder::EncoderSection,
-    global::GlobalSection,
+    global::GlobalSection, led::LedSection,
 };
 use heapless::Vec;
 use midi_types::Channel;
@@ -191,7 +191,7 @@ pub enum Block {
     Button(u16, ButtonSection),
     Encoder(u16, EncoderSection),
     Analog(u16, AnalogSection),
-    Led,
+    Led(u16, LedSection),
     Display,
     Touchscreen,
 }
