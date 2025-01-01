@@ -1,4 +1,5 @@
 use crate::{
+    analog::Analog,
     button::Button,
     encoder::Encoder,
     global::{GlobalSection, PresetIndex},
@@ -10,7 +11,7 @@ use crate::{
 use midi_types::{Value14, Value7};
 
 const OPENDECK_UID: u32 = 0x12345677;
-const OPENDECK_ANALOG: usize = 2;
+const OPENDECK_ANALOGS: usize = 2;
 const OPENDECK_ENCODERS: usize = 2;
 const OPENDECK_LEDS: usize = 8;
 const OPENDECK_BUTTONS: usize = 8;
@@ -24,6 +25,7 @@ use heapless::Vec;
 pub struct Preset {
     buttons: Vec<Button, OPENDECK_BUTTONS>,
     encoders: Vec<Encoder, OPENDECK_ENCODERS>,
+    analogs: Vec<Analog, OPENDECK_ANALOGS>,
 }
 
 impl Default for Preset {
@@ -38,7 +40,18 @@ impl Default for Preset {
                 .push(Encoder::new(Value14::new(i16::MIN + i as i16)))
                 .unwrap();
         }
-        Preset { buttons, encoders }
+        let mut analogs = Vec::new();
+        for i in 0..OPENDECK_ANALOGS {
+            analogs
+                .push(Analog::new(Value14::new(i16::MIN + i as i16)))
+                .unwrap();
+        }
+
+        Preset {
+            buttons,
+            encoders,
+            analogs,
+        }
     }
 }
 
@@ -54,6 +67,12 @@ impl Preset {
     }
     fn encoder(&mut self, index: &u16) -> Option<&Encoder> {
         self.encoders.get(*index as usize)
+    }
+    fn analog_mut(&mut self, index: &u16) -> Option<&mut Analog> {
+        self.analogs.get_mut(*index as usize)
+    }
+    fn analog(&mut self, index: &u16) -> Option<&Analog> {
+        self.analogs.get(*index as usize)
     }
 }
 
@@ -184,7 +203,7 @@ impl Config {
                 SpecialResponse::NrOfSupportedComponents(NrOfSupportedComponents {
                     buttons: OPENDECK_BUTTONS,
                     encoders: OPENDECK_ENCODERS,
-                    analog: OPENDECK_ANALOG,
+                    analog: OPENDECK_ANALOGS,
                     leds: OPENDECK_LEDS,
                     touchscreen_buttons: 0,
                 }),
@@ -259,7 +278,27 @@ impl Config {
                         }
                     },
                 },
-                Block::Analog(_, _) => {}
+                Block::Analog(index, section) => match wish {
+                    Wish::Set => {
+                        if let Some(b) = preset.analog_mut(index) {
+                            b.set(section)
+                        }
+                    }
+                    Wish::Get | Wish::Backup => match amount {
+                        Amount::Single => {
+                            if let Some(b) = preset.analog(index) {
+                                res_values.push(b.get(section)).unwrap();
+                            }
+                        }
+                        Amount::All(_) => {
+                            for b in preset.analogs.iter() {
+                                res_values.push(b.get(section)).unwrap();
+                            }
+                            for_amount = Amount::All(0)
+                        }
+                    },
+                },
+
                 Block::Display => {}
                 Block::Led => {}
                 Block::Touchscreen => {}

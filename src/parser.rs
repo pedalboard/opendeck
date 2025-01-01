@@ -179,7 +179,7 @@ impl ValueSize {
 mod tests {
     use super::*;
     use crate::global::PresetIndex;
-    use midi_types::Value7;
+    use midi_types::{Value14, Value7};
 
     #[test]
     fn should_parse_special_messages() {
@@ -256,7 +256,7 @@ mod tests {
             Ok(OpenDeckRequest::Configuration(
                 Wish::Get,
                 Amount::Single,
-                Block::Analog(5, AnalogSection::MidiIdLSB(1)),
+                Block::Analog(5, AnalogSection::MidiId(Value14::from(u16::MIN + 1))),
             ))
         );
         assert_eq!(

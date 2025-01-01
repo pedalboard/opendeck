@@ -1,5 +1,5 @@
 use crate::{parser::OpenDeckParseError, ChannelOrAll, MessageStatus, Section};
-use midi_types::{Channel, Value7};
+use midi_types::Value7;
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -18,7 +18,7 @@ impl Button {
             value: Value7::new(0x01),
             midi_id,
             message_type: MessageType::default(),
-            channel: ChannelOrAll::Channel(Channel::C1),
+            channel: ChannelOrAll::default(),
         }
     }
     pub fn set(&mut self, section: &ButtonSection) {

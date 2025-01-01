@@ -1,5 +1,5 @@
 use crate::{parser::OpenDeckParseError, ChannelOrAll, MessageStatus, Section};
-use midi_types::{Channel, Value14, Value7};
+use midi_types::{Value14, Value7};
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -23,8 +23,8 @@ impl Encoder {
         Encoder {
             enabled: true,
             invert_state: false,
-            message_type: EncoderMessageType::ControlChange,
-            channel: ChannelOrAll::Channel(Channel::C1),
+            message_type: EncoderMessageType::default(),
+            channel: ChannelOrAll::default(),
             pulses_per_step: 2,
             midi_id,
             accelleration: Accelleration::None,
@@ -108,7 +108,7 @@ enum EncoderSectionId {
     Channel,
     PulsesPerStep,
     Accelleration,
-    MidiIdMSB,
+    MidiIdMSB, // only used in 1 byte protocol
     RemoteSync,
     LowerLimit,
     UpperLimit,
@@ -138,7 +138,6 @@ impl TryFrom<u16> for Accelleration {
     type Error = OpenDeckParseError;
     fn try_from(value: u16) -> Result<Self, Self::Error> {
         match value {
-            // FIXME support more preset values
             x if x == Accelleration::None as u16 => Ok(Accelleration::None),
             x if x == Accelleration::Slow as u16 => Ok(Accelleration::Slow),
             x if x == Accelleration::Medium as u16 => Ok(Accelleration::Medium),

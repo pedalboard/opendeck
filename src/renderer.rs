@@ -184,6 +184,7 @@ mod tests {
         global::{GlobalSection, PresetIndex},
         AnalogSection, FirmwareVersion, HardwareUid, ValueSize, Wish,
     };
+    use midi_types::Value14;
 
     #[test]
     fn should_render_special_messages_with_one_byte() {
@@ -385,7 +386,7 @@ mod tests {
                 OpenDeckResponse::Configuration(
                     Wish::Get,
                     Amount::Single,
-                    Block::Analog(5, AnalogSection::MidiIdLSB(0)),
+                    Block::Analog(5, AnalogSection::MidiId(Value14::from(u16::MIN))),
                     Vec::from_slice(&[5]).unwrap()
                 ),
                 MessageStatus::Response
@@ -416,7 +417,7 @@ mod tests {
                 OpenDeckResponse::Configuration(
                     Wish::Get,
                     Amount::All(0x00),
-                    Block::Analog(0, AnalogSection::MidiIdLSB(0)),
+                    Block::Analog(0, AnalogSection::MidiId(Value14::from(u16::MIN))),
                     Vec::from_slice(&[5, 6, 7, 8]).unwrap()
                 ),
                 MessageStatus::Response

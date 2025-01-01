@@ -170,6 +170,12 @@ pub enum ChannelOrAll {
     None,
 }
 
+impl Default for ChannelOrAll {
+    fn default() -> Self {
+        ChannelOrAll::Channel(Channel::C1)
+    }
+}
+
 impl From<u16> for ChannelOrAll {
     fn from(value: u16) -> Self {
         if value > 16 {
