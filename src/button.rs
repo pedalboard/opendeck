@@ -63,12 +63,14 @@ pub enum ButtonType {
     Latching = 1,
 }
 
+#[derive(IntEnum)]
+#[repr(u8)]
 enum ButtonSectionId {
-    Type,
-    MessageType,
-    MidiId,
-    Value,
-    Channel,
+    Type = 0,
+    MessageType = 1,
+    MidiId = 2,
+    Value = 3,
+    Channel = 4,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -120,36 +122,33 @@ pub enum MessageType {
 // parsing
 impl TryFrom<Section> for ButtonSection {
     type Error = OpenDeckParseError;
-    fn try_from(value: Section) -> Result<Self, Self::Error> {
-        match value {
-            x if x.id == ButtonSectionId::MidiId as u8 => {
-                Ok(ButtonSection::MidiId(Value7::from(x.value as u8)))
-            }
-            x if x.id == ButtonSectionId::MessageType as u8 => {
-                if let Ok(mt) = MessageType::try_from(x.value) {
-                    Ok(ButtonSection::MessageType(mt))
-                } else {
-                    Err(OpenDeckParseError::StatusError(
-                        MessageStatus::NewValueError,
-                    ))
+    fn try_from(v: Section) -> Result<Self, Self::Error> {
+        if let Ok(id) = ButtonSectionId::try_from(v.id) {
+            match id {
+                ButtonSectionId::MidiId => Ok(ButtonSection::MidiId(Value7::from(v.value as u8))),
+                ButtonSectionId::MessageType => {
+                    if let Ok(mt) = MessageType::try_from(v.value) {
+                        Ok(ButtonSection::MessageType(mt))
+                    } else {
+                        Err(OpenDeckParseError::StatusError(
+                            MessageStatus::NewValueError,
+                        ))
+                    }
                 }
-            }
-            x if x.id == ButtonSectionId::Type as u8 => {
-                if let Ok(bt) = ButtonType::try_from(x.value) {
-                    Ok(ButtonSection::Type(bt))
-                } else {
-                    Err(OpenDeckParseError::StatusError(
-                        MessageStatus::NewValueError,
-                    ))
+                ButtonSectionId::Type => {
+                    if let Ok(bt) = ButtonType::try_from(v.value) {
+                        Ok(ButtonSection::Type(bt))
+                    } else {
+                        Err(OpenDeckParseError::StatusError(
+                            MessageStatus::NewValueError,
+                        ))
+                    }
                 }
+                ButtonSectionId::Value => Ok(ButtonSection::Value(Value7::from(v.value as u8))),
+                ButtonSectionId::Channel => Ok(ButtonSection::Channel(ChannelOrAll::from(v.value))),
             }
-            x if x.id == ButtonSectionId::Value as u8 => {
-                Ok(ButtonSection::Value(Value7::from(x.value as u8)))
-            }
-            x if x.id == ButtonSectionId::Channel as u8 => {
-                Ok(ButtonSection::Channel(ChannelOrAll::from(x.value)))
-            }
-            _ => Err(OpenDeckParseError::StatusError(MessageStatus::SectionError)),
+        } else {
+            Err(OpenDeckParseError::StatusError(MessageStatus::SectionError))
         }
     }
 }
@@ -160,29 +159,29 @@ impl From<ButtonSection> for Section {
     fn from(s: ButtonSection) -> Section {
         match s {
             ButtonSection::Type(t) => Section {
-                id: ButtonSectionId::Type as u8,
+                id: ButtonSectionId::Type.into(),
                 value: t.into(),
             },
             ButtonSection::MessageType(t) => Section {
-                id: ButtonSectionId::MessageType as u8,
+                id: ButtonSectionId::MessageType.into(),
                 value: t.into(),
             },
             ButtonSection::MidiId(v) => {
                 let value: u8 = v.into();
                 Section {
-                    id: ButtonSectionId::MidiId as u8,
+                    id: ButtonSectionId::MidiId.into(),
                     value: value as u16,
                 }
             }
             ButtonSection::Value(v) => {
                 let value: u8 = v.into();
                 Section {
-                    id: ButtonSectionId::Value as u8,
+                    id: ButtonSectionId::Value.into(),
                     value: value as u16,
                 }
             }
             ButtonSection::Channel(v) => Section {
-                id: ButtonSectionId::Channel as u8,
+                id: ButtonSectionId::Channel.into(),
                 value: v.into(),
             },
         }

@@ -24,6 +24,8 @@ pub enum GlobalSection {
     Presets(PresetIndex, u16),
 }
 
+// parse
+
 impl TryFrom<(u16, Section)> for GlobalSection {
     type Error = OpenDeckParseError;
     fn try_from(value: (u16, Section)) -> Result<Self, Self::Error> {
