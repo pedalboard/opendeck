@@ -7,7 +7,7 @@ impl From<GlobalSection> for (u16, Section) {
     fn from(section: GlobalSection) -> (u16, Section) {
         match section {
             GlobalSection::Midi(index, value) => (
-                index,
+                index.into(),
                 Section {
                     id: GlobalSectionId::Midi.into(),
                     value,

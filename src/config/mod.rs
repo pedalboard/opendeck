@@ -253,7 +253,12 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
 
         if let Some(preset) = self.current_preset_mut() {
             match block {
-                Block::Global(GlobalSection::Midi(_, _)) => {}
+                Block::Global(GlobalSection::Midi(i, value)) => match wish {
+                    Wish::Set => self.global.midi.set(i, value),
+                    Wish::Get | Wish::Backup => {
+                        res_values.push(self.global.midi.get(i)).unwrap();
+                    }
+                },
                 Block::Global(GlobalSection::Presets(pi, value)) => match wish {
                     Wish::Set => self.global.preset.set(pi, value),
                     Wish::Get | Wish::Backup => {
