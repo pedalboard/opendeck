@@ -21,7 +21,35 @@ pub struct Led {
 pub struct GlobalLed {
     blink_with_midi_clock: bool,
     startup_animtation: bool,
-    use_midi_program_change_offset: bool,
+    midi_program_change_offset: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, IntEnum, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[repr(u16)]
+pub enum LedIndex {
+    BlinkWithMIDIClock = 0,
+    // FadeSpeed = 1, // not in use anymore
+    EnableStartupAnimation = 2,
+    UseMidiProgramChangeOffset = 3,
+}
+
+// FIXME call global led settings
+impl GlobalLed {
+    pub fn set(&mut self, index: LedIndex, value: &u16) {
+        match index {
+            LedIndex::BlinkWithMIDIClock => self.blink_with_midi_clock = *value > 0,
+            LedIndex::EnableStartupAnimation => self.startup_animtation = *value > 0,
+            LedIndex::UseMidiProgramChangeOffset => self.midi_program_change_offset = *value > 0,
+        }
+    }
+    pub fn get(&mut self, index: &LedIndex) -> u16 {
+        match index {
+            LedIndex::BlinkWithMIDIClock => self.blink_with_midi_clock.into(),
+            LedIndex::EnableStartupAnimation => self.startup_animtation.into(),
+            LedIndex::UseMidiProgramChangeOffset => self.midi_program_change_offset.into(),
+        }
+    }
 }
 
 impl Led {

@@ -3,7 +3,7 @@ use crate::{
     button::Button,
     encoder::Encoder,
     global::{GlobalMidi, GlobalPreset, GlobalSection},
-    led::{GlobalLed, Led},
+    led::Led,
     parser::{OpenDeckParseError, OpenDeckParser},
     renderer::{Buffer, OpenDeckRenderer},
     Amount, Block, HardwareUid, MessageStatus, NewValues, NrOfSupportedComponents, OpenDeckRequest,
@@ -96,7 +96,6 @@ impl<const B: usize, const A: usize, const E: usize, const L: usize> Preset<B, E
 
 #[derive(Default)]
 pub struct GlobalConfig {
-    led: GlobalLed,
     midi: GlobalMidi,
     preset: GlobalPreset,
 }
