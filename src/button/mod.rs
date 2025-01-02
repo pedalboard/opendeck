@@ -2,17 +2,19 @@ use crate::ChannelOrAll;
 use int_enum::IntEnum;
 use midi_types::Value7;
 
+pub mod handler;
 pub mod parser;
 pub mod renderer;
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Button {
-    button_type: ButtonType,
     value: Value7,
     midi_id: Value7,
     message_type: ButtonMessageType,
     channel: ChannelOrAll,
+    button_type: ButtonType,
+    latch_on: bool,
 }
 
 impl Button {
@@ -23,6 +25,7 @@ impl Button {
             midi_id,
             message_type: ButtonMessageType::default(),
             channel: ChannelOrAll::default(),
+            latch_on: false,
         }
     }
     pub fn set(&mut self, section: &ButtonSection) {

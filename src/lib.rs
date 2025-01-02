@@ -172,6 +172,34 @@ impl Default for ChannelOrAll {
     }
 }
 
+impl ChannelOrAll {
+    fn channels(self) -> Vec<Channel, 16> {
+        match self {
+            ChannelOrAll::None => Vec::new(),
+            ChannelOrAll::Channel(ch) => Vec::from_slice(&[ch]).unwrap(),
+            ChannelOrAll::All => Vec::from_slice(&[
+                Channel::C1,
+                Channel::C2,
+                Channel::C3,
+                Channel::C4,
+                Channel::C5,
+                Channel::C6,
+                Channel::C7,
+                Channel::C8,
+                Channel::C9,
+                Channel::C10,
+                Channel::C11,
+                Channel::C12,
+                Channel::C13,
+                Channel::C14,
+                Channel::C15,
+                Channel::C16,
+            ])
+            .unwrap(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum BlockId {
