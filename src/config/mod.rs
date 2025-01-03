@@ -110,7 +110,7 @@ pub struct Config<const P: usize, const B: usize, const A: usize, const E: usize
     bootloader: fn(),
 }
 
-type Responses = Vec<Buffer, OPENDECK_MAX_NR_MESSAGES>;
+pub type Responses = Vec<Buffer, OPENDECK_MAX_NR_MESSAGES>;
 
 impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize>
     Config<P, B, A, E, L>
