@@ -83,6 +83,12 @@ pub enum OpenDeckParseError {
     StatusError(MessageStatus),
 }
 
+impl OpenDeckParseError {
+    pub fn new_value_err(_: u16) -> Self {
+        OpenDeckParseError::StatusError(MessageStatus::NewValueError)
+    }
+}
+
 pub struct OpenDeckParser {
     value_size: ValueSize,
 }

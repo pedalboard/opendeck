@@ -12,15 +12,9 @@ impl TryFrom<Section> for AnalogSection {
             match id {
                 AnalogSectionId::Enabled => Ok(AnalogSection::Enabled(v.value > 0)),
                 AnalogSectionId::InvertState => Ok(AnalogSection::InvertState(v.value > 0)),
-                AnalogSectionId::MessageType => {
-                    if let Ok(mt) = AnalogMessageType::try_from(v.value) {
-                        Ok(AnalogSection::MessageType(mt))
-                    } else {
-                        Err(OpenDeckParseError::StatusError(
-                            MessageStatus::NewValueError,
-                        ))
-                    }
-                }
+                AnalogSectionId::MessageType => AnalogMessageType::try_from(v.value)
+                    .map(AnalogSection::MessageType)
+                    .map_err(OpenDeckParseError::new_value_err),
                 AnalogSectionId::MidiIdLSB => Ok(AnalogSection::MidiId(Value14::from(v.value))),
                 AnalogSectionId::LowerCCLimitLSB => {
                     Ok(AnalogSection::LowerCCLimit(Value14::from(v.value)))
@@ -35,5 +29,33 @@ impl TryFrom<Section> for AnalogSection {
         } else {
             Err(OpenDeckParseError::StatusError(MessageStatus::SectionError))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_midi_id() {
+        let value = 1;
+        let section = Section { id: 0x03, value };
+        let result = AnalogSection::try_from(section);
+        assert_eq!(result, Ok(AnalogSection::MidiId(Value14::from(value))));
+    }
+
+    #[test]
+    fn test_message_type_value_error() {
+        let result = AnalogSection::try_from(Section {
+            id: 0x02,
+            value: 0x20,
+        });
+        assert_eq!(
+            result,
+            Err(OpenDeckParseError::StatusError(
+                MessageStatus::NewValueError
+            ))
+        );
     }
 }
