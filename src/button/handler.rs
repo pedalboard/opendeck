@@ -10,6 +10,7 @@ pub enum Action {
 enum ButtonStatus {
     Off,
     On,
+    None,
 }
 
 impl Button {
@@ -31,6 +32,7 @@ impl Button {
                             .push(MidiMessage::NoteOn(ch, Note::from(value), Value7::new(0)))
                             .unwrap();
                     }
+                    ButtonStatus::None => {}
                 },
                 ButtonMessageType::ProgramChange => {}
                 ButtonMessageType::ControlChange => {}
@@ -75,12 +77,13 @@ impl Button {
             ButtonType::Latching => {
                 if let Action::Pressed = action {
                     self.latch_on = !self.latch_on;
+                    if self.latch_on {
+                        return ButtonStatus::On;
+                    } else {
+                        return ButtonStatus::Off;
+                    }
                 }
-                if self.latch_on {
-                    ButtonStatus::On
-                } else {
-                    ButtonStatus::Off
-                }
+                ButtonStatus::None
             }
         }
     }
