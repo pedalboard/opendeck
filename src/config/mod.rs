@@ -353,7 +353,7 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
         (res_values, for_amount)
     }
 
-    fn current_preset_mut(&mut self) -> Option<&mut Preset<B, A, E, L>> {
+    pub fn current_preset_mut(&mut self) -> Option<&mut Preset<B, A, E, L>> {
         self.presets.get_mut(self.global.preset.current)
     }
 }
