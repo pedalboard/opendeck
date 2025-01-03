@@ -68,25 +68,25 @@ impl<const B: usize, const A: usize, const E: usize, const L: usize> Default
 }
 
 impl<const B: usize, const A: usize, const E: usize, const L: usize> Preset<B, E, A, L> {
-    fn button_mut(&mut self, index: &u16) -> Option<&mut Button> {
+    pub fn button_mut(&mut self, index: &u16) -> Option<&mut Button> {
         self.buttons.get_mut(*index as usize)
     }
     fn button(&mut self, index: &u16) -> Option<&Button> {
         self.buttons.get(*index as usize)
     }
-    fn encoder_mut(&mut self, index: &u16) -> Option<&mut Encoder> {
+    pub fn encoder_mut(&mut self, index: &u16) -> Option<&mut Encoder> {
         self.encoders.get_mut(*index as usize)
     }
     fn encoder(&mut self, index: &u16) -> Option<&Encoder> {
         self.encoders.get(*index as usize)
     }
-    fn analog_mut(&mut self, index: &u16) -> Option<&mut Analog> {
+    pub fn analog_mut(&mut self, index: &u16) -> Option<&mut Analog> {
         self.analogs.get_mut(*index as usize)
     }
     fn analog(&mut self, index: &u16) -> Option<&Analog> {
         self.analogs.get(*index as usize)
     }
-    fn led_mut(&mut self, index: &u16) -> Option<&mut Led> {
+    pub fn led_mut(&mut self, index: &u16) -> Option<&mut Led> {
         self.leds.get_mut(*index as usize)
     }
     fn led(&mut self, index: &u16) -> Option<&Led> {
