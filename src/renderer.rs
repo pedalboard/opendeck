@@ -5,7 +5,7 @@ pub struct OpenDeckRenderer {
 use crate::{
     Amount, AmountId, Block, BlockId, ByteOrder, ChannelOrAll, HardwareUid, MessageStatus,
     NrOfSupportedComponents, OpenDeckResponse, Section, SpecialRequest, SpecialResponse, ValueSize,
-    MAX_MESSAGE_SIZE, M_ID_0, M_ID_1, M_ID_2, SYSEX_END, SYSEX_START,
+    MAX_MESSAGE_SIZE, M_ID_0, M_ID_1, M_ID_2,
 };
 
 use heapless::Vec;
@@ -19,7 +19,8 @@ impl OpenDeckRenderer {
 
     pub fn render(&self, res: OpenDeckResponse, status: MessageStatus) -> Buffer {
         let mut buf = Vec::new();
-        buf.insert(ByteOrder::Start as usize, SYSEX_START).unwrap();
+        buf.insert(ByteOrder::Start as usize, midi_types::status::SYSEX_START)
+            .unwrap();
         buf.insert(ByteOrder::Id1 as usize, M_ID_0).unwrap();
         buf.insert(ByteOrder::Id2 as usize, M_ID_1).unwrap();
         buf.insert(ByteOrder::Id3 as usize, M_ID_2).unwrap();
@@ -80,7 +81,7 @@ impl OpenDeckRenderer {
         };
 
         buf.insert(ByteOrder::Wish as usize, wish).unwrap();
-        buf.push(SYSEX_END).unwrap();
+        buf.push(midi_types::status::SYSEX_END).unwrap();
         buf
     }
 }

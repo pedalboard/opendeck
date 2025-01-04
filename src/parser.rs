@@ -2,7 +2,7 @@ use crate::{
     analog::AnalogSection, button::ButtonSection, encoder::EncoderSection, global::GlobalSection,
     led::LedSection, Amount, AmountId, Block, BlockId, ByteOrder, ChannelOrAll, MessageStatus,
     OpenDeckRequest, Section, SpecialRequest, ValueSize, Wish, M_ID_0, M_ID_1, M_ID_2,
-    SPECIAL_REQ_MSG_SIZE, SYSEX_END, SYSEX_START,
+    SPECIAL_REQ_MSG_SIZE,
 };
 
 use midi_types::Channel;
@@ -102,10 +102,10 @@ impl OpenDeckParser {
         if buf.len() < 8 {
             return Err(OpenDeckParseError::BufferTooShort);
         }
-        if ByteOrder::Start.get(buf) != SYSEX_START {
+        if ByteOrder::Start.get(buf) != midi_types::status::SYSEX_START {
             return Err(OpenDeckParseError::NoSysex);
         }
-        if buf[buf.len() - 1] != SYSEX_END {
+        if buf[buf.len() - 1] != midi_types::status::SYSEX_END {
             return Err(OpenDeckParseError::NoSysex);
         }
 

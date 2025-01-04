@@ -17,8 +17,6 @@ pub mod led;
 pub mod parser;
 pub mod renderer;
 
-const SYSEX_START: u8 = 0xF0;
-const SYSEX_END: u8 = 0xF7;
 const M_ID_0: u8 = 0x00;
 const M_ID_1: u8 = 0x53;
 const M_ID_2: u8 = 0x43;

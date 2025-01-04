@@ -1,6 +1,6 @@
 use crate::button::{Button, ButtonMessageType, ButtonType};
 use heapless::Vec;
-use midi_types::{MidiMessage, Note, Value7};
+use midi_types::{Control, MidiMessage, Note, Program, Value7};
 
 pub enum Action {
     Pressed,
@@ -16,38 +16,87 @@ enum ButtonStatus {
 impl Button {
     pub fn handle(&mut self, action: Action) -> Vec<MidiMessage, 16> {
         let mut result = Vec::new();
-        let value: u8 = self.midi_id.into();
-        let status = self.latch(action);
+        let midi_id: u8 = self.midi_id.into();
+        let status = self.latch(&action);
 
         for ch in self.channel.channels() {
             match self.message_type {
                 ButtonMessageType::Notes => match status {
                     ButtonStatus::On => {
                         result
-                            .push(MidiMessage::NoteOn(ch, Note::from(value), self.value))
+                            .push(MidiMessage::NoteOn(ch, Note::from(midi_id), self.value))
                             .unwrap();
                     }
                     ButtonStatus::Off => {
                         result
-                            .push(MidiMessage::NoteOn(ch, Note::from(value), Value7::new(0)))
+                            .push(MidiMessage::NoteOn(ch, Note::from(midi_id), Value7::new(0)))
                             .unwrap();
                     }
                     ButtonStatus::None => {}
                 },
-                ButtonMessageType::ProgramChange => {}
-                ButtonMessageType::ControlChange => {}
-                ButtonMessageType::ControlChangeWithReset => {}
+                ButtonMessageType::ProgramChange => {
+                    if let Action::Pressed = action {
+                        result
+                            .push(MidiMessage::ProgramChange(ch, Program::from(midi_id)))
+                            .unwrap();
+                    }
+                }
+                ButtonMessageType::ControlChange => {
+                    if let Action::Pressed = action {
+                        result
+                            .push(MidiMessage::ControlChange(
+                                ch,
+                                Control::from(midi_id),
+                                self.value,
+                            ))
+                            .unwrap();
+                    }
+                }
+                ButtonMessageType::ControlChangeWithReset => match status {
+                    ButtonStatus::On => {
+                        result
+                            .push(MidiMessage::ControlChange(
+                                ch,
+                                Control::from(midi_id),
+                                self.value,
+                            ))
+                            .unwrap();
+                    }
+                    ButtonStatus::Off => {
+                        result
+                            .push(MidiMessage::ControlChange(
+                                ch,
+                                Control::from(midi_id),
+                                Value7::new(0),
+                            ))
+                            .unwrap();
+                    }
+                    ButtonStatus::None => {}
+                },
+                ButtonMessageType::ControlChangeWithValue0 => {
+                    if let Action::Pressed = action {
+                        result
+                            .push(MidiMessage::ControlChange(
+                                ch,
+                                Control::from(midi_id),
+                                Value7::new(0),
+                            ))
+                            .unwrap();
+                    }
+                }
+
                 ButtonMessageType::MMCStop => {}
                 ButtonMessageType::MMCPlay => {}
                 ButtonMessageType::MMCRecord => {}
                 ButtonMessageType::MMCPause => {}
+
                 ButtonMessageType::RealTimeClock => {}
                 ButtonMessageType::RealTimeStart => {}
                 ButtonMessageType::RealTimeContinue => {}
-
                 ButtonMessageType::RealTimeStop => {}
                 ButtonMessageType::RealTimeActiveSensing => {}
                 ButtonMessageType::RealTimeSystemReset => {}
+
                 ButtonMessageType::ProgramChangeIncr => {}
                 ButtonMessageType::ProgramChangeDecr => {}
                 ButtonMessageType::NoMessage => {}
@@ -57,7 +106,6 @@ impl Button {
                 ButtonMessageType::MultiValueIncCC => {}
                 ButtonMessageType::MultiValueDecCC => {}
                 ButtonMessageType::NoteOffOnly => {}
-                ButtonMessageType::ControlChangeWithValue0 => {}
                 ButtonMessageType::Reserved => {}
                 ButtonMessageType::ProgramChangeOffsetIncr => {}
                 ButtonMessageType::ProgramChangeOffsetDecr => {}
@@ -68,7 +116,7 @@ impl Button {
 
         result
     }
-    fn latch(&mut self, action: Action) -> ButtonStatus {
+    fn latch(&mut self, action: &Action) -> ButtonStatus {
         match self.button_type {
             ButtonType::Momentary => match action {
                 Action::Pressed => ButtonStatus::On,
@@ -86,5 +134,160 @@ impl Button {
                 ButtonStatus::None
             }
         }
+    }
+}
+#[cfg(test)]
+mod tests {
+
+    use midi_types::Channel;
+
+    use super::*;
+    use crate::ChannelOrAll;
+
+    #[test]
+    fn test_note_on() {
+        let mut button = Button {
+            button_type: ButtonType::Momentary,
+            message_type: ButtonMessageType::Notes,
+            midi_id: Value7::new(0x03),
+            value: Value7::new(0x7F),
+            channel: ChannelOrAll::default(),
+            latch_on: false,
+        };
+        let result = button.handle(Action::Pressed);
+        assert_eq!(
+            result,
+            [MidiMessage::NoteOn(
+                Channel::C1,
+                Note::from(0x03),
+                Value7::new(0x7F)
+            )]
+        );
+    }
+
+    #[test]
+    fn test_program_change() {
+        let mut button = Button {
+            button_type: ButtonType::Momentary,
+            message_type: ButtonMessageType::ProgramChange,
+            midi_id: Value7::new(0x03),
+            value: Value7::new(0x7F),
+            channel: ChannelOrAll::default(),
+            latch_on: false,
+        };
+        let result = button.handle(Action::Pressed);
+        assert_eq!(
+            result,
+            [MidiMessage::ProgramChange(Channel::C1, Program::from(0x03))]
+        );
+    }
+    #[test]
+    fn test_program_change_release() {
+        let mut button = Button {
+            button_type: ButtonType::Momentary,
+            message_type: ButtonMessageType::ProgramChange,
+            midi_id: Value7::new(0x03),
+            value: Value7::new(0x7F),
+            channel: ChannelOrAll::default(),
+            latch_on: false,
+        };
+        let result = button.handle(Action::Released);
+        assert_eq!(result, []);
+    }
+
+    #[test]
+    fn test_control_change() {
+        let mut button = Button {
+            button_type: ButtonType::Momentary,
+            message_type: ButtonMessageType::ControlChange,
+            midi_id: Value7::new(0x03),
+            value: Value7::new(0x7F),
+            channel: ChannelOrAll::default(),
+            latch_on: false,
+        };
+        let result = button.handle(Action::Pressed);
+        assert_eq!(
+            result,
+            [MidiMessage::ControlChange(
+                Channel::C1,
+                Control::from(0x03),
+                Value7::new(0x7F)
+            )]
+        );
+    }
+    #[test]
+    fn test_control_change_release() {
+        let mut button = Button {
+            button_type: ButtonType::Momentary,
+            message_type: ButtonMessageType::ControlChange,
+            midi_id: Value7::new(0x03),
+            value: Value7::new(0x7F),
+            channel: ChannelOrAll::default(),
+            latch_on: false,
+        };
+        let result = button.handle(Action::Released);
+        assert_eq!(result, []);
+    }
+
+    #[test]
+    fn test_control_change_with_reset() {
+        let mut button = Button {
+            button_type: ButtonType::Momentary,
+            message_type: ButtonMessageType::ControlChangeWithReset,
+            midi_id: Value7::new(0x03),
+            value: Value7::new(0x7F),
+            channel: ChannelOrAll::default(),
+            latch_on: false,
+        };
+        let result = button.handle(Action::Pressed);
+        assert_eq!(
+            result,
+            [MidiMessage::ControlChange(
+                Channel::C1,
+                Control::from(0x03),
+                Value7::new(0x7F)
+            )]
+        );
+    }
+    #[test]
+    fn test_control_change_with_reset_release() {
+        let mut button = Button {
+            button_type: ButtonType::Momentary,
+            message_type: ButtonMessageType::ControlChangeWithReset,
+            midi_id: Value7::new(0x03),
+            value: Value7::new(0x7F),
+            channel: ChannelOrAll::default(),
+            latch_on: false,
+        };
+        let result = button.handle(Action::Released);
+        assert_eq!(
+            result,
+            [MidiMessage::ControlChange(
+                Channel::C1,
+                Control::from(0x03),
+                Value7::new(0)
+            )]
+        );
+    }
+
+    #[test]
+    fn test_control_change_with_value0() {
+        let mut button = Button {
+            button_type: ButtonType::Momentary,
+            message_type: ButtonMessageType::ControlChangeWithValue0,
+            midi_id: Value7::new(0x03),
+            value: Value7::new(0x7F),
+            channel: ChannelOrAll::default(),
+            latch_on: false,
+        };
+        let result = button.handle(Action::Pressed);
+        assert_eq!(
+            result,
+            [MidiMessage::ControlChange(
+                Channel::C1,
+                Control::from(3),
+                Value7::new(0)
+            )]
+        );
     }
 }
