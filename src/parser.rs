@@ -2,10 +2,8 @@ use crate::{
     analog::AnalogSection, button::ButtonSection, encoder::EncoderSection, global::GlobalSection,
     led::LedSection, Amount, AmountId, Block, BlockId, ByteOrder, ChannelOrAll, MessageStatus,
     OpenDeckRequest, Section, SpecialRequest, ValueSize, Wish, M_ID_0, M_ID_1, M_ID_2,
-    SPECIAL_REQ_MSG_SIZE,
+    SPECIAL_REQ_MSG_SIZE, SYSEX_END, SYSEX_START,
 };
-
-use midi_types::Channel;
 
 impl TryFrom<u8> for SpecialRequest {
     type Error = OpenDeckParseError;
@@ -69,7 +67,7 @@ impl From<u16> for ChannelOrAll {
         } else if value == 0 {
             ChannelOrAll::None
         } else {
-            ChannelOrAll::Channel(Channel::new((value as u8) - 1))
+            ChannelOrAll::Channel(value as u8)
         }
     }
 }
@@ -102,10 +100,10 @@ impl OpenDeckParser {
         if buf.len() < 8 {
             return Err(OpenDeckParseError::BufferTooShort);
         }
-        if ByteOrder::Start.get(buf) != midi_types::status::SYSEX_START {
+        if ByteOrder::Start.get(buf) != SYSEX_START {
             return Err(OpenDeckParseError::NoSysex);
         }
-        if buf[buf.len() - 1] != midi_types::status::SYSEX_END {
+        if buf[buf.len() - 1] != SYSEX_END {
             return Err(OpenDeckParseError::NoSysex);
         }
 
@@ -202,7 +200,6 @@ impl ValueSize {
 mod tests {
     use super::*;
     use crate::global::PresetIndex;
-    use midi_types::{Value14, Value7};
 
     #[test]
     fn should_parse_special_messages() {
@@ -279,7 +276,7 @@ mod tests {
             Ok(OpenDeckRequest::Configuration(
                 Wish::Get,
                 Amount::Single,
-                Block::Analog(5, AnalogSection::MidiId(Value14::from(u16::MIN + 1))),
+                Block::Analog(5, AnalogSection::MidiId(u16::MIN + 1)),
             ))
         );
         assert_eq!(
@@ -299,7 +296,7 @@ mod tests {
             Ok(OpenDeckRequest::Configuration(
                 Wish::Get,
                 Amount::All(0x7F),
-                Block::Button(0, ButtonSection::MidiId(Value7::from(0))),
+                Block::Button(0, ButtonSection::MidiId(0)),
             ))
         );
     }

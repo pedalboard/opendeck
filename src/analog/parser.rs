@@ -3,7 +3,6 @@ use crate::{
     parser::OpenDeckParseError,
     ChannelOrAll, MessageStatus, Section,
 };
-use midi_types::Value14;
 
 impl TryFrom<Section> for AnalogSection {
     type Error = OpenDeckParseError;
@@ -15,13 +14,9 @@ impl TryFrom<Section> for AnalogSection {
                 AnalogSectionId::MessageType => AnalogMessageType::try_from(v.value)
                     .map(AnalogSection::MessageType)
                     .map_err(OpenDeckParseError::new_value_err),
-                AnalogSectionId::MidiIdLSB => Ok(AnalogSection::MidiId(Value14::from(v.value))),
-                AnalogSectionId::LowerCCLimitLSB => {
-                    Ok(AnalogSection::LowerCCLimit(Value14::from(v.value)))
-                }
-                AnalogSectionId::UpperCCLimitLSB => {
-                    Ok(AnalogSection::UpperCCLimit(Value14::from(v.value)))
-                }
+                AnalogSectionId::MidiIdLSB => Ok(AnalogSection::MidiId(v.value)),
+                AnalogSectionId::LowerCCLimitLSB => Ok(AnalogSection::LowerCCLimit(v.value)),
+                AnalogSectionId::UpperCCLimitLSB => Ok(AnalogSection::UpperCCLimit(v.value)),
                 AnalogSectionId::Channel => Ok(AnalogSection::Channel(ChannelOrAll::from(v.value))),
                 AnalogSectionId::LowerADCOffset => Ok(AnalogSection::LowerADCOffset(v.value as u8)),
                 AnalogSectionId::UpperADCOffset => Ok(AnalogSection::UpperADCOffset(v.value as u8)),
@@ -42,7 +37,7 @@ mod tests {
         let value = 1;
         let section = Section { id: 0x03, value };
         let result = AnalogSection::try_from(section);
-        assert_eq!(result, Ok(AnalogSection::MidiId(Value14::from(value))));
+        assert_eq!(result, Ok(AnalogSection::MidiId(value)));
     }
 
     #[test]

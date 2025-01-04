@@ -1,6 +1,5 @@
 use crate::ChannelOrAll;
 use int_enum::IntEnum;
-use midi_types::Value7;
 
 pub mod parser;
 pub mod renderer;
@@ -10,8 +9,8 @@ pub mod renderer;
 pub struct Led {
     color_testing: Color,
     blink_testing: bool,
-    activation_id: Value7,
-    activation_value: Value7,
+    activation_id: u8,
+    activation_value: u8,
     rgb_enabled: bool,
     control_type: ControlType,
     channel: ChannelOrAll,
@@ -53,12 +52,12 @@ impl GlobalLed {
 }
 
 impl Led {
-    pub fn new(midi_id: Value7) -> Self {
+    pub fn new(midi_id: u8) -> Self {
         Led {
             color_testing: Color::default(),
             blink_testing: false,
             activation_id: midi_id,
-            activation_value: Value7::new(0),
+            activation_value: 0,
             rgb_enabled: true,
             control_type: ControlType::default(),
             channel: ChannelOrAll::default(),
@@ -98,7 +97,7 @@ impl Led {
 
 impl Default for Led {
     fn default() -> Self {
-        Led::new(Value7::new(0x00))
+        Led::new(0)
     }
 }
 
@@ -154,8 +153,8 @@ pub enum LedSection {
     ColorTesting(Color),
     BlinkTesting(bool),
     Global(u16),
-    ActivationId(Value7),
-    ActivationValue(Value7),
+    ActivationId(u8),
+    ActivationValue(u8),
     RGBEnabled(bool),
     ControlType(ControlType),
     Channel(ChannelOrAll),

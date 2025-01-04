@@ -6,7 +6,6 @@ use crate::{
     global::GlobalSection, led::LedSection,
 };
 use heapless::Vec;
-use midi_types::Channel;
 
 pub mod analog;
 pub mod button;
@@ -17,6 +16,8 @@ pub mod led;
 pub mod parser;
 pub mod renderer;
 
+const SYSEX_START: u8 = 0xF0;
+const SYSEX_END: u8 = 0xF7;
 const M_ID_0: u8 = 0x00;
 const M_ID_1: u8 = 0x53;
 const M_ID_2: u8 = 0x43;
@@ -160,40 +161,25 @@ pub enum OpenDeckResponse {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ChannelOrAll {
     All,
-    Channel(Channel),
+    Channel(u8),
     None,
 }
 
 impl Default for ChannelOrAll {
     fn default() -> Self {
-        ChannelOrAll::Channel(Channel::C1)
+        ChannelOrAll::Channel(0)
     }
 }
 
 impl ChannelOrAll {
-    fn channels(self) -> Vec<Channel, 16> {
+    fn channels(self) -> Vec<u8, 16> {
         match self {
             ChannelOrAll::None => Vec::new(),
             ChannelOrAll::Channel(ch) => Vec::from_slice(&[ch]).unwrap(),
-            ChannelOrAll::All => Vec::from_slice(&[
-                Channel::C1,
-                Channel::C2,
-                Channel::C3,
-                Channel::C4,
-                Channel::C5,
-                Channel::C6,
-                Channel::C7,
-                Channel::C8,
-                Channel::C9,
-                Channel::C10,
-                Channel::C11,
-                Channel::C12,
-                Channel::C13,
-                Channel::C14,
-                Channel::C15,
-                Channel::C16,
-            ])
-            .unwrap(),
+            ChannelOrAll::All => {
+                let u8s = (0..16).collect::<Vec<u8, 16>>();
+                Vec::from_slice(&u8s).unwrap()
+            }
         }
     }
 }

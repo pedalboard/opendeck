@@ -1,6 +1,5 @@
 use crate::ChannelOrAll;
 use int_enum::IntEnum;
-use midi_types::Value7;
 
 pub mod handler;
 pub mod parser;
@@ -9,8 +8,8 @@ pub mod renderer;
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Button {
-    value: Value7,
-    midi_id: Value7,
+    value: u8,
+    midi_id: u8,
     message_type: ButtonMessageType,
     channel: ChannelOrAll,
     button_type: ButtonType,
@@ -18,10 +17,10 @@ pub struct Button {
 }
 
 impl Button {
-    pub fn new(midi_id: Value7) -> Self {
+    pub fn new(midi_id: u8) -> Self {
         Button {
             button_type: ButtonType::default(),
-            value: Value7::new(0x01),
+            value: 0x01,
             midi_id,
             message_type: ButtonMessageType::default(),
             channel: ChannelOrAll::default(),
@@ -56,7 +55,7 @@ impl Button {
 
 impl Default for Button {
     fn default() -> Self {
-        Button::new(Value7::new(0x00))
+        Button::new(0)
     }
 }
 
@@ -84,8 +83,8 @@ enum ButtonSectionId {
 pub enum ButtonSection {
     Type(ButtonType),
     MessageType(ButtonMessageType),
-    MidiId(Value7),
-    Value(Value7),
+    MidiId(u8),
+    Value(u8),
     Channel(ChannelOrAll),
 }
 

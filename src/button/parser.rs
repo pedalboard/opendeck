@@ -3,21 +3,20 @@ use crate::{
     parser::OpenDeckParseError,
     ChannelOrAll, MessageStatus, Section,
 };
-use midi_types::Value7;
 
 impl TryFrom<Section> for ButtonSection {
     type Error = OpenDeckParseError;
     fn try_from(v: Section) -> Result<Self, Self::Error> {
         if let Ok(id) = ButtonSectionId::try_from(v.id) {
             match id {
-                ButtonSectionId::MidiId => Ok(ButtonSection::MidiId(Value7::from(v.value as u8))),
+                ButtonSectionId::MidiId => Ok(ButtonSection::MidiId(v.value as u8)),
                 ButtonSectionId::MessageType => ButtonMessageType::try_from(v.value)
                     .map(ButtonSection::MessageType)
                     .map_err(OpenDeckParseError::new_value_err),
                 ButtonSectionId::Type => ButtonType::try_from(v.value)
                     .map(ButtonSection::Type)
                     .map_err(OpenDeckParseError::new_value_err),
-                ButtonSectionId::Value => Ok(ButtonSection::Value(Value7::from(v.value as u8))),
+                ButtonSectionId::Value => Ok(ButtonSection::Value(v.value as u8)),
                 ButtonSectionId::Channel => Ok(ButtonSection::Channel(ChannelOrAll::from(v.value))),
             }
         } else {
@@ -36,7 +35,7 @@ mod tests {
             id: 0x02,
             value: 0x01,
         });
-        assert_eq!(result, Ok(ButtonSection::MidiId(Value7::new(0x01))));
+        assert_eq!(result, Ok(ButtonSection::MidiId(0x01)));
     }
 
     #[test]

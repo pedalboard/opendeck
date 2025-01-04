@@ -5,7 +5,7 @@ pub struct OpenDeckRenderer {
 use crate::{
     Amount, AmountId, Block, BlockId, ByteOrder, ChannelOrAll, HardwareUid, MessageStatus,
     NrOfSupportedComponents, OpenDeckResponse, Section, SpecialRequest, SpecialResponse, ValueSize,
-    MAX_MESSAGE_SIZE, M_ID_0, M_ID_1, M_ID_2,
+    MAX_MESSAGE_SIZE, M_ID_0, M_ID_1, M_ID_2, SYSEX_END, SYSEX_START,
 };
 
 use heapless::Vec;
@@ -19,8 +19,7 @@ impl OpenDeckRenderer {
 
     pub fn render(&self, res: OpenDeckResponse, status: MessageStatus) -> Buffer {
         let mut buf = Vec::new();
-        buf.insert(ByteOrder::Start as usize, midi_types::status::SYSEX_START)
-            .unwrap();
+        buf.insert(ByteOrder::Start as usize, SYSEX_START).unwrap();
         buf.insert(ByteOrder::Id1 as usize, M_ID_0).unwrap();
         buf.insert(ByteOrder::Id2 as usize, M_ID_1).unwrap();
         buf.insert(ByteOrder::Id3 as usize, M_ID_2).unwrap();
@@ -81,7 +80,7 @@ impl OpenDeckRenderer {
         };
 
         buf.insert(ByteOrder::Wish as usize, wish).unwrap();
-        buf.push(midi_types::status::SYSEX_END).unwrap();
+        buf.push(SYSEX_END).unwrap();
         buf
     }
 }
@@ -200,7 +199,6 @@ mod tests {
         global::{GlobalSection, PresetIndex},
         AnalogSection, HardwareUid, ValueSize, Wish,
     };
-    use midi_types::Value14;
 
     #[test]
     fn should_render_special_messages_with_one_byte() {
@@ -402,7 +400,7 @@ mod tests {
                 OpenDeckResponse::Configuration(
                     Wish::Get,
                     Amount::Single,
-                    Block::Analog(5, AnalogSection::MidiId(Value14::from(u16::MIN))),
+                    Block::Analog(5, AnalogSection::MidiId(u16::MIN)),
                     Vec::from_slice(&[5]).unwrap()
                 ),
                 MessageStatus::Response
@@ -433,7 +431,7 @@ mod tests {
                 OpenDeckResponse::Configuration(
                     Wish::Get,
                     Amount::All(0x00),
-                    Block::Analog(0, AnalogSection::MidiId(Value14::from(u16::MIN))),
+                    Block::Analog(0, AnalogSection::MidiId(u16::MIN)),
                     Vec::from_slice(&[5, 6, 7, 8]).unwrap()
                 ),
                 MessageStatus::Response

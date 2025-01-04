@@ -9,7 +9,6 @@ use crate::{
     Amount, Block, HardwareUid, MessageStatus, NewValues, NrOfSupportedComponents, OpenDeckRequest,
     OpenDeckResponse, SpecialRequest, SpecialResponse, ValueSize, Wish,
 };
-use midi_types::{Value14, Value7};
 
 // FIXME calculate value based on generic const
 const OPENDECK_MAX_NR_MESSAGES: usize = 2;
@@ -39,23 +38,19 @@ impl<const B: usize, const A: usize, const E: usize, const L: usize> Default
     fn default() -> Self {
         let mut buttons = Vec::new();
         for i in 0..B {
-            buttons.push(Button::new(Value7::new(i as u8))).unwrap();
+            buttons.push(Button::new(i as u8)).unwrap();
         }
         let mut encoders = Vec::new();
         for i in 0..E {
-            encoders
-                .push(Encoder::new(Value14::new(i16::MIN + i as i16)))
-                .unwrap();
+            encoders.push(Encoder::new(i as u16)).unwrap();
         }
         let mut analogs = Vec::new();
         for i in 0..A {
-            analogs
-                .push(Analog::new(Value14::new(i16::MIN + i as i16)))
-                .unwrap();
+            analogs.push(Analog::new(i as u16)).unwrap();
         }
         let mut leds = Vec::new();
         for i in 0..L {
-            leds.push(Led::new(Value7::new(i as u8))).unwrap();
+            leds.push(Led::new(i as u8)).unwrap();
         }
 
         Preset {

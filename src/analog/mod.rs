@@ -1,6 +1,5 @@
 use crate::ChannelOrAll;
 use int_enum::IntEnum;
-use midi_types::Value14;
 
 pub mod parser;
 pub mod renderer;
@@ -11,24 +10,24 @@ pub struct Analog {
     enabled: bool,
     invert_state: bool,
     message_type: AnalogMessageType,
-    midi_id: Value14,
-    upper_limit: Value14,
-    lower_limit: Value14,
+    midi_id: u16,
+    upper_limit: u16,
+    lower_limit: u16,
     channel: ChannelOrAll,
     lower_adc_offset: u8,
     upper_adc_offset: u8,
 }
 
 impl Analog {
-    pub fn new(midi_id: Value14) -> Self {
+    pub fn new(midi_id: u16) -> Self {
         Analog {
             enabled: true,
             invert_state: false,
             message_type: AnalogMessageType::default(),
             channel: ChannelOrAll::default(),
             midi_id,
-            lower_limit: Value14::from(u16::MIN),
-            upper_limit: Value14::from(u16::MIN),
+            lower_limit: u16::MIN,
+            upper_limit: u16::MIN,
             lower_adc_offset: 0,
             upper_adc_offset: 0,
         }
@@ -99,9 +98,9 @@ pub enum AnalogSection {
     Enabled(bool),
     InvertState(bool),
     MessageType(AnalogMessageType),
-    MidiId(Value14),
-    LowerCCLimit(Value14),
-    UpperCCLimit(Value14),
+    MidiId(u16),
+    LowerCCLimit(u16),
+    UpperCCLimit(u16),
     Channel(ChannelOrAll),
     LowerADCOffset(u8),
     UpperADCOffset(u8),

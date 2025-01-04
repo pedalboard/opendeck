@@ -3,7 +3,6 @@ use crate::{
     parser::OpenDeckParseError,
     ChannelOrAll, MessageStatus, Section,
 };
-use midi_types::Value7;
 
 use super::ControlType;
 
@@ -12,12 +11,8 @@ impl TryFrom<Section> for LedSection {
     fn try_from(v: Section) -> Result<Self, Self::Error> {
         if let Ok(id) = LedSectionId::try_from(v.id) {
             match id {
-                LedSectionId::ActivationId => {
-                    Ok(LedSection::ActivationId(Value7::from(v.value as u8)))
-                }
-                LedSectionId::ActivationValue => {
-                    Ok(LedSection::ActivationValue(Value7::from(v.value as u8)))
-                }
+                LedSectionId::ActivationId => Ok(LedSection::ActivationId(v.value as u8)),
+                LedSectionId::ActivationValue => Ok(LedSection::ActivationValue(v.value as u8)),
                 LedSectionId::ColorTesting => Color::try_from(v.value)
                     .map(LedSection::ColorTesting)
                     .map_err(OpenDeckParseError::new_value_err),

@@ -3,7 +3,6 @@ use crate::{
     parser::OpenDeckParseError,
     ChannelOrAll, MessageStatus, Section,
 };
-use midi_types::{Value14, Value7};
 
 impl TryFrom<Section> for EncoderSection {
     type Error = OpenDeckParseError;
@@ -23,24 +22,12 @@ impl TryFrom<Section> for EncoderSection {
                     .map(EncoderSection::Accelleration)
                     .map_err(OpenDeckParseError::new_value_err),
                 EncoderSectionId::PulsesPerStep => Ok(EncoderSection::PulsesPerStep(x.value as u8)),
-                EncoderSectionId::MidiIdLSB => {
-                    Ok(EncoderSection::MidiIdLSB(Value14::from(x.value)))
-                }
-                EncoderSectionId::MidiIdMSB => {
-                    Ok(EncoderSection::MidiIdMSB(Value7::from(x.value as u8)))
-                }
-                EncoderSectionId::LowerLimit => {
-                    Ok(EncoderSection::LowerLimit(Value14::from(x.value)))
-                }
-                EncoderSectionId::UpperLimit => {
-                    Ok(EncoderSection::UpperLimit(Value14::from(x.value)))
-                }
-                EncoderSectionId::RepeatedValue => {
-                    Ok(EncoderSection::RepeatedValue(Value14::from(x.value)))
-                }
-                EncoderSectionId::SecondMidiId => {
-                    Ok(EncoderSection::SecondMidiId(Value14::from(x.value)))
-                }
+                EncoderSectionId::MidiIdLSB => Ok(EncoderSection::MidiIdLSB(x.value)),
+                EncoderSectionId::MidiIdMSB => Ok(EncoderSection::MidiIdMSB(x.value as u8)),
+                EncoderSectionId::LowerLimit => Ok(EncoderSection::LowerLimit(x.value)),
+                EncoderSectionId::UpperLimit => Ok(EncoderSection::UpperLimit(x.value)),
+                EncoderSectionId::RepeatedValue => Ok(EncoderSection::RepeatedValue(x.value)),
+                EncoderSectionId::SecondMidiId => Ok(EncoderSection::SecondMidiId(x.value)),
             }
         } else {
             Err(OpenDeckParseError::StatusError(MessageStatus::SectionError))

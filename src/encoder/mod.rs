@@ -1,6 +1,5 @@
 use crate::ChannelOrAll;
 use int_enum::IntEnum;
-use midi_types::{Value14, Value7};
 
 pub mod parser;
 pub mod renderer;
@@ -11,19 +10,19 @@ pub struct Encoder {
     enabled: bool,
     invert_state: bool,
     message_type: EncoderMessageType,
-    midi_id: Value14,
+    midi_id: u16,
     channel: ChannelOrAll,
     pulses_per_step: u8,
     accelleration: Accelleration,
     remote_sync: bool,
-    upper_limit: Value14,
-    lower_limit: Value14,
-    repeated_value: Value14,
-    second_midi_id: Value14,
+    upper_limit: u16,
+    lower_limit: u16,
+    repeated_value: u16,
+    second_midi_id: u16,
 }
 
 impl Encoder {
-    pub fn new(midi_id: Value14) -> Self {
+    pub fn new(midi_id: u16) -> Self {
         Encoder {
             enabled: true,
             invert_state: false,
@@ -33,10 +32,10 @@ impl Encoder {
             midi_id,
             accelleration: Accelleration::None,
             remote_sync: false,
-            lower_limit: Value14::from(u16::MIN),
-            upper_limit: Value14::from(u16::MIN),
-            second_midi_id: Value14::from(u16::MIN),
-            repeated_value: Value14::from(u16::MIN),
+            lower_limit: u16::MIN,
+            upper_limit: u16::MIN,
+            second_midi_id: u16::MIN,
+            repeated_value: u16::MIN,
         }
     }
     pub fn set(&mut self, section: &EncoderSection) {
@@ -132,14 +131,14 @@ pub enum EncoderSection {
     Enabled(bool),
     InvertState(bool),
     MessageType(EncoderMessageType),
-    MidiIdLSB(Value14),
+    MidiIdLSB(u16),
     Channel(ChannelOrAll),
     PulsesPerStep(u8),
     Accelleration(Accelleration),
-    MidiIdMSB(Value7),
+    MidiIdMSB(u8),
     RemoteSync(bool),
-    LowerLimit(Value14),
-    UpperLimit(Value14),
-    RepeatedValue(Value14),
-    SecondMidiId(Value14),
+    LowerLimit(u16),
+    UpperLimit(u16),
+    RepeatedValue(u16),
+    SecondMidiId(u16),
 }
