@@ -40,14 +40,8 @@ impl Button {
         match section {
             ButtonSection::Type(_) => self.button_type as u16,
             ButtonSection::MessageType(_) => self.message_type as u16,
-            ButtonSection::Value(_) => {
-                let v: u8 = self.value.into();
-                v as u16
-            }
-            ButtonSection::MidiId(_) => {
-                let v: u8 = self.midi_id.into();
-                v as u16
-            }
+            ButtonSection::Value(_) => self.value.into(),
+            ButtonSection::MidiId(_) => self.midi_id.into(),
             ButtonSection::Channel(_) => self.channel.into(),
         }
     }

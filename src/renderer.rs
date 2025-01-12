@@ -160,10 +160,7 @@ impl From<ChannelOrAll> for u16 {
         match value {
             ChannelOrAll::All => 17,
             ChannelOrAll::None => 0,
-            ChannelOrAll::Channel(ch) => {
-                let out: u8 = ch.into();
-                (out + 1) as u16
-            }
+            ChannelOrAll::Channel(ch) => ch as u16 + 1,
         }
     }
 }

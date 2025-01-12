@@ -137,15 +137,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "midi-types"
-version = "0.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef0bbe5256e5c434947d790788426bb65773502784aed7b23408f7e7fb4d8eb5"
-dependencies = [
- "defmt",
-]
-
-[[package]]
 name = "midi2"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -175,7 +166,6 @@ dependencies = [
  "defmt",
  "heapless",
  "int-enum",
- "midi-types",
  "midi2",
 ]
 

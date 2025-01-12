@@ -1,8 +1,9 @@
 use crate::button::{Button, ButtonMessageType, ButtonType, ChannelOrAll};
 
 use midi2::{
-    buffer::{Buffer, BufferDefault, BufferMut, BufferResize},
+    buffer::{Buffer, BufferDefault, BufferMut, BufferTryResize},
     channel_voice1::{ChannelVoice1, ControlChange, NoteOn, ProgramChange},
+    error::BufferOverflow,
     prelude::*,
     BytesMessage,
 };
@@ -19,88 +20,92 @@ enum ButtonStatus {
 }
 
 impl Button {
-    pub fn handle<B>(&mut self, action: Action) -> Option<BytesMessage<B>>
+    pub fn handle<B>(&mut self, action: Action) -> Result<Option<BytesMessage<B>>, BufferOverflow>
     where
-        B: Buffer<Unit = u8> + BufferMut + BufferDefault + BufferResize,
+        B: Buffer<Unit = u8> + BufferMut + BufferDefault + BufferTryResize,
     {
         let status = self.latch(&action);
 
         match self.message_type {
             ButtonMessageType::Notes => match status {
                 ButtonStatus::On => {
-                    let mut m = NoteOn::<B>::new();
+                    let mut m = NoteOn::<B>::try_new()?;
                     m.set_velocity(u7::new(self.value));
                     m.set_note_number(u7::new(self.midi_id));
                     m.set_channel(self.channel());
-                    Some(BytesMessage::<B>::ChannelVoice1(ChannelVoice1::NoteOn(m)))
+                    Ok(Some(BytesMessage::<B>::ChannelVoice1(
+                        ChannelVoice1::NoteOn(m),
+                    )))
                 }
                 ButtonStatus::Off => {
-                    let mut m = NoteOn::<B>::new();
+                    let mut m = NoteOn::<B>::try_new()?;
                     m.set_velocity(u7::MIN);
                     m.set_channel(self.channel());
-                    m.set_note_number(u7::Buttennew(self.midi_id));
-                    Some(BytesMessage::<B>::ChannelVoice1(ChannelVoice1::NoteOn(m)))
+                    m.set_note_number(u7::new(self.midi_id));
+                    Ok(Some(BytesMessage::<B>::ChannelVoice1(
+                        ChannelVoice1::NoteOn(m),
+                    )))
                 }
-                ButtonStatus::None => None,
+                ButtonStatus::None => Ok(None),
             },
             ButtonMessageType::ProgramChange => {
                 if let Action::Pressed = action {
-                    let mut m = ProgramChange::<B>::new();
+                    let mut m = ProgramChange::<B>::try_new()?;
                     m.set_channel(self.channel());
                     m.set_program(u7::new(self.midi_id));
-                    return Some(BytesMessage::<B>::ChannelVoice1(
+                    return Ok(Some(BytesMessage::<B>::ChannelVoice1(
                         ChannelVoice1::ProgramChange(m),
-                    ));
+                    )));
                 }
-                None
+                Ok(None)
             }
             ButtonMessageType::ControlChange => {
                 if let Action::Pressed = action {
-                    let mut m = ControlChange::<B>::new();
+                    let mut m = ControlChange::<B>::try_new()?;
                     m.set_channel(self.channel());
                     m.set_control(u7::new(self.midi_id));
-                    return Some(BytesMessage::<B>::ChannelVoice1(
+                    return Ok(Some(BytesMessage::<B>::ChannelVoice1(
                         ChannelVoice1::ControlChange(m),
-                    ));
+                    )));
                 }
-                None
+                Ok(None)
             }
             ButtonMessageType::ControlChangeWithReset => match status {
-                ButtonStatus::On => None,
-                ButtonStatus::Off => None,
-                ButtonStatus::None => None,
+                ButtonStatus::On => Ok(None),
+                ButtonStatus::Off => Ok(None),
+                ButtonStatus::None => Ok(None),
             },
             ButtonMessageType::ControlChangeWithValue0 => {
                 if let Action::Pressed = action {}
-                None
+                Ok(None)
             }
 
-            ButtonMessageType::MMCStop => None,
-            ButtonMessageType::MMCPlay => None,
-            ButtonMessageType::MMCRecord => None,
-            ButtonMessageType::MMCPause => None,
+            ButtonMessageType::MMCStop => Ok(None),
+            ButtonMessageType::MMCPlay => Ok(None),
+            ButtonMessageType::MMCRecord => Ok(None),
+            ButtonMessageType::MMCPause => Ok(None),
 
-            ButtonMessageType::RealTimeClock => None,
-            ButtonMessageType::RealTimeStart => None,
-            ButtonMessageType::RealTimeContinue => None,
-            ButtonMessageType::RealTimeStop => None,
-            ButtonMessageType::RealTimeActiveSensing => None,
-            ButtonMessageType::RealTimeSystemReset => None,
+            ButtonMessageType::RealTimeClock => Ok(None),
+            ButtonMessageType::RealTimeStart => Ok(None),
+            ButtonMessageType::RealTimeContinue => Ok(None),
+            ButtonMessageType::RealTimeStop => Ok(None),
+            ButtonMessageType::RealTimeActiveSensing => Ok(None),
+            ButtonMessageType::RealTimeSystemReset => Ok(None),
 
-            ButtonMessageType::ProgramChangeIncr => None,
-            ButtonMessageType::ProgramChangeDecr => None,
-            ButtonMessageType::NoMessage => None,
-            ButtonMessageType::OpenDeckPresetChange => None,
-            ButtonMessageType::MultiValueIncNote => None,
-            ButtonMessageType::MultiValueDecNote => None,
-            ButtonMessageType::MultiValueIncCC => None,
-            ButtonMessageType::MultiValueDecCC => None,
-            ButtonMessageType::NoteOffOnly => None,
-            ButtonMessageType::Reserved => None,
-            ButtonMessageType::ProgramChangeOffsetIncr => None,
-            ButtonMessageType::ProgramChangeOffsetDecr => None,
-            ButtonMessageType::BPMIncr => None,
-            ButtonMessageType::BPMDecr => None,
+            ButtonMessageType::ProgramChangeIncr => Ok(None),
+            ButtonMessageType::ProgramChangeDecr => Ok(None),
+            ButtonMessageType::NoMessage => Ok(None),
+            ButtonMessageType::OpenDeckPresetChange => Ok(None),
+            ButtonMessageType::MultiValueIncNote => Ok(None),
+            ButtonMessageType::MultiValueDecNote => Ok(None),
+            ButtonMessageType::MultiValueIncCC => Ok(None),
+            ButtonMessageType::MultiValueDecCC => Ok(None),
+            ButtonMessageType::NoteOffOnly => Ok(None),
+            ButtonMessageType::Reserved => Ok(None),
+            ButtonMessageType::ProgramChangeOffsetIncr => Ok(None),
+            ButtonMessageType::ProgramChangeOffsetDecr => Ok(None),
+            ButtonMessageType::BPMIncr => Ok(None),
+            ButtonMessageType::BPMDecr => Ok(None),
         }
     }
     fn latch(&mut self, action: &Action) -> ButtonStatus {
@@ -148,10 +153,10 @@ mod tests {
             channel: ChannelOrAll::default(),
             latch_on: false,
         };
-        let result = button
-            .handle::<[u8; 3]>(Action::Pressed)
-            .unwrap()
-        assert_eq!(result, [0x00]);
+        let result = button.handle::<[u8; 3]>(Action::Pressed).unwrap().unwrap();
+
+        let buf = result.data();
+        assert_eq!(buf, [0x90, 0x03, 0x7F]);
     }
     /*
     #[test]

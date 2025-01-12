@@ -14,20 +14,14 @@ impl From<ButtonSection> for Section {
                 id: ButtonSectionId::MessageType.into(),
                 value: t.into(),
             },
-            ButtonSection::MidiId(v) => {
-                let value: u8 = v.into();
-                Section {
-                    id: ButtonSectionId::MidiId.into(),
-                    value: value as u16,
-                }
-            }
-            ButtonSection::Value(v) => {
-                let value: u8 = v.into();
-                Section {
-                    id: ButtonSectionId::Value.into(),
-                    value: value as u16,
-                }
-            }
+            ButtonSection::MidiId(v) => Section {
+                id: ButtonSectionId::MidiId.into(),
+                value: v.into(),
+            },
+            ButtonSection::Value(v) => Section {
+                id: ButtonSectionId::Value.into(),
+                value: v.into(),
+            },
             ButtonSection::Channel(v) => Section {
                 id: ButtonSectionId::Channel.into(),
                 value: v.into(),
