@@ -64,6 +64,7 @@ impl Button {
                     let mut m = ControlChange::<B>::try_new()?;
                     m.set_channel(self.channel());
                     m.set_control(u7::new(self.midi_id));
+                    m.set_control_data(u7::new(self.value));
                     return Ok(Some(BytesMessage::<B>::ChannelVoice1(
                         ChannelVoice1::ControlChange(m),
                     )));
@@ -71,12 +72,36 @@ impl Button {
                 Ok(None)
             }
             ButtonMessageType::ControlChangeWithReset => match status {
-                ButtonStatus::On => Ok(None),
-                ButtonStatus::Off => Ok(None),
+                ButtonStatus::On => {
+                    let mut m = ControlChange::<B>::try_new()?;
+                    m.set_channel(self.channel());
+                    m.set_control(u7::new(self.midi_id));
+                    m.set_control_data(u7::new(self.value));
+                    Ok(Some(BytesMessage::<B>::ChannelVoice1(
+                        ChannelVoice1::ControlChange(m),
+                    )))
+                }
+                ButtonStatus::Off => {
+                    let mut m = ControlChange::<B>::try_new()?;
+                    m.set_channel(self.channel());
+                    m.set_control(u7::new(self.midi_id));
+                    m.set_control_data(u7::new(0));
+                    Ok(Some(BytesMessage::<B>::ChannelVoice1(
+                        ChannelVoice1::ControlChange(m),
+                    )))
+                }
                 ButtonStatus::None => Ok(None),
             },
             ButtonMessageType::ControlChangeWithValue0 => {
-                if let Action::Pressed = action {}
+                if let Action::Pressed = action {
+                    let mut m = ControlChange::<B>::try_new()?;
+                    m.set_channel(self.channel());
+                    m.set_control(u7::new(self.midi_id));
+                    m.set_control_data(u7::new(0x00));
+                    return Ok(Some(BytesMessage::<B>::ChannelVoice1(
+                        ChannelVoice1::ControlChange(m),
+                    )));
+                }
                 Ok(None)
             }
 
@@ -158,7 +183,6 @@ mod tests {
         let buf = result.data();
         assert_eq!(buf, [0x90, 0x03, 0x7F]);
     }
-    /*
     #[test]
     fn test_program_change() {
         let mut button = Button {
@@ -169,11 +193,8 @@ mod tests {
             channel: ChannelOrAll::default(),
             latch_on: false,
         };
-        let result = button.handle(Action::Pressed);
-        assert_eq!(
-            result,
-            [MidiMessage::ProgramChange(Channel::C1, Program::from(0x03))]
-        );
+        let result = button.handle::<[u8; 3]>(Action::Pressed).unwrap().unwrap();
+        assert_eq!(result.data(), [0xC0, 0x03]);
     }
     #[test]
     fn test_program_change_release() {
@@ -185,8 +206,8 @@ mod tests {
             channel: ChannelOrAll::default(),
             latch_on: false,
         };
-        let result = button.handle(Action::Released);
-        assert_eq!(result, []);
+        let result = button.handle::<[u8; 3]>(Action::Released).unwrap();
+        assert_eq!(result, None);
     }
 
     #[test]
@@ -199,15 +220,8 @@ mod tests {
             channel: ChannelOrAll::default(),
             latch_on: false,
         };
-        let result = button.handle(Action::Pressed);
-        assert_eq!(
-            result,
-            [MidiMessage::ControlChange(
-                Channel::C1,
-                Control::from(0x03),
-                Value7::new(0x7F)
-            )]
-        );
+        let result = button.handle::<[u8; 3]>(Action::Pressed).unwrap().unwrap();
+        assert_eq!(result.data(), [0xB0, 0x03, 0x7F]);
     }
     #[test]
     fn test_control_change_release() {
@@ -219,8 +233,8 @@ mod tests {
             channel: ChannelOrAll::default(),
             latch_on: false,
         };
-        let result = button.handle(Action::Released);
-        assert_eq!(result, []);
+        let result = button.handle::<[u8; 3]>(Action::Released).unwrap();
+        assert_eq!(result, None);
     }
 
     #[test]
@@ -233,15 +247,8 @@ mod tests {
             channel: ChannelOrAll::default(),
             latch_on: false,
         };
-        let result = button.handle(Action::Pressed);
-        assert_eq!(
-            result,
-            [MidiMessage::ControlChange(
-                Channel::C1,
-                Control::from(0x03),
-                Value7::new(0x7F)
-            )]
-        );
+        let result = button.handle::<[u8; 3]>(Action::Pressed).unwrap().unwrap();
+        assert_eq!(result.data(), [0xB0, 0x03, 0x7F]);
     }
     #[test]
     fn test_control_change_with_reset_release() {
@@ -253,15 +260,8 @@ mod tests {
             channel: ChannelOrAll::default(),
             latch_on: false,
         };
-        let result = button.handle(Action::Released);
-        assert_eq!(
-            result,
-            [MidiMessage::ControlChange(
-                Channel::C1,
-                Control::from(0x03),
-                Value7::new(0)
-            )]
-        );
+        let result = button.handle::<[u8; 3]>(Action::Released).unwrap().unwrap();
+        assert_eq!(result.data(), [0xB0, 0x03, 0x00]);
     }
 
     #[test]
@@ -274,15 +274,7 @@ mod tests {
             channel: ChannelOrAll::default(),
             latch_on: false,
         };
-        let result = button.handle(Action::Pressed);
-        assert_eq!(
-            result,
-            [MidiMessage::ControlChange(
-                Channel::C1,
-                Control::from(3),
-                Value7::new(0)
-            )]
-        );
+        let result = button.handle::<[u8; 3]>(Action::Pressed).unwrap().unwrap();
+        assert_eq!(result.data(), [0xB0, 0x03, 0x00]);
     }
-    */
 }
