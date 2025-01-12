@@ -5,6 +5,7 @@ use midi2::{
     channel_voice1::{ChannelVoice1, ControlChange, NoteOn, ProgramChange},
     error::BufferOverflow,
     prelude::*,
+    system_common::{ActiveSensing, Continue, Reset, Start, Stop, SystemCommon, TimingClock},
     BytesMessage,
 };
 
@@ -110,27 +111,77 @@ impl Button {
             ButtonMessageType::MMCRecord => Ok(None),
             ButtonMessageType::MMCPause => Ok(None),
 
-            ButtonMessageType::RealTimeClock => Ok(None),
-            ButtonMessageType::RealTimeStart => Ok(None),
-            ButtonMessageType::RealTimeContinue => Ok(None),
-            ButtonMessageType::RealTimeStop => Ok(None),
-            ButtonMessageType::RealTimeActiveSensing => Ok(None),
-            ButtonMessageType::RealTimeSystemReset => Ok(None),
+            ButtonMessageType::RealTimeClock => {
+                if let Action::Pressed = action {
+                    let tc = TimingClock::try_new()?;
+                    return Ok(Some(BytesMessage::<B>::SystemCommon(
+                        SystemCommon::TimingClock(tc),
+                    )));
+                }
+                Ok(None)
+            }
+
+            ButtonMessageType::RealTimeStart => {
+                if let Action::Pressed = action {
+                    let start = Start::try_new()?;
+                    return Ok(Some(BytesMessage::<B>::SystemCommon(SystemCommon::Start(
+                        start,
+                    ))));
+                }
+                Ok(None)
+            }
+            ButtonMessageType::RealTimeContinue => {
+                if let Action::Pressed = action {
+                    let c = Continue::try_new()?;
+                    return Ok(Some(BytesMessage::<B>::SystemCommon(
+                        SystemCommon::Continue(c),
+                    )));
+                }
+                Ok(None)
+            }
+            ButtonMessageType::RealTimeStop => {
+                if let Action::Pressed = action {
+                    let stop = Stop::try_new()?;
+                    return Ok(Some(BytesMessage::<B>::SystemCommon(SystemCommon::Stop(
+                        stop,
+                    ))));
+                }
+                Ok(None)
+            }
+            ButtonMessageType::RealTimeActiveSensing => {
+                if let Action::Pressed = action {
+                    let s = ActiveSensing::try_new()?;
+                    return Ok(Some(BytesMessage::<B>::SystemCommon(
+                        SystemCommon::ActiveSensing(s),
+                    )));
+                }
+                Ok(None)
+            }
+            ButtonMessageType::RealTimeSystemReset => {
+                if let Action::Pressed = action {
+                    let r = Reset::try_new()?;
+                    return Ok(Some(BytesMessage::<B>::SystemCommon(SystemCommon::Reset(
+                        r,
+                    ))));
+                }
+                Ok(None)
+            }
 
             ButtonMessageType::ProgramChangeIncr => Ok(None),
             ButtonMessageType::ProgramChangeDecr => Ok(None),
-            ButtonMessageType::NoMessage => Ok(None),
             ButtonMessageType::OpenDeckPresetChange => Ok(None),
             ButtonMessageType::MultiValueIncNote => Ok(None),
             ButtonMessageType::MultiValueDecNote => Ok(None),
             ButtonMessageType::MultiValueIncCC => Ok(None),
             ButtonMessageType::MultiValueDecCC => Ok(None),
             ButtonMessageType::NoteOffOnly => Ok(None),
-            ButtonMessageType::Reserved => Ok(None),
             ButtonMessageType::ProgramChangeOffsetIncr => Ok(None),
             ButtonMessageType::ProgramChangeOffsetDecr => Ok(None),
             ButtonMessageType::BPMIncr => Ok(None),
             ButtonMessageType::BPMDecr => Ok(None),
+
+            ButtonMessageType::NoMessage => Ok(None),
+            ButtonMessageType::Reserved => Ok(None),
         }
     }
     fn latch(&mut self, action: &Action) -> ButtonStatus {
@@ -276,5 +327,98 @@ mod tests {
         };
         let result = button.handle::<[u8; 3]>(Action::Pressed).unwrap().unwrap();
         assert_eq!(result.data(), [0xB0, 0x03, 0x00]);
+    }
+
+    #[test]
+    fn test_no_message() {
+        let mut button = Button {
+            button_type: ButtonType::Momentary,
+            message_type: ButtonMessageType::NoMessage,
+            midi_id: 0x03,
+            value: 0x7F,
+            channel: ChannelOrAll::default(),
+            latch_on: false,
+        };
+        let result = button.handle::<[u8; 3]>(Action::Released).unwrap();
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_realtime_clock() {
+        let mut button = Button {
+            button_type: ButtonType::Momentary,
+            message_type: ButtonMessageType::RealTimeClock,
+            midi_id: 0x03,
+            value: 0x7F,
+            channel: ChannelOrAll::default(),
+            latch_on: false,
+        };
+        let result = button.handle::<[u8; 3]>(Action::Pressed).unwrap().unwrap();
+        assert_eq!(result.data(), [0xF8, 0x00]);
+    }
+    #[test]
+    fn test_realtime_start() {
+        let mut button = Button {
+            button_type: ButtonType::Momentary,
+            message_type: ButtonMessageType::RealTimeStart,
+            midi_id: 0x03,
+            value: 0x7F,
+            channel: ChannelOrAll::default(),
+            latch_on: false,
+        };
+        let result = button.handle::<[u8; 3]>(Action::Pressed).unwrap().unwrap();
+        assert_eq!(result.data(), [0xFA, 0x00]);
+    }
+    #[test]
+    fn test_realtime_stop() {
+        let mut button = Button {
+            button_type: ButtonType::Momentary,
+            message_type: ButtonMessageType::RealTimeStop,
+            midi_id: 0x03,
+            value: 0x7F,
+            channel: ChannelOrAll::default(),
+            latch_on: false,
+        };
+        let result = button.handle::<[u8; 3]>(Action::Pressed).unwrap().unwrap();
+        assert_eq!(result.data(), [0xFC, 0x00]);
+    }
+    #[test]
+    fn test_realtime_continue() {
+        let mut button = Button {
+            button_type: ButtonType::Momentary,
+            message_type: ButtonMessageType::RealTimeContinue,
+            midi_id: 0x03,
+            value: 0x7F,
+            channel: ChannelOrAll::default(),
+            latch_on: false,
+        };
+        let result = button.handle::<[u8; 3]>(Action::Pressed).unwrap().unwrap();
+        assert_eq!(result.data(), [0xFB, 0x00]);
+    }
+    #[test]
+    fn test_realtime_active_sensing() {
+        let mut button = Button {
+            button_type: ButtonType::Momentary,
+            message_type: ButtonMessageType::RealTimeActiveSensing,
+            midi_id: 0x03,
+            value: 0x7F,
+            channel: ChannelOrAll::default(),
+            latch_on: false,
+        };
+        let result = button.handle::<[u8; 3]>(Action::Pressed).unwrap().unwrap();
+        assert_eq!(result.data(), [0xFE, 0x00]);
+    }
+    #[test]
+    fn test_realtime_reset() {
+        let mut button = Button {
+            button_type: ButtonType::Momentary,
+            message_type: ButtonMessageType::RealTimeSystemReset,
+            midi_id: 0x03,
+            value: 0x7F,
+            channel: ChannelOrAll::default(),
+            latch_on: false,
+        };
+        let result = button.handle::<[u8; 3]>(Action::Pressed).unwrap().unwrap();
+        assert_eq!(result.data(), [0xFF, 0x00]);
     }
 }
