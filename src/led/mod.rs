@@ -81,14 +81,8 @@ impl Led {
             LedSection::BlinkTesting(_) => self.blink_testing.into(),
             LedSection::RGBEnabled(_) => self.rgb_enabled.into(),
             LedSection::ControlType(_) => self.control_type.into(),
-            LedSection::ActivationId(_) => {
-                let v: u8 = self.activation_id.into();
-                v as u16
-            }
-            LedSection::ActivationValue(_) => {
-                let v: u8 = self.activation_value.into();
-                v as u16
-            }
+            LedSection::ActivationId(_) => self.activation_id.into(),
+            LedSection::ActivationValue(_) => self.activation_value.into(),
             LedSection::Channel(_) => self.channel.into(),
             LedSection::Global(_) => 0,
         }

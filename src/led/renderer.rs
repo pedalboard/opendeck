@@ -26,20 +26,14 @@ impl From<LedSection> for Section {
                 id: LedSectionId::Global.into(),
                 value: v,
             },
-            LedSection::ActivationId(v) => {
-                let value: u8 = v.into();
-                Section {
-                    id: LedSectionId::ActivationId.into(),
-                    value: value.into(),
-                }
-            }
-            LedSection::ActivationValue(v) => {
-                let value: u8 = v.into();
-                Section {
-                    id: LedSectionId::ActivationValue.into(),
-                    value: value.into(),
-                }
-            }
+            LedSection::ActivationId(v) => Section {
+                id: LedSectionId::ActivationId.into(),
+                value: v.into(),
+            },
+            LedSection::ActivationValue(v) => Section {
+                id: LedSectionId::ActivationValue.into(),
+                value: v.into(),
+            },
             LedSection::Channel(v) => Section {
                 id: LedSectionId::Channel.into(),
                 value: v.into(),

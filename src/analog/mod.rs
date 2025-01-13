@@ -50,10 +50,10 @@ impl Analog {
             AnalogSection::MessageType(_) => self.message_type as u16,
             AnalogSection::Channel(_) => self.channel.into(),
             AnalogSection::Enabled(_) => self.enabled as u16,
-            AnalogSection::MidiId(_) => self.midi_id.into(),
+            AnalogSection::MidiId(_) => self.midi_id,
             AnalogSection::InvertState(_) => self.invert_state as u16,
-            AnalogSection::LowerCCLimit(_) => self.lower_limit.into(),
-            AnalogSection::UpperCCLimit(_) => self.upper_limit.into(),
+            AnalogSection::LowerCCLimit(_) => self.lower_limit,
+            AnalogSection::UpperCCLimit(_) => self.upper_limit,
             AnalogSection::LowerADCOffset(_) => self.lower_adc_offset.into(),
             AnalogSection::UpperADCOffset(_) => self.upper_adc_offset.into(),
         }

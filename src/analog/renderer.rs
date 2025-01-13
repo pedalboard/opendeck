@@ -20,15 +20,15 @@ impl From<AnalogSection> for Section {
             },
             AnalogSection::MidiId(value) => Section {
                 id: AnalogSectionId::MidiIdLSB.into(),
-                value: value.into(),
+                value,
             },
             AnalogSection::LowerCCLimit(value) => Section {
                 id: AnalogSectionId::LowerCCLimitLSB.into(),
-                value: value.into(),
+                value,
             },
             AnalogSection::UpperCCLimit(value) => Section {
                 id: AnalogSectionId::UpperCCLimitLSB.into(),
-                value: value.into(),
+                value,
             },
             AnalogSection::Channel(value) => Section {
                 id: AnalogSectionId::Channel.into(),

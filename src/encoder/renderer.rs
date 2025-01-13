@@ -36,30 +36,27 @@ impl From<EncoderSection> for Section {
             },
             EncoderSection::MidiIdLSB(v) => Section {
                 id: EncoderSectionId::MidiIdLSB.into(),
-                value: v.into(),
+                value: v,
             },
-            EncoderSection::MidiIdMSB(v) => {
-                let value: u8 = v.into();
-                Section {
-                    id: EncoderSectionId::MidiIdMSB.into(),
-                    value: value as u16,
-                }
-            }
+            EncoderSection::MidiIdMSB(v) => Section {
+                id: EncoderSectionId::MidiIdMSB.into(),
+                value: v as u16,
+            },
             EncoderSection::LowerLimit(v) => Section {
                 id: EncoderSectionId::LowerLimit.into(),
-                value: v.into(),
+                value: v,
             },
             EncoderSection::UpperLimit(v) => Section {
                 id: EncoderSectionId::UpperLimit.into(),
-                value: v.into(),
+                value: v,
             },
             EncoderSection::RepeatedValue(v) => Section {
                 id: EncoderSectionId::RepeatedValue.into(),
-                value: v.into(),
+                value: v,
             },
             EncoderSection::SecondMidiId(v) => Section {
                 id: EncoderSectionId::SecondMidiId.into(),
-                value: v.into(),
+                value: v,
             },
         }
     }
