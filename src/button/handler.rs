@@ -354,7 +354,7 @@ mod tests {
             latch_on: false,
         };
         let result = button.handle::<[u8; 3]>(Action::Pressed).unwrap().unwrap();
-        assert_eq!(result.data(), [0xF8, 0x00]);
+        assert_eq!(result.data(), [0xF8]);
     }
     #[test]
     fn test_realtime_start() {
@@ -367,7 +367,7 @@ mod tests {
             latch_on: false,
         };
         let result = button.handle::<[u8; 3]>(Action::Pressed).unwrap().unwrap();
-        assert_eq!(result.data(), [0xFA, 0x00]);
+        assert_eq!(result.data(), [0xFA]);
     }
     #[test]
     fn test_realtime_stop() {
@@ -380,7 +380,7 @@ mod tests {
             latch_on: false,
         };
         let result = button.handle::<[u8; 3]>(Action::Pressed).unwrap().unwrap();
-        assert_eq!(result.data(), [0xFC, 0x00]);
+        assert_eq!(result.data(), [0xFC]);
     }
     #[test]
     fn test_realtime_continue() {
@@ -393,7 +393,7 @@ mod tests {
             latch_on: false,
         };
         let result = button.handle::<[u8; 3]>(Action::Pressed).unwrap().unwrap();
-        assert_eq!(result.data(), [0xFB, 0x00]);
+        assert_eq!(result.data(), [0xFB]);
     }
     #[test]
     fn test_realtime_active_sensing() {
@@ -406,7 +406,7 @@ mod tests {
             latch_on: false,
         };
         let result = button.handle::<[u8; 3]>(Action::Pressed).unwrap().unwrap();
-        assert_eq!(result.data(), [0xFE, 0x00]);
+        assert_eq!(result.data(), [0xFE]);
     }
     #[test]
     fn test_realtime_reset() {
@@ -419,6 +419,6 @@ mod tests {
             latch_on: false,
         };
         let result = button.handle::<[u8; 3]>(Action::Pressed).unwrap().unwrap();
-        assert_eq!(result.data(), [0xFF, 0x00]);
+        assert_eq!(result.data(), [0xFF]);
     }
 }

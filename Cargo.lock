@@ -138,9 +138,9 @@ dependencies = [
 
 [[package]]
 name = "midi2"
-version = "0.6.3"
+version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13e5d0c469801f142776a53b836d6b6e3e5bf7660a34e9c937c4e1f6e18394f6"
+checksum = "3cd883007ad09f42e9acdc0e2cb43dc2e6c3ee0c30a38ea70de0d5d39141059b"
 dependencies = [
  "derive_more",
  "fixed",
@@ -150,9 +150,9 @@ dependencies = [
 
 [[package]]
 name = "midi2_proc"
-version = "0.6.3"
+version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "690b488f9199b3b69c0dc61c1335c86273e5412a3e32b26e37d3f5a868c99485"
+checksum = "6d82c8df06bcea57c185a86dd1cf315e74c04b9b21b01246240432556d4a90b6"
 dependencies = [
  "proc-macro2",
  "quote",

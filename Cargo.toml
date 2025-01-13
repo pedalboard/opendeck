@@ -5,7 +5,7 @@ edition = "2021"
 categories = ["no-std", "embedded"]
 
 [dependencies]
-midi2 = { version = "0.6.3", default-features = false, features = [
+midi2 = { version = "0.6.4", default-features = false, features = [
   "channel-voice1",
   "channel-voice2",
   "sysex7",
