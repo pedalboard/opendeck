@@ -9,6 +9,8 @@ use midi2::{
     BytesMessage,
 };
 
+const MAX_MIDI_ID: u8 = 127;
+
 pub enum Action {
     Pressed,
     Released,
@@ -49,17 +51,7 @@ impl Button {
                 }
                 ButtonStatus::None => Ok(None),
             },
-            ButtonMessageType::ProgramChange => {
-                if let Action::Pressed = action {
-                    let mut m = ProgramChange::<B>::try_new()?;
-                    m.set_channel(self.channel());
-                    m.set_program(u7::new(self.midi_id));
-                    return Ok(Some(BytesMessage::<B>::ChannelVoice1(
-                        ChannelVoice1::ProgramChange(m),
-                    )));
-                }
-                Ok(None)
-            }
+            ButtonMessageType::ProgramChange => self.program_change(&action),
             ButtonMessageType::ControlChange => {
                 if let Action::Pressed = action {
                     let mut m = ControlChange::<B>::try_new()?;
@@ -167,9 +159,14 @@ impl Button {
                 Ok(None)
             }
 
-            ButtonMessageType::ProgramChangeIncr => Ok(None),
-            ButtonMessageType::ProgramChangeDecr => Ok(None),
-            ButtonMessageType::OpenDeckPresetChange => Ok(None),
+            ButtonMessageType::ProgramChangeIncr => {
+                self.incr_midi_id(&action);
+                self.program_change(&action)
+            }
+            ButtonMessageType::ProgramChangeDecr => {
+                self.decr_midi_id(&action);
+                self.program_change(&action)
+            }
             ButtonMessageType::MultiValueIncNote => Ok(None),
             ButtonMessageType::MultiValueDecNote => Ok(None),
             ButtonMessageType::MultiValueIncCC => Ok(None),
@@ -179,6 +176,7 @@ impl Button {
             ButtonMessageType::ProgramChangeOffsetDecr => Ok(None),
             ButtonMessageType::BPMIncr => Ok(None),
             ButtonMessageType::BPMDecr => Ok(None),
+            ButtonMessageType::OpenDeckPresetChange => Ok(None),
 
             ButtonMessageType::NoMessage => Ok(None),
             ButtonMessageType::Reserved => Ok(None),
@@ -203,6 +201,43 @@ impl Button {
             }
         }
     }
+    fn incr_midi_id(&mut self, action: &Action) {
+        if let Action::Pressed = action {
+            if self.midi_id >= MAX_MIDI_ID {
+                self.midi_id = 0
+            } else {
+                self.midi_id += 1
+            }
+        }
+    }
+    fn decr_midi_id(&mut self, action: &Action) {
+        if let Action::Pressed = action {
+            if self.midi_id == 0 {
+                self.midi_id = MAX_MIDI_ID
+            } else {
+                self.midi_id -= 1
+            }
+        }
+    }
+
+    pub fn program_change<B>(
+        &mut self,
+        action: &Action,
+    ) -> Result<Option<BytesMessage<B>>, BufferOverflow>
+    where
+        B: Buffer<Unit = u8> + BufferMut + BufferDefault + BufferTryResize,
+    {
+        if let Action::Pressed = action {
+            let mut m = ProgramChange::<B>::try_new()?;
+            m.set_channel(self.channel());
+            m.set_program(u7::new(self.midi_id));
+            return Ok(Some(BytesMessage::<B>::ChannelVoice1(
+                ChannelVoice1::ProgramChange(m),
+            )));
+        }
+        Ok(None)
+    }
+
     fn channel(&self) -> u4 {
         // FIXME: This is a temporary solution to get the code to compile
         u4::new(match self.channel {
@@ -420,5 +455,36 @@ mod tests {
         };
         let result = button.handle::<[u8; 3]>(Action::Pressed).unwrap().unwrap();
         assert_eq!(result.data(), [0xFF]);
+    }
+
+    #[test]
+    fn test_realtime_program_change_incr() {
+        let mut button = Button {
+            button_type: ButtonType::Momentary,
+            message_type: ButtonMessageType::ProgramChangeIncr,
+            midi_id: 0x7E,
+            value: 0x7F,
+            channel: ChannelOrAll::default(),
+            latch_on: false,
+        };
+        let result_1 = button.handle::<[u8; 3]>(Action::Pressed).unwrap().unwrap();
+        assert_eq!(result_1.data(), [0xC0, 0x7F]);
+        let result_1 = button.handle::<[u8; 3]>(Action::Pressed).unwrap().unwrap();
+        assert_eq!(result_1.data(), [0xC0, 0x00]);
+    }
+    #[test]
+    fn test_realtime_program_change_decr() {
+        let mut button = Button {
+            button_type: ButtonType::Momentary,
+            message_type: ButtonMessageType::ProgramChangeDecr,
+            midi_id: 0x01,
+            value: 0x7F,
+            channel: ChannelOrAll::default(),
+            latch_on: false,
+        };
+        let result_1 = button.handle::<[u8; 3]>(Action::Pressed).unwrap().unwrap();
+        assert_eq!(result_1.data(), [0xC0, 0x00]);
+        let result_1 = button.handle::<[u8; 3]>(Action::Pressed).unwrap().unwrap();
+        assert_eq!(result_1.data(), [0xC0, 0x7F]);
     }
 }
