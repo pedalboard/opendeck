@@ -165,7 +165,16 @@ impl Button {
                 Ok(None)
             }
             ButtonMessageType::MultiValueIncDecNote => Ok(None),
-            ButtonMessageType::MultiValueIncResetCC => Ok(None),
+            ButtonMessageType::MultiValueIncResetCC => {
+                if let Action::Pressed = action {
+                    let mut m = ControlChange::try_new_with_buffer(buffer)?;
+                    m.set_channel(self.channel());
+                    m.set_control(u7::new(self.midi_id));
+                    m.set_control_data(self.multi_value_inc_reset());
+                    return Ok(Some(m.into()));
+                }
+                Ok(None)
+            }
             ButtonMessageType::MultiValueIncDecCC => Ok(None),
 
             ButtonMessageType::ProgramChangeOffsetIncr => Ok(None),
@@ -224,7 +233,6 @@ impl Button {
         }
         u7::new(result)
     }
-
     pub fn program_change<'a>(
         &mut self,
         action: Action,
@@ -238,7 +246,6 @@ impl Button {
         }
         Ok(None)
     }
-
     fn channel(&self) -> u4 {
         // FIXME: This is a temporary solution to get the code to compile
         u4::new(match self.channel {
@@ -597,20 +604,57 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(result_2.data(), [0x90, 0x03, 100]);
+        let result_3 = button
+            .handle(Action::Pressed, &mut message_buffer)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result_3.data(), [0x90, 0x03, 50]);
+        let result_4 = button
+            .handle(Action::Pressed, &mut message_buffer)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result_4.data(), [0x90, 0x03, 100]);
+        let result_5 = button
+            .handle(Action::Pressed, &mut message_buffer)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result_5.data(), [0x90, 0x03, 50]);
+    }
+    #[test]
+    fn test_multi_value_inc_reset_cc() {
+        let mut message_buffer = [0x00u8; 8];
+        let mut button = Button {
+            button_type: ButtonType::Momentary,
+            message_type: ButtonMessageType::MultiValueIncResetCC,
+            midi_id: 0x03,
+            value: 40,
+            channel: ChannelOrAll::default(),
+            state: ButtonState::default(),
+        };
+        let result_1 = button
+            .handle(Action::Pressed, &mut message_buffer)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result_1.data(), [0xB0, 0x03, 40]);
         let result_2 = button
             .handle(Action::Pressed, &mut message_buffer)
             .unwrap()
             .unwrap();
-        assert_eq!(result_2.data(), [0x90, 0x03, 50]);
-        let result_2 = button
+        assert_eq!(result_2.data(), [0xB0, 0x03, 80]);
+        let result_3 = button
             .handle(Action::Pressed, &mut message_buffer)
             .unwrap()
             .unwrap();
-        assert_eq!(result_2.data(), [0x90, 0x03, 100]);
-        let result_2 = button
+        assert_eq!(result_3.data(), [0xB0, 0x03, 120]);
+        let result_4 = button
             .handle(Action::Pressed, &mut message_buffer)
             .unwrap()
             .unwrap();
-        assert_eq!(result_2.data(), [0x90, 0x03, 50]);
+        assert_eq!(result_4.data(), [0xB0, 0x03, 40]);
+        let result_5 = button
+            .handle(Action::Pressed, &mut message_buffer)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result_5.data(), [0xB0, 0x03, 80]);
     }
 }
