@@ -7,13 +7,8 @@ categories = ["no-std", "embedded"]
 [dependencies]
 midi2 = { version = "0.7.0", default-features = false, features = [
   "channel-voice1",
-  "channel-voice2",
   "sysex7",
-  "sysex8",
-  "flex-data",
   "system-common",
-  "ump-stream",
-  "utility",
 ] }
 defmt = { version = "0.3.10", optional = true }
 heapless = { version = "0.8.0", features = ["defmt-03"] }
