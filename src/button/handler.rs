@@ -1,7 +1,7 @@
 use crate::button::{Button, ButtonMessageType, ButtonType, ChannelOrAll};
 
 use midi2::{
-    channel_voice1::{ControlChange, NoteOn, ProgramChange},
+    channel_voice1::{ControlChange, NoteOff, NoteOn, ProgramChange},
     error::BufferOverflow,
     prelude::*,
     system_common::{ActiveSensing, Continue, Reset, Start, Stop, TimingClock},
@@ -47,6 +47,16 @@ impl Button {
                 }
                 ButtonStatus::None => Ok(None),
             },
+            ButtonMessageType::NoteOffOnly => {
+                if let Action::Pressed = action {
+                    let mut m = NoteOff::try_new_with_buffer(buffer)?;
+                    m.set_velocity(u7::new(self.value));
+                    m.set_note_number(u7::new(self.midi_id));
+                    m.set_channel(self.channel());
+                    return Ok(Some(m.into()));
+                }
+                Ok(None)
+            }
             ButtonMessageType::ProgramChange => self.program_change(action, buffer),
             ButtonMessageType::ControlChange => {
                 if let Action::Pressed = action {
@@ -147,7 +157,6 @@ impl Button {
             ButtonMessageType::MultiValueDecNote => Ok(None),
             ButtonMessageType::MultiValueIncCC => Ok(None),
             ButtonMessageType::MultiValueDecCC => Ok(None),
-            ButtonMessageType::NoteOffOnly => Ok(None),
             ButtonMessageType::ProgramChangeOffsetIncr => Ok(None),
             ButtonMessageType::ProgramChangeOffsetDecr => Ok(None),
             ButtonMessageType::BPMIncr => Ok(None),
@@ -529,5 +538,22 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(result_1.data(), [0xC0, 0x7F]);
+    }
+    #[test]
+    fn test_note_off_only() {
+        let mut message_buffer = [0x00u8; 8];
+        let mut button = Button {
+            button_type: ButtonType::Momentary,
+            message_type: ButtonMessageType::NoteOffOnly,
+            midi_id: 0x03,
+            value: 0x7F,
+            channel: ChannelOrAll::default(),
+            latch_on: false,
+        };
+        let result = button
+            .handle(Action::Pressed, &mut message_buffer)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result.data(), [0x80, 0x03, 0x7F]);
     }
 }
