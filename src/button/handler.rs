@@ -97,7 +97,7 @@ impl Button {
                 }
                 Ok(None)
             }
-
+            // MMC
             ButtonMessageType::MMCStop => {
                 if let Action::Pressed = action {
                     let mut m = Sysex7::try_new_with_buffer(buffer)?;
@@ -138,7 +138,7 @@ impl Button {
                 }
                 Ok(None)
             }
-
+            // RTC
             ButtonMessageType::RealTimeClock => {
                 if let Action::Pressed = action {
                     let m = TimingClock::try_new_with_buffer(buffer)?;
@@ -182,7 +182,7 @@ impl Button {
                 }
                 Ok(None)
             }
-
+            // Inc/Dec
             ButtonMessageType::ProgramChangeIncr => {
                 self.incr_midi_id(&action);
                 self.program_change(action, buffer)
