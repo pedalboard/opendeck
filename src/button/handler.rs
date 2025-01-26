@@ -153,10 +153,10 @@ impl Button {
                 self.decr_midi_id(&action);
                 self.program_change(action, buffer)
             }
-            ButtonMessageType::MultiValueIncNote => Ok(None),
-            ButtonMessageType::MultiValueDecNote => Ok(None),
-            ButtonMessageType::MultiValueIncCC => Ok(None),
-            ButtonMessageType::MultiValueDecCC => Ok(None),
+            ButtonMessageType::MultiValueIncResetNote => Ok(None),
+            ButtonMessageType::MultiValueIncDecNote => Ok(None),
+            ButtonMessageType::MultiValueIncResetCC => Ok(None),
+            ButtonMessageType::MultiValueIncDecCC => Ok(None),
             ButtonMessageType::ProgramChangeOffsetIncr => Ok(None),
             ButtonMessageType::ProgramChangeOffsetDecr => Ok(None),
             ButtonMessageType::BPMIncr => Ok(None),
