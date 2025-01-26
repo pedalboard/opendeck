@@ -9,6 +9,7 @@ use midi2::{
 };
 
 const MAX_MIDI_ID: u8 = 127;
+const MAX_VALUE: u8 = 127;
 
 pub enum Action {
     Pressed,
@@ -153,7 +154,16 @@ impl Button {
                 self.decr_midi_id(&action);
                 self.program_change(action, buffer)
             }
-            ButtonMessageType::MultiValueIncResetNote => Ok(None),
+            ButtonMessageType::MultiValueIncResetNote => {
+                if let Action::Pressed = action {
+                    let mut m = NoteOn::try_new_with_buffer(buffer)?;
+                    m.set_channel(self.channel());
+                    m.set_note_number(u7::new(self.midi_id));
+                    m.set_velocity(self.multi_value_inc_reset());
+                    return Ok(Some(m.into()));
+                }
+                Ok(None)
+            }
             ButtonMessageType::MultiValueIncDecNote => Ok(None),
             ButtonMessageType::MultiValueIncResetCC => Ok(None),
             ButtonMessageType::MultiValueIncDecCC => Ok(None),
@@ -204,6 +214,15 @@ impl Button {
                 self.midi_id -= 1
             }
         }
+    }
+    fn multi_value_inc_reset(&mut self) -> u7 {
+        self.state.step += 1;
+        let result = self.state.step * self.value;
+        if result > MAX_VALUE {
+            self.state.step = 1;
+            return u7::new(self.value);
+        }
+        u7::new(result)
     }
 
     pub fn program_change<'a>(
@@ -556,5 +575,42 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(result.data(), [0x80, 0x03, 0x7F]);
+    }
+    #[test]
+    fn test_multi_value_inc_reset_note() {
+        let mut message_buffer = [0x00u8; 8];
+        let mut button = Button {
+            button_type: ButtonType::Momentary,
+            message_type: ButtonMessageType::MultiValueIncResetNote,
+            midi_id: 0x03,
+            value: 50,
+            channel: ChannelOrAll::default(),
+            state: ButtonState::default(),
+        };
+        let result_1 = button
+            .handle(Action::Pressed, &mut message_buffer)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result_1.data(), [0x90, 0x03, 50]);
+        let result_2 = button
+            .handle(Action::Pressed, &mut message_buffer)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result_2.data(), [0x90, 0x03, 100]);
+        let result_2 = button
+            .handle(Action::Pressed, &mut message_buffer)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result_2.data(), [0x90, 0x03, 50]);
+        let result_2 = button
+            .handle(Action::Pressed, &mut message_buffer)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result_2.data(), [0x90, 0x03, 100]);
+        let result_2 = button
+            .handle(Action::Pressed, &mut message_buffer)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result_2.data(), [0x90, 0x03, 50]);
     }
 }
