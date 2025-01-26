@@ -98,7 +98,16 @@ impl Button {
                 Ok(None)
             }
 
-            ButtonMessageType::MMCStop => Ok(None),
+            ButtonMessageType::MMCStop => {
+                if let Action::Pressed = action {
+                    let mut m = Sysex7::try_new_with_buffer(buffer)?;
+                    let payload: [u8; 4] = [0x7F, self.midi_id, 0x06, 0x01];
+                    m.try_set_payload(payload.into_iter().map(u7::new))?;
+
+                    return Ok(Some(m.into()));
+                }
+                Ok(None)
+            }
             ButtonMessageType::MMCPlay => {
                 if let Action::Pressed = action {
                     let mut m = Sysex7::try_new_with_buffer(buffer)?;
@@ -109,8 +118,26 @@ impl Button {
                 }
                 Ok(None)
             }
-            ButtonMessageType::MMCRecord => Ok(None),
-            ButtonMessageType::MMCPause => Ok(None),
+            ButtonMessageType::MMCRecord => {
+                if let Action::Pressed = action {
+                    let mut m = Sysex7::try_new_with_buffer(buffer)?;
+                    let payload: [u8; 4] = [0x7F, self.midi_id, 0x06, 0x06];
+                    m.try_set_payload(payload.into_iter().map(u7::new))?;
+
+                    return Ok(Some(m.into()));
+                }
+                Ok(None)
+            }
+            ButtonMessageType::MMCPause => {
+                if let Action::Pressed = action {
+                    let mut m = Sysex7::try_new_with_buffer(buffer)?;
+                    let payload: [u8; 4] = [0x7F, self.midi_id, 0x06, 0x09];
+                    m.try_set_payload(payload.into_iter().map(u7::new))?;
+
+                    return Ok(Some(m.into()));
+                }
+                Ok(None)
+            }
 
             ButtonMessageType::RealTimeClock => {
                 if let Action::Pressed = action {
@@ -803,5 +830,56 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(result.data(), [0xF0, 0x7F, 0x03, 0x06, 0x02, 0xF7]);
+    }
+    #[test]
+    fn test_mmc_stop() {
+        let mut message_buffer = [0x00u8; 8];
+        let mut button = Button {
+            button_type: ButtonType::Momentary,
+            message_type: ButtonMessageType::MMCStop,
+            midi_id: 0x04,
+            value: 0x7F,
+            channel: ChannelOrAll::default(),
+            state: ButtonState::default(),
+        };
+        let result = button
+            .handle(Action::Pressed, &mut message_buffer)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result.data(), [0xF0, 0x7F, 0x04, 0x06, 0x01, 0xF7]);
+    }
+    #[test]
+    fn test_mmc_record() {
+        let mut message_buffer = [0x00u8; 8];
+        let mut button = Button {
+            button_type: ButtonType::Momentary,
+            message_type: ButtonMessageType::MMCRecord,
+            midi_id: 0x05,
+            value: 0x7F,
+            channel: ChannelOrAll::default(),
+            state: ButtonState::default(),
+        };
+        let result = button
+            .handle(Action::Pressed, &mut message_buffer)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result.data(), [0xF0, 0x7F, 0x05, 0x06, 0x06, 0xF7]);
+    }
+    #[test]
+    fn test_mmc_pause() {
+        let mut message_buffer = [0x00u8; 8];
+        let mut button = Button {
+            button_type: ButtonType::Momentary,
+            message_type: ButtonMessageType::MMCPause,
+            midi_id: 0x05,
+            value: 0x7F,
+            channel: ChannelOrAll::default(),
+            state: ButtonState::default(),
+        };
+        let result = button
+            .handle(Action::Pressed, &mut message_buffer)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result.data(), [0xF0, 0x7F, 0x05, 0x06, 0x09, 0xF7]);
     }
 }
