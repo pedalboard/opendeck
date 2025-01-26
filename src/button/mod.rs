@@ -13,7 +13,15 @@ pub struct Button {
     message_type: ButtonMessageType,
     channel: ChannelOrAll,
     button_type: ButtonType,
+    state: ButtonState,
+}
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+struct ButtonState {
+    // state when letching mode is on
     latch_on: bool,
+    // the step for multi value buttons
+    step: u8,
 }
 
 impl Button {
@@ -24,7 +32,7 @@ impl Button {
             midi_id,
             message_type: ButtonMessageType::default(),
             channel: ChannelOrAll::default(),
-            latch_on: false,
+            state: ButtonState::default(),
         }
     }
     pub fn set(&mut self, section: &ButtonSection) {

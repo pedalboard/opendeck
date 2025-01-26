@@ -157,6 +157,7 @@ impl Button {
             ButtonMessageType::MultiValueIncDecNote => Ok(None),
             ButtonMessageType::MultiValueIncResetCC => Ok(None),
             ButtonMessageType::MultiValueIncDecCC => Ok(None),
+
             ButtonMessageType::ProgramChangeOffsetIncr => Ok(None),
             ButtonMessageType::ProgramChangeOffsetDecr => Ok(None),
             ButtonMessageType::BPMIncr => Ok(None),
@@ -175,8 +176,8 @@ impl Button {
             },
             ButtonType::Latching => {
                 if let Action::Pressed = action {
-                    self.latch_on = !self.latch_on;
-                    if self.latch_on {
+                    self.state.latch_on = !self.state.latch_on;
+                    if self.state.latch_on {
                         return ButtonStatus::On;
                     } else {
                         return ButtonStatus::Off;
@@ -233,7 +234,7 @@ impl Button {
 mod tests {
 
     use super::*;
-    use crate::ChannelOrAll;
+    use crate::{button::ButtonState, ChannelOrAll};
 
     #[test]
     fn test_note_on() {
@@ -244,7 +245,7 @@ mod tests {
             midi_id: 0x03,
             value: 0x7F,
             channel: ChannelOrAll::default(),
-            latch_on: false,
+            state: ButtonState::default(),
         };
         let result = button
             .handle(Action::Pressed, &mut message_buffer)
@@ -263,7 +264,7 @@ mod tests {
             midi_id: 0x03,
             value: 0x7F,
             channel: ChannelOrAll::default(),
-            latch_on: false,
+            state: ButtonState::default(),
         };
         let result = button
             .handle(Action::Pressed, &mut message_buffer)
@@ -280,7 +281,7 @@ mod tests {
             midi_id: 0x03,
             value: 0x7F,
             channel: ChannelOrAll::default(),
-            latch_on: false,
+            state: ButtonState::default(),
         };
         let result = button
             .handle(Action::Released, &mut message_buffer)
@@ -297,7 +298,7 @@ mod tests {
             midi_id: 0x03,
             value: 0x7F,
             channel: ChannelOrAll::default(),
-            latch_on: false,
+            state: ButtonState::default(),
         };
         let result = button
             .handle(Action::Pressed, &mut message_buffer)
@@ -314,7 +315,7 @@ mod tests {
             midi_id: 0x03,
             value: 0x7F,
             channel: ChannelOrAll::default(),
-            latch_on: false,
+            state: ButtonState::default(),
         };
         let result = button
             .handle(Action::Released, &mut message_buffer)
@@ -331,7 +332,7 @@ mod tests {
             midi_id: 0x03,
             value: 0x7F,
             channel: ChannelOrAll::default(),
-            latch_on: false,
+            state: ButtonState::default(),
         };
         let result = button
             .handle(Action::Pressed, &mut message_buffer)
@@ -348,7 +349,7 @@ mod tests {
             midi_id: 0x03,
             value: 0x7F,
             channel: ChannelOrAll::default(),
-            latch_on: false,
+            state: ButtonState::default(),
         };
         let result = button
             .handle(Action::Released, &mut message_buffer)
@@ -366,7 +367,7 @@ mod tests {
             midi_id: 0x03,
             value: 0x7F,
             channel: ChannelOrAll::default(),
-            latch_on: false,
+            state: ButtonState::default(),
         };
         let result = button
             .handle(Action::Pressed, &mut message_buffer)
@@ -384,7 +385,7 @@ mod tests {
             midi_id: 0x03,
             value: 0x7F,
             channel: ChannelOrAll::default(),
-            latch_on: false,
+            state: ButtonState::default(),
         };
         let result = button
             .handle(Action::Released, &mut message_buffer)
@@ -401,7 +402,7 @@ mod tests {
             midi_id: 0x03,
             value: 0x7F,
             channel: ChannelOrAll::default(),
-            latch_on: false,
+            state: ButtonState::default(),
         };
         let result = button
             .handle(Action::Pressed, &mut message_buffer)
@@ -418,7 +419,7 @@ mod tests {
             midi_id: 0x03,
             value: 0x7F,
             channel: ChannelOrAll::default(),
-            latch_on: false,
+            state: ButtonState::default(),
         };
         let result = button
             .handle(Action::Pressed, &mut message_buffer)
@@ -435,7 +436,7 @@ mod tests {
             midi_id: 0x03,
             value: 0x7F,
             channel: ChannelOrAll::default(),
-            latch_on: false,
+            state: ButtonState::default(),
         };
         let result = button
             .handle(Action::Pressed, &mut message_buffer)
@@ -452,7 +453,7 @@ mod tests {
             midi_id: 0x03,
             value: 0x7F,
             channel: ChannelOrAll::default(),
-            latch_on: false,
+            state: ButtonState::default(),
         };
         let result = button
             .handle(Action::Pressed, &mut message_buffer)
@@ -469,7 +470,7 @@ mod tests {
             midi_id: 0x03,
             value: 0x7F,
             channel: ChannelOrAll::default(),
-            latch_on: false,
+            state: ButtonState::default(),
         };
         let result = button
             .handle(Action::Pressed, &mut message_buffer)
@@ -486,7 +487,7 @@ mod tests {
             midi_id: 0x03,
             value: 0x7F,
             channel: ChannelOrAll::default(),
-            latch_on: false,
+            state: ButtonState::default(),
         };
         let result = button
             .handle(Action::Pressed, &mut message_buffer)
@@ -504,7 +505,7 @@ mod tests {
             midi_id: 0x7E,
             value: 0x7F,
             channel: ChannelOrAll::default(),
-            latch_on: false,
+            state: ButtonState::default(),
         };
         let result_1 = button
             .handle(Action::Pressed, &mut message_buffer)
@@ -526,7 +527,7 @@ mod tests {
             midi_id: 0x01,
             value: 0x7F,
             channel: ChannelOrAll::default(),
-            latch_on: false,
+            state: ButtonState::default(),
         };
         let result_1 = button
             .handle(Action::Pressed, &mut message_buffer)
@@ -548,7 +549,7 @@ mod tests {
             midi_id: 0x03,
             value: 0x7F,
             channel: ChannelOrAll::default(),
-            latch_on: false,
+            state: ButtonState::default(),
         };
         let result = button
             .handle(Action::Pressed, &mut message_buffer)
