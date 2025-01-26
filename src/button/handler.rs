@@ -164,7 +164,16 @@ impl Button {
                 }
                 Ok(None)
             }
-            ButtonMessageType::MultiValueIncDecNote => Ok(None),
+            ButtonMessageType::MultiValueIncDecNote => {
+                if let Action::Pressed = action {
+                    let mut m = NoteOn::try_new_with_buffer(buffer)?;
+                    m.set_channel(self.channel());
+                    m.set_note_number(u7::new(self.midi_id));
+                    m.set_velocity(self.multi_value_inc_dec());
+                    return Ok(Some(m.into()));
+                }
+                Ok(None)
+            }
             ButtonMessageType::MultiValueIncResetCC => {
                 if let Action::Pressed = action {
                     let mut m = ControlChange::try_new_with_buffer(buffer)?;
@@ -175,7 +184,16 @@ impl Button {
                 }
                 Ok(None)
             }
-            ButtonMessageType::MultiValueIncDecCC => Ok(None),
+            ButtonMessageType::MultiValueIncDecCC => {
+                if let Action::Pressed = action {
+                    let mut m = ControlChange::try_new_with_buffer(buffer)?;
+                    m.set_channel(self.channel());
+                    m.set_control(u7::new(self.midi_id));
+                    m.set_control_data(self.multi_value_inc_dec());
+                    return Ok(Some(m.into()));
+                }
+                Ok(None)
+            }
 
             ButtonMessageType::ProgramChangeOffsetIncr => Ok(None),
             ButtonMessageType::ProgramChangeOffsetDecr => Ok(None),
@@ -232,6 +250,29 @@ impl Button {
             return u7::new(self.value);
         }
         u7::new(result)
+    }
+    fn multi_value_inc_dec(&mut self) -> u7 {
+        if self.state.step_down {
+            if self.state.step <= 1 {
+                self.state.step = 2;
+                self.state.step_down = false;
+                let result = self.state.step * self.value;
+                return u7::new(result);
+            }
+            self.state.step -= 1;
+            let result = self.state.step * self.value;
+            u7::new(result)
+        } else {
+            // step up
+            self.state.step += 1;
+            let mut result = self.state.step * self.value;
+            if result > MAX_VALUE {
+                self.state.step_down = true;
+                self.state.step -= 2;
+                result = self.state.step * self.value;
+            }
+            u7::new(result)
+        }
     }
     pub fn program_change<'a>(
         &mut self,
@@ -656,5 +697,84 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(result_5.data(), [0xB0, 0x03, 80]);
+    }
+    #[test]
+    fn test_multi_value_inc_dec_note() {
+        let mut message_buffer = [0x00u8; 8];
+        let mut button = Button {
+            button_type: ButtonType::Momentary,
+            message_type: ButtonMessageType::MultiValueIncDecNote,
+            midi_id: 0x03,
+            value: 50,
+            channel: ChannelOrAll::default(),
+            state: ButtonState::default(),
+        };
+        let result_1 = button
+            .handle(Action::Pressed, &mut message_buffer)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result_1.data(), [0x90, 0x03, 50]);
+        let result_2 = button
+            .handle(Action::Pressed, &mut message_buffer)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result_2.data(), [0x90, 0x03, 100]);
+        let result_3 = button
+            .handle(Action::Pressed, &mut message_buffer)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result_3.data(), [0x90, 0x03, 50]);
+        let result_4 = button
+            .handle(Action::Pressed, &mut message_buffer)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result_4.data(), [0x90, 0x03, 100]);
+        let result_5 = button
+            .handle(Action::Pressed, &mut message_buffer)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result_5.data(), [0x90, 0x03, 50]);
+    }
+    #[test]
+    fn test_multi_value_inc_dec_cc() {
+        let mut message_buffer = [0x00u8; 8];
+        let mut button = Button {
+            button_type: ButtonType::Momentary,
+            message_type: ButtonMessageType::MultiValueIncDecCC,
+            midi_id: 0x03,
+            value: 40,
+            channel: ChannelOrAll::default(),
+            state: ButtonState::default(),
+        };
+        let result_1 = button
+            .handle(Action::Pressed, &mut message_buffer)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result_1.data(), [0xB0, 0x03, 40]);
+        let result_2 = button
+            .handle(Action::Pressed, &mut message_buffer)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result_2.data(), [0xB0, 0x03, 80]);
+        let result_3 = button
+            .handle(Action::Pressed, &mut message_buffer)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result_3.data(), [0xB0, 0x03, 120]);
+        let result_4 = button
+            .handle(Action::Pressed, &mut message_buffer)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result_4.data(), [0xB0, 0x03, 80]);
+        let result_5 = button
+            .handle(Action::Pressed, &mut message_buffer)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result_5.data(), [0xB0, 0x03, 40]);
+        let result_6 = button
+            .handle(Action::Pressed, &mut message_buffer)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result_6.data(), [0xB0, 0x03, 80]);
     }
 }

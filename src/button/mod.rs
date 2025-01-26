@@ -22,6 +22,7 @@ struct ButtonState {
     latch_on: bool,
     // the step for multi value buttons
     step: u8,
+    step_down: bool,
 }
 
 impl Button {
