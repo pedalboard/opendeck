@@ -23,49 +23,60 @@ enum ButtonStatus {
     None,
 }
 
-impl Button {
-    pub fn handle<'a>(
-        &mut self,
-        action: Action,
-        buffer: &'a mut [u8],
-    ) -> Result<Option<BytesMessage<&'a mut [u8]>>, BufferOverflow> {
-        let status = self.latch(&action);
+pub struct ButtonMessages<'a> {
+    button: &'a mut Button,
+    action: Action,
+    index: usize,
+}
 
-        match self.message_type {
+impl<'a> ButtonMessages<'a> {
+    pub fn new(button: &'a mut Button, action: Action) -> Self {
+        Self {
+            button,
+            action,
+            index: 0,
+        }
+    }
+    pub fn next<'buf>(
+        &mut self,
+        buffer: &'buf mut [u8],
+    ) -> Result<Option<BytesMessage<&'buf mut [u8]>>, BufferOverflow> {
+        let status = self.button.latch(&self.action);
+        match self.button.message_type {
             ButtonMessageType::Notes => match status {
                 ButtonStatus::On => {
                     let mut m = NoteOn::try_new_with_buffer(buffer)?;
-                    m.set_velocity(u7::new(self.value));
-                    m.set_note_number(u7::new(self.midi_id));
-                    m.set_channel(self.channel.into_midi());
+                    m.set_velocity(u7::new(self.button.value));
+                    m.set_note_number(u7::new(self.button.midi_id));
+                    m.set_channel(self.button.channel.into_midi());
                     Ok(Some(m.into()))
                 }
                 ButtonStatus::Off => {
                     let mut m = NoteOn::try_new_with_buffer(buffer)?;
                     m.set_velocity(u7::MIN);
-                    m.set_channel(self.channel.into_midi());
-                    m.set_note_number(u7::new(self.midi_id));
+                    m.set_channel(self.button.channel.into_midi());
+                    m.set_note_number(u7::new(self.button.midi_id));
                     Ok(Some(m.into()))
                 }
                 ButtonStatus::None => Ok(None),
             },
             ButtonMessageType::NoteOffOnly => {
-                if let Action::Pressed = action {
+                if let Action::Pressed = self.action {
                     let mut m = NoteOff::try_new_with_buffer(buffer)?;
-                    m.set_velocity(u7::new(self.value));
-                    m.set_note_number(u7::new(self.midi_id));
-                    m.set_channel(self.channel.into_midi());
+                    m.set_velocity(u7::new(self.button.value));
+                    m.set_note_number(u7::new(self.button.midi_id));
+                    m.set_channel(self.button.channel.into_midi());
                     return Ok(Some(m.into()));
                 }
                 Ok(None)
             }
-            ButtonMessageType::ProgramChange => self.program_change(action, buffer),
+            ButtonMessageType::ProgramChange => self.button.program_change(&self.action, buffer),
             ButtonMessageType::ControlChange => {
-                if let Action::Pressed = action {
+                if let Action::Pressed = self.action {
                     let mut m = ControlChange::try_new_with_buffer(buffer)?;
-                    m.set_channel(self.channel.into_midi());
-                    m.set_control(u7::new(self.midi_id));
-                    m.set_control_data(u7::new(self.value));
+                    m.set_channel(self.button.channel.into_midi());
+                    m.set_control(u7::new(self.button.midi_id));
+                    m.set_control_data(u7::new(self.button.value));
                     return Ok(Some(m.into()));
                 }
                 Ok(None)
@@ -73,25 +84,25 @@ impl Button {
             ButtonMessageType::ControlChangeWithReset => match status {
                 ButtonStatus::On => {
                     let mut m = ControlChange::try_new_with_buffer(buffer)?;
-                    m.set_channel(self.channel.into_midi());
-                    m.set_control(u7::new(self.midi_id));
-                    m.set_control_data(u7::new(self.value));
+                    m.set_channel(self.button.channel.into_midi());
+                    m.set_control(u7::new(self.button.midi_id));
+                    m.set_control_data(u7::new(self.button.value));
                     Ok(Some(m.into()))
                 }
                 ButtonStatus::Off => {
                     let mut m = ControlChange::try_new_with_buffer(buffer)?;
-                    m.set_channel(self.channel.into_midi());
-                    m.set_control(u7::new(self.midi_id));
+                    m.set_channel(self.button.channel.into_midi());
+                    m.set_control(u7::new(self.button.midi_id));
                     m.set_control_data(u7::new(0));
                     Ok(Some(m.into()))
                 }
                 ButtonStatus::None => Ok(None),
             },
             ButtonMessageType::ControlChangeWithValue0 => {
-                if let Action::Pressed = action {
+                if let Action::Pressed = self.action {
                     let mut m = ControlChange::try_new_with_buffer(buffer)?;
-                    m.set_channel(self.channel.into_midi());
-                    m.set_control(u7::new(self.midi_id));
+                    m.set_channel(self.button.channel.into_midi());
+                    m.set_control(u7::new(self.button.midi_id));
                     m.set_control_data(u7::new(0x00));
                     return Ok(Some(m.into()));
                 }
@@ -99,9 +110,9 @@ impl Button {
             }
             // MMC
             ButtonMessageType::MMCStop => {
-                if let Action::Pressed = action {
+                if let Action::Pressed = self.action {
                     let mut m = Sysex7::try_new_with_buffer(buffer)?;
-                    let payload: [u8; 4] = [0x7F, self.midi_id, 0x06, 0x01];
+                    let payload: [u8; 4] = [0x7F, self.button.midi_id, 0x06, 0x01];
                     m.try_set_payload(payload.into_iter().map(u7::new))?;
 
                     return Ok(Some(m.into()));
@@ -109,9 +120,9 @@ impl Button {
                 Ok(None)
             }
             ButtonMessageType::MMCPlay => {
-                if let Action::Pressed = action {
+                if let Action::Pressed = self.action {
                     let mut m = Sysex7::try_new_with_buffer(buffer)?;
-                    let payload: [u8; 4] = [0x7F, self.midi_id, 0x06, 0x02];
+                    let payload: [u8; 4] = [0x7F, self.button.midi_id, 0x06, 0x02];
                     m.try_set_payload(payload.into_iter().map(u7::new))?;
 
                     return Ok(Some(m.into()));
@@ -119,9 +130,9 @@ impl Button {
                 Ok(None)
             }
             ButtonMessageType::MMCRecord => {
-                if let Action::Pressed = action {
+                if let Action::Pressed = self.action {
                     let mut m = Sysex7::try_new_with_buffer(buffer)?;
-                    let payload: [u8; 4] = [0x7F, self.midi_id, 0x06, 0x06];
+                    let payload: [u8; 4] = [0x7F, self.button.midi_id, 0x06, 0x06];
                     m.try_set_payload(payload.into_iter().map(u7::new))?;
 
                     return Ok(Some(m.into()));
@@ -129,9 +140,9 @@ impl Button {
                 Ok(None)
             }
             ButtonMessageType::MMCPause => {
-                if let Action::Pressed = action {
+                if let Action::Pressed = self.action {
                     let mut m = Sysex7::try_new_with_buffer(buffer)?;
-                    let payload: [u8; 4] = [0x7F, self.midi_id, 0x06, 0x09];
+                    let payload: [u8; 4] = [0x7F, self.button.midi_id, 0x06, 0x09];
                     m.try_set_payload(payload.into_iter().map(u7::new))?;
 
                     return Ok(Some(m.into()));
@@ -140,7 +151,7 @@ impl Button {
             }
             // RTC
             ButtonMessageType::RealTimeClock => {
-                if let Action::Pressed = action {
+                if let Action::Pressed = self.action {
                     let m = TimingClock::try_new_with_buffer(buffer)?;
                     return Ok(Some(m.into()));
                 }
@@ -148,35 +159,35 @@ impl Button {
             }
 
             ButtonMessageType::RealTimeStart => {
-                if let Action::Pressed = action {
+                if let Action::Pressed = self.action {
                     let m = Start::try_new_with_buffer(buffer)?;
                     return Ok(Some(m.into()));
                 }
                 Ok(None)
             }
             ButtonMessageType::RealTimeContinue => {
-                if let Action::Pressed = action {
+                if let Action::Pressed = self.action {
                     let m = Continue::try_new_with_buffer(buffer)?;
                     return Ok(Some(m.into()));
                 }
                 Ok(None)
             }
             ButtonMessageType::RealTimeStop => {
-                if let Action::Pressed = action {
+                if let Action::Pressed = self.action {
                     let m = Stop::try_new_with_buffer(buffer)?;
                     return Ok(Some(m.into()));
                 }
                 Ok(None)
             }
             ButtonMessageType::RealTimeActiveSensing => {
-                if let Action::Pressed = action {
+                if let Action::Pressed = self.action {
                     let m = ActiveSensing::try_new_with_buffer(buffer)?;
                     return Ok(Some(m.into()));
                 }
                 Ok(None)
             }
             ButtonMessageType::RealTimeSystemReset => {
-                if let Action::Pressed = action {
+                if let Action::Pressed = self.action {
                     let m = Reset::try_new_with_buffer(buffer)?;
                     return Ok(Some(m.into()));
                 }
@@ -184,49 +195,49 @@ impl Button {
             }
             // Inc/Dec
             ButtonMessageType::ProgramChangeIncr => {
-                self.incr_midi_id(&action);
-                self.program_change(action, buffer)
+                self.button.incr_midi_id(&self.action);
+                self.button.program_change(&self.action, buffer)
             }
             ButtonMessageType::ProgramChangeDecr => {
-                self.decr_midi_id(&action);
-                self.program_change(action, buffer)
+                self.button.decr_midi_id(&self.action);
+                self.button.program_change(&self.action, buffer)
             }
             ButtonMessageType::MultiValueIncResetNote => {
-                if let Action::Pressed = action {
+                if let Action::Pressed = self.action {
                     let mut m = NoteOn::try_new_with_buffer(buffer)?;
-                    m.set_channel(self.channel.into_midi());
-                    m.set_note_number(u7::new(self.midi_id));
-                    m.set_velocity(self.multi_value_inc_reset());
+                    m.set_channel(self.button.channel.into_midi());
+                    m.set_note_number(u7::new(self.button.midi_id));
+                    m.set_velocity(self.button.multi_value_inc_reset());
                     return Ok(Some(m.into()));
                 }
                 Ok(None)
             }
             ButtonMessageType::MultiValueIncDecNote => {
-                if let Action::Pressed = action {
+                if let Action::Pressed = self.action {
                     let mut m = NoteOn::try_new_with_buffer(buffer)?;
-                    m.set_channel(self.channel.into_midi());
-                    m.set_note_number(u7::new(self.midi_id));
-                    m.set_velocity(self.multi_value_inc_dec());
+                    m.set_channel(self.button.channel.into_midi());
+                    m.set_note_number(u7::new(self.button.midi_id));
+                    m.set_velocity(self.button.multi_value_inc_dec());
                     return Ok(Some(m.into()));
                 }
                 Ok(None)
             }
             ButtonMessageType::MultiValueIncResetCC => {
-                if let Action::Pressed = action {
+                if let Action::Pressed = self.action {
                     let mut m = ControlChange::try_new_with_buffer(buffer)?;
-                    m.set_channel(self.channel.into_midi());
-                    m.set_control(u7::new(self.midi_id));
-                    m.set_control_data(self.multi_value_inc_reset());
+                    m.set_channel(self.button.channel.into_midi());
+                    m.set_control(u7::new(self.button.midi_id));
+                    m.set_control_data(self.button.multi_value_inc_reset());
                     return Ok(Some(m.into()));
                 }
                 Ok(None)
             }
             ButtonMessageType::MultiValueIncDecCC => {
-                if let Action::Pressed = action {
+                if let Action::Pressed = self.action {
                     let mut m = ControlChange::try_new_with_buffer(buffer)?;
-                    m.set_channel(self.channel.into_midi());
-                    m.set_control(u7::new(self.midi_id));
-                    m.set_control_data(self.multi_value_inc_dec());
+                    m.set_channel(self.button.channel.into_midi());
+                    m.set_control(u7::new(self.button.midi_id));
+                    m.set_control_data(self.button.multi_value_inc_dec());
                     return Ok(Some(m.into()));
                 }
                 Ok(None)
@@ -241,6 +252,12 @@ impl Button {
             ButtonMessageType::NoMessage => Ok(None),
             ButtonMessageType::Reserved => Ok(None),
         }
+    }
+}
+
+impl Button {
+    pub fn handle(&mut self, action: Action) -> ButtonMessages<'_> {
+        ButtonMessages::new(self, action)
     }
     fn latch(&mut self, action: &Action) -> ButtonStatus {
         match self.button_type {
@@ -313,7 +330,7 @@ impl Button {
     }
     pub fn program_change<'a>(
         &mut self,
-        action: Action,
+        action: &Action,
         buffer: &'a mut [u8],
     ) -> Result<Option<BytesMessage<&'a mut [u8]>>, BufferOverflow> {
         if let Action::Pressed = action {
@@ -344,7 +361,8 @@ mod tests {
             state: ButtonState::default(),
         };
         let result = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
 
@@ -363,7 +381,8 @@ mod tests {
             state: ButtonState::default(),
         };
         let result = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result.data(), [0xC0, 0x03]);
@@ -380,7 +399,8 @@ mod tests {
             state: ButtonState::default(),
         };
         let result = button
-            .handle(Action::Released, &mut message_buffer)
+            .handle(Action::Released)
+            .next(&mut message_buffer)
             .unwrap();
         assert_eq!(result, None);
     }
@@ -397,7 +417,8 @@ mod tests {
             state: ButtonState::default(),
         };
         let result = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result.data(), [0xB0, 0x03, 0x7F]);
@@ -414,7 +435,8 @@ mod tests {
             state: ButtonState::default(),
         };
         let result = button
-            .handle(Action::Released, &mut message_buffer)
+            .handle(Action::Released)
+            .next(&mut message_buffer)
             .unwrap();
         assert_eq!(result, None);
     }
@@ -431,7 +453,8 @@ mod tests {
             state: ButtonState::default(),
         };
         let result = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result.data(), [0xB0, 0x03, 0x7F]);
@@ -448,7 +471,8 @@ mod tests {
             state: ButtonState::default(),
         };
         let result = button
-            .handle(Action::Released, &mut message_buffer)
+            .handle(Action::Released)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result.data(), [0xB0, 0x03, 0x00]);
@@ -466,7 +490,8 @@ mod tests {
             state: ButtonState::default(),
         };
         let result = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result.data(), [0xB0, 0x03, 0x00]);
@@ -484,7 +509,8 @@ mod tests {
             state: ButtonState::default(),
         };
         let result = button
-            .handle(Action::Released, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap();
         assert_eq!(result, None);
     }
@@ -501,7 +527,8 @@ mod tests {
             state: ButtonState::default(),
         };
         let result = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result.data(), [0xF8]);
@@ -518,7 +545,8 @@ mod tests {
             state: ButtonState::default(),
         };
         let result = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result.data(), [0xFA]);
@@ -535,7 +563,8 @@ mod tests {
             state: ButtonState::default(),
         };
         let result = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result.data(), [0xFC]);
@@ -552,7 +581,8 @@ mod tests {
             state: ButtonState::default(),
         };
         let result = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result.data(), [0xFB]);
@@ -569,7 +599,8 @@ mod tests {
             state: ButtonState::default(),
         };
         let result = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result.data(), [0xFE]);
@@ -586,7 +617,8 @@ mod tests {
             state: ButtonState::default(),
         };
         let result = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result.data(), [0xFF]);
@@ -604,12 +636,14 @@ mod tests {
             state: ButtonState::default(),
         };
         let result_1 = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result_1.data(), [0xC0, 0x7F]);
         let result_1 = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result_1.data(), [0xC0, 0x00]);
@@ -626,12 +660,14 @@ mod tests {
             state: ButtonState::default(),
         };
         let result_1 = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result_1.data(), [0xC0, 0x00]);
         let result_1 = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result_1.data(), [0xC0, 0x7F]);
@@ -648,7 +684,8 @@ mod tests {
             state: ButtonState::default(),
         };
         let result = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result.data(), [0x80, 0x03, 0x7F]);
@@ -665,27 +702,32 @@ mod tests {
             state: ButtonState::default(),
         };
         let result_1 = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result_1.data(), [0x90, 0x03, 50]);
         let result_2 = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result_2.data(), [0x90, 0x03, 100]);
         let result_3 = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result_3.data(), [0x90, 0x03, 50]);
         let result_4 = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result_4.data(), [0x90, 0x03, 100]);
         let result_5 = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result_5.data(), [0x90, 0x03, 50]);
@@ -702,27 +744,32 @@ mod tests {
             state: ButtonState::default(),
         };
         let result_1 = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result_1.data(), [0xB0, 0x03, 40]);
         let result_2 = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result_2.data(), [0xB0, 0x03, 80]);
         let result_3 = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result_3.data(), [0xB0, 0x03, 120]);
         let result_4 = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result_4.data(), [0xB0, 0x03, 40]);
         let result_5 = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result_5.data(), [0xB0, 0x03, 80]);
@@ -739,27 +786,32 @@ mod tests {
             state: ButtonState::default(),
         };
         let result_1 = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result_1.data(), [0x90, 0x03, 50]);
         let result_2 = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result_2.data(), [0x90, 0x03, 100]);
         let result_3 = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result_3.data(), [0x90, 0x03, 50]);
         let result_4 = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result_4.data(), [0x90, 0x03, 100]);
         let result_5 = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result_5.data(), [0x90, 0x03, 50]);
@@ -776,32 +828,38 @@ mod tests {
             state: ButtonState::default(),
         };
         let result_1 = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result_1.data(), [0xB0, 0x03, 40]);
         let result_2 = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result_2.data(), [0xB0, 0x03, 80]);
         let result_3 = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result_3.data(), [0xB0, 0x03, 120]);
         let result_4 = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result_4.data(), [0xB0, 0x03, 80]);
         let result_5 = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result_5.data(), [0xB0, 0x03, 40]);
         let result_6 = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result_6.data(), [0xB0, 0x03, 80]);
@@ -818,7 +876,8 @@ mod tests {
             state: ButtonState::default(),
         };
         let result = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result.data(), [0xF0, 0x7F, 0x03, 0x06, 0x02, 0xF7]);
@@ -835,7 +894,8 @@ mod tests {
             state: ButtonState::default(),
         };
         let result = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result.data(), [0xF0, 0x7F, 0x04, 0x06, 0x01, 0xF7]);
@@ -852,7 +912,8 @@ mod tests {
             state: ButtonState::default(),
         };
         let result = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result.data(), [0xF0, 0x7F, 0x05, 0x06, 0x06, 0xF7]);
@@ -869,7 +930,8 @@ mod tests {
             state: ButtonState::default(),
         };
         let result = button
-            .handle(Action::Pressed, &mut message_buffer)
+            .handle(Action::Pressed)
+            .next(&mut message_buffer)
             .unwrap()
             .unwrap();
         assert_eq!(result.data(), [0xF0, 0x7F, 0x05, 0x06, 0x09, 0xF7]);
