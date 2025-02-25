@@ -1,6 +1,6 @@
 use crate::analog::{Analog, AnalogMessageType};
 
-use midi2::{channel_voice1::ControlChange, error::BufferOverflow, prelude::*, BytesMessage};
+use midi2::{channel_voice1::ControlChange, prelude::*, BytesMessage};
 
 pub struct AnalogMessages<'a> {
     analog: &'a mut Analog,
@@ -40,7 +40,7 @@ impl<'a> AnalogMessages<'a> {
 }
 
 impl Analog {
-    pub fn handle<'a>(&'a mut self, value: u16) -> AnalogMessages<'a> {
+    pub fn handle(&mut self, value: u16) -> AnalogMessages<'_> {
         AnalogMessages::new(self, value)
     }
 }
