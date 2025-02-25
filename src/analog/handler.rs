@@ -25,7 +25,10 @@ impl<'a> AnalogMessages<'a> {
                 if self.index > 0 {
                     return None;
                 }
-                let mut m = ControlChange::try_new_with_buffer(buffer).unwrap();
+                let mut m = match ControlChange::try_new_with_buffer(buffer) {
+                    Ok(cc) => cc,
+                    Err(e) => return Some(Err(e)),
+                };
                 m.set_channel(self.analog.channel.into_midi());
                 m.set_control(u7::new(self.analog.midi_id as u8));
                 m.set_control_data(u7::new(self.value as u8));
@@ -73,5 +76,24 @@ mod tests {
         let m = it.next(&mut message_buffer).unwrap().unwrap();
         assert_eq!(m.data(), [176, 0x03, 10]);
         assert_eq!(None, it.next(&mut message_buffer));
+    }
+    #[test]
+    fn test_overflow() {
+        let mut message_buffer = [0x00u8; 1];
+        let mut button = Analog {
+            enabled: true,
+            invert_state: false,
+            upper_limit: 127,
+            lower_limit: 127,
+            lower_adc_offset: 0,
+            upper_adc_offset: 0,
+            message_type: AnalogMessageType::PotentiometerWithCCMessage7Bit,
+            midi_id: 0x03,
+            channel: ChannelOrAll::default(),
+        };
+        let mut it = button.handle(10);
+
+        let m = it.next(&mut message_buffer).unwrap();
+        assert_eq!(m, Err(BufferOverflow));
     }
 }
