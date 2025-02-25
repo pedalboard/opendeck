@@ -1,6 +1,6 @@
 use crate::analog::{Analog, AnalogMessageType};
 
-use midi2::{channel_voice1::ControlChange, prelude::*, BytesMessage};
+use midi2::{channel_voice1::ControlChange, error::BufferOverflow, prelude::*, BytesMessage};
 
 pub struct AnalogMessages<'a> {
     analog: &'a mut Analog,
@@ -15,7 +15,10 @@ impl<'a> AnalogMessages<'a> {
             index: 0,
         }
     }
-    pub fn next<'buf>(&mut self, buffer: &'buf mut [u8]) -> Option<BytesMessage<&'buf mut [u8]>> {
+    pub fn next<'buf>(
+        &mut self,
+        buffer: &'buf mut [u8],
+    ) -> Option<Result<BytesMessage<&'buf mut [u8]>, BufferOverflow>> {
         match self.analog.message_type {
             AnalogMessageType::Button => None,
             AnalogMessageType::PotentiometerWithCCMessage7Bit => {
@@ -27,7 +30,7 @@ impl<'a> AnalogMessages<'a> {
                 m.set_control(u7::new(self.analog.midi_id as u8));
                 m.set_control_data(u7::new(self.value as u8));
                 self.index += 1;
-                Some(m.into())
+                Some(Ok(m.into()))
             }
             AnalogMessageType::PotentiometerWithNoteMessage => None,
             AnalogMessageType::FSR => None,
@@ -67,7 +70,7 @@ mod tests {
         };
         let mut it = button.handle(10);
 
-        let m = it.next(&mut message_buffer).unwrap();
+        let m = it.next(&mut message_buffer).unwrap().unwrap();
         assert_eq!(m.data(), [176, 0x03, 10]);
         assert_eq!(None, it.next(&mut message_buffer));
     }
