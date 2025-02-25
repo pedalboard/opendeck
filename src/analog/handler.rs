@@ -55,7 +55,7 @@ mod tests {
     use crate::ChannelOrAll;
 
     #[test]
-    fn test_note_on() {
+    fn test_cc_7bit() {
         let mut message_buffer = [0x00u8; 8];
         let mut button = Analog {
             enabled: true,
