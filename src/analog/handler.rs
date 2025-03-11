@@ -2,8 +2,12 @@ use crate::analog::{Analog, AnalogMessageType};
 
 const MAX_ADC_VALUE: u16 = 4095; // (2 ^ 12) - 1
 
-use channel_voice1::PitchBend;
-use midi2::{channel_voice1::ControlChange, error::BufferOverflow, prelude::*, BytesMessage};
+use midi2::{
+    channel_voice1::{ControlChange, NoteOn, PitchBend},
+    error::BufferOverflow,
+    prelude::*,
+    BytesMessage,
+};
 
 pub struct AnalogMessages<'a> {
     analog: &'a mut Analog,
@@ -58,7 +62,16 @@ impl<'a> AnalogMessages<'a> {
                 m.set_bend(u14::new(self.value));
                 Ok(Some(m.into()))
             }
-            AnalogMessageType::PotentiometerWithNoteMessage => Ok(None),
+            AnalogMessageType::PotentiometerWithNoteMessage => {
+                if self.index > 0 {
+                    return Ok(None);
+                }
+                let mut m = NoteOn::try_new_with_buffer(buffer)?;
+                m.set_channel(self.analog.channel.into_midi());
+                m.set_note_number(u7::new(self.analog.midi_id as u8));
+                m.set_velocity(u7::new(self.value as u8));
+                Ok(Some(m.into()))
+            }
             AnalogMessageType::FSR => Ok(None),
             AnalogMessageType::NRPN7 => Ok(None),
             AnalogMessageType::NRPN8 => Ok(None),
@@ -154,6 +167,28 @@ mod tests {
         assert_eq!(
             it.next(&mut message_buffer).unwrap().unwrap().data(),
             [0xE0, 0x68, 0x7]
+        );
+        assert_eq!(Ok(None), it.next(&mut message_buffer));
+    }
+    #[test]
+    fn test_note_on() {
+        let mut message_buffer = [0x00u8; 8];
+        let mut analog = Analog {
+            enabled: true,
+            invert_state: false,
+            upper_limit: 100,
+            lower_limit: 0,
+            lower_adc_offset: 0,
+            upper_adc_offset: 0,
+            message_type: AnalogMessageType::PotentiometerWithNoteMessage,
+            midi_id: 0x03,
+            channel: ChannelOrAll::default(),
+        };
+        let mut it = analog.handle(MAX_ADC_VALUE);
+
+        assert_eq!(
+            it.next(&mut message_buffer).unwrap().unwrap().data(),
+            [0x90, 0x3, 0x64]
         );
         assert_eq!(Ok(None), it.next(&mut message_buffer));
     }
