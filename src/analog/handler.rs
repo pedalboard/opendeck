@@ -1,4 +1,6 @@
 use crate::analog::{Analog, AnalogMessageType};
+use crate::global::handler::Channels;
+use crate::ChannelOrAll;
 
 const MAX_ADC_VALUE: u16 = 4095; // (2 ^ 12) - 1
 const NRPN_MSB: u8 = 0x63;
@@ -17,13 +19,18 @@ pub struct AnalogMessages<'a> {
     analog: &'a mut Analog,
     value: u16,
     index: usize,
+    channels: Channels,
+    channel: u4,
 }
 impl<'a> AnalogMessages<'a> {
-    pub fn new(analog: &'a mut Analog, value: u16) -> Self {
+    pub fn new(analog: &'a mut Analog, ch: ChannelOrAll, value: u16) -> Self {
+        let channels = Channels::new(ch);
         Self {
             analog,
             value,
             index: 0,
+            channels,
+            channel: u4::new(0),
         }
     }
     pub fn next<'buf>(
@@ -33,6 +40,13 @@ impl<'a> AnalogMessages<'a> {
         if !self.analog.enabled {
             return Ok(None);
         }
+        if self.index == 0 {
+            let oc = self.channels.next();
+            if oc.is_none() {
+                return Ok(None);
+            }
+            self.channel = oc.unwrap();
+        }
         let m = match self.analog.message_type {
             AnalogMessageType::Button => Ok(None),
             AnalogMessageType::PotentiometerWithCCMessage7Bit => {
@@ -40,7 +54,7 @@ impl<'a> AnalogMessages<'a> {
                     return Ok(None);
                 }
                 let mut m = ControlChange::try_new_with_buffer(buffer)?;
-                m.set_channel(self.analog.channel.into_midi());
+                m.set_channel(self.channel);
                 m.set_control(u7::new(self.analog.midi_id as u8));
                 m.set_control_data(u7::new(self.value as u8));
                 Ok(Some(m.into()))
@@ -55,7 +69,7 @@ impl<'a> AnalogMessages<'a> {
                     (self.value & 0x7F, self.analog.midi_id + 32)
                 };
                 let mut m = ControlChange::try_new_with_buffer(buffer)?;
-                m.set_channel(self.analog.channel.into_midi());
+                m.set_channel(self.channel);
                 m.set_control(u7::new(id as u8));
                 m.set_control_data(u7::new(value as u8));
                 Ok(Some(m.into()))
@@ -65,7 +79,7 @@ impl<'a> AnalogMessages<'a> {
                     return Ok(None);
                 }
                 let mut m = PitchBend::try_new_with_buffer(buffer)?;
-                m.set_channel(self.analog.channel.into_midi());
+                m.set_channel(self.channel);
                 m.set_bend(u14::new(self.value));
                 Ok(Some(m.into()))
             }
@@ -74,7 +88,7 @@ impl<'a> AnalogMessages<'a> {
                     return Ok(None);
                 }
                 let mut m = NoteOn::try_new_with_buffer(buffer)?;
-                m.set_channel(self.analog.channel.into_midi());
+                m.set_channel(self.channel);
                 m.set_note_number(u7::new(self.analog.midi_id as u8));
                 m.set_velocity(u7::new(self.value as u8));
                 Ok(Some(m.into()))
@@ -84,7 +98,7 @@ impl<'a> AnalogMessages<'a> {
                     return Ok(None);
                 }
                 let mut m = ControlChange::try_new_with_buffer(buffer)?;
-                m.set_channel(self.analog.channel.into_midi());
+                m.set_channel(self.channel);
 
                 if self.index == 0 {
                     m.set_control(u7::new(NRPN_LSB));
@@ -103,7 +117,7 @@ impl<'a> AnalogMessages<'a> {
                     return Ok(None);
                 }
                 let mut m = ControlChange::try_new_with_buffer(buffer)?;
-                m.set_channel(self.analog.channel.into_midi());
+                m.set_channel(self.channel);
 
                 if self.index == 0 {
                     m.set_control(u7::new(NRPN_LSB));
@@ -128,7 +142,7 @@ impl<'a> AnalogMessages<'a> {
 
 impl Analog {
     pub fn handle(&mut self, value: u16) -> AnalogMessages<'_> {
-        AnalogMessages::new(self, self.scale_value(value))
+        AnalogMessages::new(self, self.channel, self.scale_value(value))
     }
     fn scale_value(&self, value: u16) -> u16 {
         let input = if self.invert {

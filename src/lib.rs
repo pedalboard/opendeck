@@ -6,7 +6,6 @@ use crate::{
     global::GlobalSection, led::LedSection,
 };
 use heapless::Vec;
-use midi2::ux::u4;
 
 pub mod analog;
 pub mod button;
@@ -169,17 +168,6 @@ pub enum ChannelOrAll {
 impl Default for ChannelOrAll {
     fn default() -> Self {
         ChannelOrAll::Channel(0)
-    }
-}
-
-impl ChannelOrAll {
-    fn into_midi(self) -> u4 {
-        // FIXME: This is a temporary solution to get the code to compile
-        u4::new(match self {
-            ChannelOrAll::All => 0xF,
-            ChannelOrAll::Channel(c) => c,
-            ChannelOrAll::None => 0,
-        })
     }
 }
 

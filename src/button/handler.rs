@@ -1,4 +1,8 @@
-use crate::button::{Button, ButtonMessageType, ButtonType};
+use crate::{
+    button::{Button, ButtonMessageType, ButtonType},
+    global::handler::Channels,
+    ChannelOrAll,
+};
 
 use midi2::{
     channel_voice1::{ControlChange, NoteOff, NoteOn, ProgramChange},
@@ -26,39 +30,40 @@ enum ButtonStatus {
 pub struct ButtonMessages<'a> {
     button: &'a mut Button,
     action: Action,
-    index: usize,
+    channels: Channels,
 }
 
 impl<'a> ButtonMessages<'a> {
-    pub fn new(button: &'a mut Button, action: Action) -> Self {
+    pub fn new(button: &'a mut Button, channel: ChannelOrAll, action: Action) -> Self {
         Self {
             button,
             action,
-            index: 0,
+            channels: Channels::new(channel),
         }
     }
     pub fn next<'buf>(
         &mut self,
         buffer: &'buf mut [u8],
     ) -> Result<Option<BytesMessage<&'buf mut [u8]>>, BufferOverflow> {
-        if self.index > 0 {
+        let status = self.button.latch(&self.action);
+        let oc = self.channels.next();
+        if oc.is_none() {
             return Ok(None);
         }
-        self.index += 1;
-        let status = self.button.latch(&self.action);
+        let channel = oc.unwrap();
         match self.button.message_type {
             ButtonMessageType::Notes => match status {
                 ButtonStatus::On => {
                     let mut m = NoteOn::try_new_with_buffer(buffer)?;
                     m.set_velocity(u7::new(self.button.value));
                     m.set_note_number(u7::new(self.button.midi_id));
-                    m.set_channel(self.button.channel.into_midi());
+                    m.set_channel(channel);
                     Ok(Some(m.into()))
                 }
                 ButtonStatus::Off => {
                     let mut m = NoteOn::try_new_with_buffer(buffer)?;
                     m.set_velocity(u7::MIN);
-                    m.set_channel(self.button.channel.into_midi());
+                    m.set_channel(channel);
                     m.set_note_number(u7::new(self.button.midi_id));
                     Ok(Some(m.into()))
                 }
@@ -69,16 +74,18 @@ impl<'a> ButtonMessages<'a> {
                     let mut m = NoteOff::try_new_with_buffer(buffer)?;
                     m.set_velocity(u7::new(self.button.value));
                     m.set_note_number(u7::new(self.button.midi_id));
-                    m.set_channel(self.button.channel.into_midi());
+                    m.set_channel(channel);
                     return Ok(Some(m.into()));
                 }
                 Ok(None)
             }
-            ButtonMessageType::ProgramChange => self.button.program_change(&self.action, buffer),
+            ButtonMessageType::ProgramChange => {
+                self.button.program_change(&self.action, channel, buffer)
+            }
             ButtonMessageType::ControlChange => {
                 if let Action::Pressed = self.action {
                     let mut m = ControlChange::try_new_with_buffer(buffer)?;
-                    m.set_channel(self.button.channel.into_midi());
+                    m.set_channel(channel);
                     m.set_control(u7::new(self.button.midi_id));
                     m.set_control_data(u7::new(self.button.value));
                     return Ok(Some(m.into()));
@@ -88,14 +95,14 @@ impl<'a> ButtonMessages<'a> {
             ButtonMessageType::ControlChangeWithReset => match status {
                 ButtonStatus::On => {
                     let mut m = ControlChange::try_new_with_buffer(buffer)?;
-                    m.set_channel(self.button.channel.into_midi());
+                    m.set_channel(channel);
                     m.set_control(u7::new(self.button.midi_id));
                     m.set_control_data(u7::new(self.button.value));
                     Ok(Some(m.into()))
                 }
                 ButtonStatus::Off => {
                     let mut m = ControlChange::try_new_with_buffer(buffer)?;
-                    m.set_channel(self.button.channel.into_midi());
+                    m.set_channel(channel);
                     m.set_control(u7::new(self.button.midi_id));
                     m.set_control_data(u7::new(0));
                     Ok(Some(m.into()))
@@ -105,7 +112,7 @@ impl<'a> ButtonMessages<'a> {
             ButtonMessageType::ControlChangeWithValue0 => {
                 if let Action::Pressed = self.action {
                     let mut m = ControlChange::try_new_with_buffer(buffer)?;
-                    m.set_channel(self.button.channel.into_midi());
+                    m.set_channel(channel);
                     m.set_control(u7::new(self.button.midi_id));
                     m.set_control_data(u7::new(0x00));
                     return Ok(Some(m.into()));
@@ -200,16 +207,16 @@ impl<'a> ButtonMessages<'a> {
             // Inc/Dec
             ButtonMessageType::ProgramChangeIncr => {
                 self.button.incr_midi_id(&self.action);
-                self.button.program_change(&self.action, buffer)
+                self.button.program_change(&self.action, channel, buffer)
             }
             ButtonMessageType::ProgramChangeDecr => {
                 self.button.decr_midi_id(&self.action);
-                self.button.program_change(&self.action, buffer)
+                self.button.program_change(&self.action, channel, buffer)
             }
             ButtonMessageType::MultiValueIncResetNote => {
                 if let Action::Pressed = self.action {
                     let mut m = NoteOn::try_new_with_buffer(buffer)?;
-                    m.set_channel(self.button.channel.into_midi());
+                    m.set_channel(channel);
                     m.set_note_number(u7::new(self.button.midi_id));
                     m.set_velocity(self.button.multi_value_inc_reset());
                     return Ok(Some(m.into()));
@@ -219,7 +226,7 @@ impl<'a> ButtonMessages<'a> {
             ButtonMessageType::MultiValueIncDecNote => {
                 if let Action::Pressed = self.action {
                     let mut m = NoteOn::try_new_with_buffer(buffer)?;
-                    m.set_channel(self.button.channel.into_midi());
+                    m.set_channel(channel);
                     m.set_note_number(u7::new(self.button.midi_id));
                     m.set_velocity(self.button.multi_value_inc_dec());
                     return Ok(Some(m.into()));
@@ -229,7 +236,7 @@ impl<'a> ButtonMessages<'a> {
             ButtonMessageType::MultiValueIncResetCC => {
                 if let Action::Pressed = self.action {
                     let mut m = ControlChange::try_new_with_buffer(buffer)?;
-                    m.set_channel(self.button.channel.into_midi());
+                    m.set_channel(channel);
                     m.set_control(u7::new(self.button.midi_id));
                     m.set_control_data(self.button.multi_value_inc_reset());
                     return Ok(Some(m.into()));
@@ -239,7 +246,7 @@ impl<'a> ButtonMessages<'a> {
             ButtonMessageType::MultiValueIncDecCC => {
                 if let Action::Pressed = self.action {
                     let mut m = ControlChange::try_new_with_buffer(buffer)?;
-                    m.set_channel(self.button.channel.into_midi());
+                    m.set_channel(channel);
                     m.set_control(u7::new(self.button.midi_id));
                     m.set_control_data(self.button.multi_value_inc_dec());
                     return Ok(Some(m.into()));
@@ -261,7 +268,7 @@ impl<'a> ButtonMessages<'a> {
 
 impl Button {
     pub fn handle(&mut self, action: Action) -> ButtonMessages<'_> {
-        ButtonMessages::new(self, action)
+        ButtonMessages::new(self, self.channel, action)
     }
     fn latch(&mut self, action: &Action) -> ButtonStatus {
         match self.button_type {
@@ -335,11 +342,12 @@ impl Button {
     pub fn program_change<'a>(
         &mut self,
         action: &Action,
+        channel: u4,
         buffer: &'a mut [u8],
     ) -> Result<Option<BytesMessage<&'a mut [u8]>>, BufferOverflow> {
         if let Action::Pressed = action {
             let mut m = ProgramChange::try_new_with_buffer(buffer)?;
-            m.set_channel(self.channel.into_midi());
+            m.set_channel(channel);
             m.set_program(u7::new(self.midi_id));
             return Ok(Some(m.into()));
         }
