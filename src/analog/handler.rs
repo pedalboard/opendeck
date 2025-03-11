@@ -3,8 +3,8 @@ use crate::analog::{Analog, AnalogMessageType};
 const MAX_ADC_VALUE: u16 = 4095; // (2 ^ 12) - 1
 const NRPN_MSB: u8 = 0x63;
 const NRPN_LSB: u8 = 0x62;
-const NRPN_DATA_ENTRY: u8 = 0x06;
-const NRPN_DATA_INCREMENT: u8 = 0x60;
+const NRPN_DATA_MSB: u8 = 0x06;
+const NRPN_DATA_LSB: u8 = 0x26;
 
 use midi2::{
     channel_voice1::{ControlChange, NoteOn, PitchBend},
@@ -90,12 +90,33 @@ impl<'a> AnalogMessages<'a> {
                     m.set_control(u7::new(NRPN_MSB));
                     m.set_control_data(u7::new((self.analog.midi_id >> 7) as u8));
                 } else if self.index == 2 {
-                    m.set_control(u7::new(NRPN_DATA_ENTRY));
+                    m.set_control(u7::new(NRPN_DATA_LSB));
                     m.set_control_data(u7::new(self.value as u8));
                 }
                 Ok(Some(m.into()))
             }
-            AnalogMessageType::NRPN8 => Ok(None),
+            AnalogMessageType::NRPN14 => {
+                if self.index > 3 {
+                    return Ok(None);
+                }
+                let mut m = ControlChange::try_new_with_buffer(buffer)?;
+                m.set_channel(self.analog.channel.into_midi());
+
+                if self.index == 0 {
+                    m.set_control(u7::new(NRPN_LSB));
+                    m.set_control_data(u7::new((self.analog.midi_id & 0x7F) as u8));
+                } else if self.index == 1 {
+                    m.set_control(u7::new(NRPN_MSB));
+                    m.set_control_data(u7::new((self.analog.midi_id >> 7) as u8));
+                } else if self.index == 2 {
+                    m.set_control(u7::new(NRPN_DATA_LSB));
+                    m.set_control_data(u7::new((self.value & 0x7F) as u8));
+                } else if self.index == 3 {
+                    m.set_control(u7::new(NRPN_DATA_MSB));
+                    m.set_control_data(u7::new((self.value >> 7) as u8));
+                }
+                Ok(Some(m.into()))
+            }
         };
         self.index += 1;
         m
@@ -240,7 +261,43 @@ mod tests {
         );
         assert_eq!(
             it.next(&mut message_buffer).unwrap().unwrap().data(),
-            [0xB0, 6, 100]
+            [0xB0, 38, 100]
+        );
+
+        assert_eq!(Ok(None), it.next(&mut message_buffer));
+    }
+    #[test]
+    fn test_nrpn14() {
+        let mut message_buffer = [0x00u8; 8];
+        let mut analog = Analog {
+            enabled: true,
+            invert_state: false,
+            upper_limit: 8234,
+            lower_limit: 0,
+            lower_adc_offset: 0,
+            upper_adc_offset: 0,
+            message_type: AnalogMessageType::NRPN14,
+            midi_id: 1624,
+            channel: ChannelOrAll::default(),
+        };
+        let mut it = analog.handle(MAX_ADC_VALUE);
+
+        // example see https://www.morningstar.io/post/sending-midi-nrpn-messages
+        assert_eq!(
+            it.next(&mut message_buffer).unwrap().unwrap().data(),
+            [0xB0, 98, 88]
+        );
+        assert_eq!(
+            it.next(&mut message_buffer).unwrap().unwrap().data(),
+            [0xB0, 99, 12]
+        );
+        assert_eq!(
+            it.next(&mut message_buffer).unwrap().unwrap().data(),
+            [0xB0, 38, 42]
+        );
+        assert_eq!(
+            it.next(&mut message_buffer).unwrap().unwrap().data(),
+            [0xB0, 6, 64]
         );
 
         assert_eq!(Ok(None), it.next(&mut message_buffer));

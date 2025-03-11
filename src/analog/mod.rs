@@ -71,7 +71,7 @@ pub enum AnalogMessageType {
     FSR = 2,
     Button = 3,
     NRPN7 = 4,
-    NRPN8 = 5,
+    NRPN14 = 5,
     PitchBend = 6,
     PotentiometerWithCCMessage14Bit = 7,
 }
