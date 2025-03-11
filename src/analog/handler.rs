@@ -30,6 +30,9 @@ impl<'a> AnalogMessages<'a> {
         &mut self,
         buffer: &'buf mut [u8],
     ) -> Result<Option<BytesMessage<&'buf mut [u8]>>, BufferOverflow> {
+        if !self.analog.enabled {
+            return Ok(None);
+        }
         let m = match self.analog.message_type {
             AnalogMessageType::Button => Ok(None),
             AnalogMessageType::PotentiometerWithCCMessage7Bit => {
@@ -148,6 +151,24 @@ mod tests {
     use super::*;
     use crate::ChannelOrAll;
 
+    #[test]
+    fn test_disable() {
+        let mut message_buffer = [0x00u8; 8];
+        let mut analog = Analog {
+            enabled: false,
+            invert_state: false,
+            upper_limit: 99,
+            lower_limit: 0,
+            lower_adc_offset: 0,
+            upper_adc_offset: 0,
+            message_type: AnalogMessageType::PotentiometerWithCCMessage7Bit,
+            midi_id: 0x03,
+            channel: ChannelOrAll::default(),
+        };
+        let mut it = analog.handle(100);
+
+        assert_eq!(Ok(None), it.next(&mut message_buffer));
+    }
     #[test]
     fn test_cc_7bit() {
         let mut message_buffer = [0x00u8; 8];
