@@ -9,7 +9,7 @@ pub mod renderer;
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Analog {
     enabled: bool,
-    invert_state: bool,
+    invert: bool,
     message_type: AnalogMessageType,
     midi_id: u16,
     upper_limit: u16,
@@ -23,7 +23,7 @@ impl Analog {
     pub fn new(midi_id: u16) -> Self {
         Analog {
             enabled: true,
-            invert_state: false,
+            invert: false,
             message_type: AnalogMessageType::default(),
             channel: ChannelOrAll::default(),
             midi_id,
@@ -39,7 +39,7 @@ impl Analog {
             AnalogSection::Channel(v) => self.channel = *v,
             AnalogSection::Enabled(v) => self.enabled = *v,
             AnalogSection::MidiId(v) => self.midi_id = *v,
-            AnalogSection::InvertState(v) => self.invert_state = *v,
+            AnalogSection::Invert(v) => self.invert = *v,
             AnalogSection::LowerCCLimit(v) => self.lower_limit = *v,
             AnalogSection::UpperCCLimit(v) => self.upper_limit = *v,
             AnalogSection::LowerADCOffset(v) => self.lower_adc_offset = *v,
@@ -52,7 +52,7 @@ impl Analog {
             AnalogSection::Channel(_) => self.channel.into(),
             AnalogSection::Enabled(_) => self.enabled as u16,
             AnalogSection::MidiId(_) => self.midi_id,
-            AnalogSection::InvertState(_) => self.invert_state as u16,
+            AnalogSection::Invert(_) => self.invert as u16,
             AnalogSection::LowerCCLimit(_) => self.lower_limit,
             AnalogSection::UpperCCLimit(_) => self.upper_limit,
             AnalogSection::LowerADCOffset(_) => self.lower_adc_offset.into(),
@@ -97,7 +97,7 @@ enum AnalogSectionId {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum AnalogSection {
     Enabled(bool),
-    InvertState(bool),
+    Invert(bool),
     MessageType(AnalogMessageType),
     MidiId(u16),
     LowerCCLimit(u16),

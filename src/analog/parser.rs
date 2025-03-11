@@ -10,7 +10,7 @@ impl TryFrom<Section> for AnalogSection {
         if let Ok(id) = AnalogSectionId::try_from(v.id) {
             match id {
                 AnalogSectionId::Enabled => Ok(AnalogSection::Enabled(v.value > 0)),
-                AnalogSectionId::InvertState => Ok(AnalogSection::InvertState(v.value > 0)),
+                AnalogSectionId::InvertState => Ok(AnalogSection::Invert(v.value > 0)),
                 AnalogSectionId::MessageType => AnalogMessageType::try_from(v.value)
                     .map(AnalogSection::MessageType)
                     .map_err(OpenDeckParseError::new_value_err),

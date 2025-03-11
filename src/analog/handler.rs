@@ -131,7 +131,7 @@ impl Analog {
         AnalogMessages::new(self, self.scale_value(value))
     }
     fn scale_value(&self, value: u16) -> u16 {
-        let input = if self.invert_state {
+        let input = if self.invert {
             MAX_ADC_VALUE - value
         } else {
             value
@@ -162,7 +162,7 @@ mod tests {
         let mut message_buffer = [0x00u8; 8];
         let mut analog = Analog {
             enabled: false,
-            invert_state: false,
+            invert: false,
             upper_limit: 99,
             lower_limit: 0,
             lower_adc_offset: 0,
@@ -180,7 +180,7 @@ mod tests {
         let mut message_buffer = [0x00u8; 8];
         let mut analog = Analog {
             enabled: true,
-            invert_state: false,
+            invert: false,
             upper_limit: 99,
             lower_limit: 0,
             lower_adc_offset: 0,
@@ -200,7 +200,7 @@ mod tests {
         let mut message_buffer = [0x00u8; 8];
         let mut analog = Analog {
             enabled: true,
-            invert_state: false,
+            invert: false,
             upper_limit: 1000,
             lower_limit: 0,
             lower_adc_offset: 0,
@@ -222,7 +222,7 @@ mod tests {
         let mut message_buffer = [0x00u8; 8];
         let mut analog = Analog {
             enabled: true,
-            invert_state: false,
+            invert: false,
             upper_limit: 1000,
             lower_limit: 0,
             lower_adc_offset: 0,
@@ -244,7 +244,7 @@ mod tests {
         let mut message_buffer = [0x00u8; 8];
         let mut analog = Analog {
             enabled: true,
-            invert_state: false,
+            invert: false,
             upper_limit: 100,
             lower_limit: 0,
             lower_adc_offset: 0,
@@ -266,7 +266,7 @@ mod tests {
         let mut message_buffer = [0x00u8; 8];
         let mut analog = Analog {
             enabled: true,
-            invert_state: false,
+            invert: false,
             upper_limit: 100,
             lower_limit: 0,
             lower_adc_offset: 0,
@@ -298,7 +298,7 @@ mod tests {
         let mut message_buffer = [0x00u8; 8];
         let mut analog = Analog {
             enabled: true,
-            invert_state: false,
+            invert: false,
             upper_limit: 8234,
             lower_limit: 0,
             lower_adc_offset: 0,
@@ -335,7 +335,7 @@ mod tests {
         let mut message_buffer = [0x00u8; 1];
         let mut analog = Analog {
             enabled: true,
-            invert_state: false,
+            invert: false,
             upper_limit: 127,
             lower_limit: 0,
             lower_adc_offset: 0,
@@ -354,7 +354,7 @@ mod tests {
     fn test_scale() {
         let analog = Analog {
             enabled: true,
-            invert_state: false,
+            invert: false,
             upper_limit: 127,
             lower_limit: 0,
             lower_adc_offset: 0,
@@ -371,7 +371,7 @@ mod tests {
     fn test_scale_with_offset() {
         let analog = Analog {
             enabled: true,
-            invert_state: false,
+            invert: false,
             upper_limit: 99,
             lower_limit: 0,
             lower_adc_offset: 10,
@@ -390,7 +390,7 @@ mod tests {
     fn test_scale_invert() {
         let analog = Analog {
             enabled: true,
-            invert_state: true,
+            invert: true,
             upper_limit: 127,
             lower_limit: 0,
             lower_adc_offset: 0,
