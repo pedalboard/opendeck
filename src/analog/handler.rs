@@ -2,6 +2,7 @@ use crate::analog::{Analog, AnalogMessageType};
 
 const MAX_ADC_VALUE: u16 = 4095; // (2 ^ 12) - 1
 
+use channel_voice1::PitchBend;
 use midi2::{channel_voice1::ControlChange, error::BufferOverflow, prelude::*, BytesMessage};
 
 pub struct AnalogMessages<'a> {
@@ -21,7 +22,7 @@ impl<'a> AnalogMessages<'a> {
         &mut self,
         buffer: &'buf mut [u8],
     ) -> Result<Option<BytesMessage<&'buf mut [u8]>>, BufferOverflow> {
-        match self.analog.message_type {
+        let m = match self.analog.message_type {
             AnalogMessageType::Button => Ok(None),
             AnalogMessageType::PotentiometerWithCCMessage7Bit => {
                 if self.index > 0 {
@@ -31,7 +32,6 @@ impl<'a> AnalogMessages<'a> {
                 m.set_channel(self.analog.channel.into_midi());
                 m.set_control(u7::new(self.analog.midi_id as u8));
                 m.set_control_data(u7::new(self.value as u8));
-                self.index += 1;
                 Ok(Some(m.into()))
             }
             AnalogMessageType::PotentiometerWithCCMessage14Bit => {
@@ -47,15 +47,24 @@ impl<'a> AnalogMessages<'a> {
                 m.set_channel(self.analog.channel.into_midi());
                 m.set_control(u7::new(id as u8));
                 m.set_control_data(u7::new(value as u8));
-                self.index += 1;
+                Ok(Some(m.into()))
+            }
+            AnalogMessageType::PitchBend => {
+                if self.index > 0 {
+                    return Ok(None);
+                }
+                let mut m = PitchBend::try_new_with_buffer(buffer)?;
+                m.set_channel(self.analog.channel.into_midi());
+                m.set_bend(u14::new(self.value));
                 Ok(Some(m.into()))
             }
             AnalogMessageType::PotentiometerWithNoteMessage => Ok(None),
             AnalogMessageType::FSR => Ok(None),
             AnalogMessageType::NRPN7 => Ok(None),
             AnalogMessageType::NRPN8 => Ok(None),
-            AnalogMessageType::PitchBend => Ok(None),
-        }
+        };
+        self.index += 1;
+        m
     }
 }
 
@@ -124,6 +133,28 @@ mod tests {
         assert_eq!(m.data(), [176, 0x03, 0x7]);
         let m = it.next(&mut message_buffer).unwrap().unwrap();
         assert_eq!(m.data(), [176, 0x23, 0x68]);
+        assert_eq!(Ok(None), it.next(&mut message_buffer));
+    }
+    #[test]
+    fn test_pitch_bend() {
+        let mut message_buffer = [0x00u8; 8];
+        let mut analog = Analog {
+            enabled: true,
+            invert_state: false,
+            upper_limit: 1000,
+            lower_limit: 0,
+            lower_adc_offset: 0,
+            upper_adc_offset: 0,
+            message_type: AnalogMessageType::PitchBend,
+            midi_id: 0x03,
+            channel: ChannelOrAll::default(),
+        };
+        let mut it = analog.handle(MAX_ADC_VALUE);
+
+        assert_eq!(
+            it.next(&mut message_buffer).unwrap().unwrap().data(),
+            [0xE0, 0x68, 0x7]
+        );
         assert_eq!(Ok(None), it.next(&mut message_buffer));
     }
 
