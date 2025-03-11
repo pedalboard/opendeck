@@ -131,16 +131,22 @@ impl Analog {
         AnalogMessages::new(self, self.scale_value(value))
     }
     fn scale_value(&self, value: u16) -> u16 {
+        let input = if self.invert_state {
+            MAX_ADC_VALUE - value
+        } else {
+            value
+        };
+
         let min_value = (MAX_ADC_VALUE as f32 * (self.lower_adc_offset as f32 / 100.0f32)) as u16;
         let max_value = MAX_ADC_VALUE
             - (MAX_ADC_VALUE as f32 * (self.upper_adc_offset as f32 / 100.0f32)) as u16;
-        if value < min_value {
+        if input < min_value {
             return self.lower_limit;
         }
-        if value > max_value {
+        if input > max_value {
             return self.upper_limit;
         }
-        let factor = ((value - min_value) as f32) / ((max_value - min_value) as f32);
+        let factor = ((input - min_value) as f32) / ((max_value - min_value) as f32);
         self.lower_limit + (factor * (self.upper_limit - self.lower_limit) as f32) as u16
     }
 }
@@ -343,6 +349,7 @@ mod tests {
         let m = it.next(&mut message_buffer);
         assert_eq!(m, Err(BufferOverflow));
     }
+
     #[test]
     fn test_scale() {
         let analog = Analog {
@@ -360,7 +367,6 @@ mod tests {
         assert_eq!(127, analog.scale_value(MAX_ADC_VALUE));
         assert_eq!(63, analog.scale_value(2047));
     }
-
     #[test]
     fn test_scale_with_offset() {
         let analog = Analog {
@@ -379,5 +385,22 @@ mod tests {
         assert_eq!(99, analog.scale_value(MAX_ADC_VALUE));
         assert_eq!(99, analog.scale_value(3686));
         assert_eq!(49, analog.scale_value(2047));
+    }
+    #[test]
+    fn test_scale_invert() {
+        let analog = Analog {
+            enabled: true,
+            invert_state: true,
+            upper_limit: 127,
+            lower_limit: 0,
+            lower_adc_offset: 0,
+            upper_adc_offset: 0,
+            message_type: AnalogMessageType::PotentiometerWithCCMessage7Bit,
+            midi_id: 0x03,
+            channel: ChannelOrAll::default(),
+        };
+        assert_eq!(127, analog.scale_value(0));
+        assert_eq!(0, analog.scale_value(MAX_ADC_VALUE));
+        assert_eq!(63, analog.scale_value(2047));
     }
 }
