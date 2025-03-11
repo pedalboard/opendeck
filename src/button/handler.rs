@@ -41,6 +41,10 @@ impl<'a> ButtonMessages<'a> {
         &mut self,
         buffer: &'buf mut [u8],
     ) -> Result<Option<BytesMessage<&'buf mut [u8]>>, BufferOverflow> {
+        if self.index > 0 {
+            return Ok(None);
+        }
+        self.index += 1;
         let status = self.button.latch(&self.action);
         match self.button.message_type {
             ButtonMessageType::Notes => match status {
@@ -365,6 +369,7 @@ mod tests {
             m.next(&mut buf).unwrap().unwrap().data(),
             [0x90, 0x03, 0x7F]
         );
+        assert_eq!(m.next(&mut buf), Ok(None));
     }
     #[test]
     fn test_program_change() {
@@ -379,6 +384,7 @@ mod tests {
         };
         let mut m = button.handle(Action::Pressed);
         assert_eq!(m.next(&mut buf).unwrap().unwrap().data(), [0xC0, 0x03]);
+        assert_eq!(m.next(&mut buf), Ok(None));
     }
     #[test]
     fn test_program_change_release() {
@@ -411,6 +417,7 @@ mod tests {
             m.next(&mut buf).unwrap().unwrap().data(),
             [0xB0, 0x03, 0x7F]
         );
+        assert_eq!(m.next(&mut buf), Ok(None));
     }
     #[test]
     fn test_control_change_release() {
@@ -443,6 +450,7 @@ mod tests {
             m.next(&mut buf).unwrap().unwrap().data(),
             [0xB0, 0x03, 0x7F]
         );
+        assert_eq!(m.next(&mut buf), Ok(None));
     }
     #[test]
     fn test_control_change_with_reset_release() {
@@ -460,6 +468,7 @@ mod tests {
             m.next(&mut buf).unwrap().unwrap().data(),
             [0xB0, 0x03, 0x00]
         );
+        assert_eq!(m.next(&mut buf), Ok(None));
     }
 
     #[test]
@@ -478,6 +487,7 @@ mod tests {
             m.next(&mut buf).unwrap().unwrap().data(),
             [0xB0, 0x03, 0x00]
         );
+        assert_eq!(m.next(&mut buf), Ok(None));
     }
 
     #[test]
@@ -508,6 +518,7 @@ mod tests {
         };
         let mut m = button.handle(Action::Pressed);
         assert_eq!(m.next(&mut buf).unwrap().unwrap().data(), [0xF8]);
+        assert_eq!(m.next(&mut buf), Ok(None));
     }
     #[test]
     fn test_realtime_start() {
@@ -522,6 +533,7 @@ mod tests {
         };
         let mut m = button.handle(Action::Pressed);
         assert_eq!(m.next(&mut buf).unwrap().unwrap().data(), [0xFA]);
+        assert_eq!(m.next(&mut buf), Ok(None));
     }
     #[test]
     fn test_realtime_stop() {
@@ -536,6 +548,7 @@ mod tests {
         };
         let mut m = button.handle(Action::Pressed);
         assert_eq!(m.next(&mut buf).unwrap().unwrap().data(), [0xFC]);
+        assert_eq!(m.next(&mut buf), Ok(None));
     }
     #[test]
     fn test_realtime_continue() {
@@ -550,6 +563,7 @@ mod tests {
         };
         let mut m = button.handle(Action::Pressed);
         assert_eq!(m.next(&mut buf).unwrap().unwrap().data(), [0xFB]);
+        assert_eq!(m.next(&mut buf), Ok(None));
     }
     #[test]
     fn test_realtime_active_sensing() {
@@ -564,6 +578,7 @@ mod tests {
         };
         let mut m = button.handle(Action::Pressed);
         assert_eq!(m.next(&mut buf).unwrap().unwrap().data(), [0xFE]);
+        assert_eq!(m.next(&mut buf), Ok(None));
     }
     #[test]
     fn test_realtime_reset() {
@@ -578,6 +593,7 @@ mod tests {
         };
         let mut m = button.handle(Action::Pressed);
         assert_eq!(m.next(&mut buf).unwrap().unwrap().data(), [0xFF]);
+        assert_eq!(m.next(&mut buf), Ok(None));
     }
 
     #[test]
@@ -644,6 +660,7 @@ mod tests {
             m.next(&mut buf).unwrap().unwrap().data(),
             [0x80, 0x03, 0x7F]
         );
+        assert_eq!(m.next(&mut buf), Ok(None));
     }
     #[test]
     fn test_multi_value_inc_reset_note() {
@@ -835,6 +852,7 @@ mod tests {
             m.next(&mut buf).unwrap().unwrap().data(),
             [0xF0, 0x7F, 0x03, 0x06, 0x02, 0xF7]
         );
+        assert_eq!(m.next(&mut buf), Ok(None));
     }
     #[test]
     fn test_mmc_stop() {
@@ -852,6 +870,7 @@ mod tests {
             m.next(&mut buf).unwrap().unwrap().data(),
             [0xF0, 0x7F, 0x04, 0x06, 0x01, 0xF7]
         );
+        assert_eq!(m.next(&mut buf), Ok(None));
     }
     #[test]
     fn test_mmc_record() {
@@ -869,6 +888,7 @@ mod tests {
             m.next(&mut buf).unwrap().unwrap().data(),
             [0xF0, 0x7F, 0x05, 0x06, 0x06, 0xF7]
         );
+        assert_eq!(m.next(&mut buf), Ok(None));
     }
     #[test]
     fn test_mmc_pause() {
@@ -886,5 +906,6 @@ mod tests {
             m.next(&mut buf).unwrap().unwrap().data(),
             [0xF0, 0x7F, 0x05, 0x06, 0x09, 0xF7]
         );
+        assert_eq!(m.next(&mut buf), Ok(None));
     }
 }
