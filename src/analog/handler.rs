@@ -34,12 +34,27 @@ impl<'a> AnalogMessages<'a> {
                 self.index += 1;
                 Ok(Some(m.into()))
             }
+            AnalogMessageType::PotentiometerWithCCMessage14Bit => {
+                if self.index > 1 {
+                    return Ok(None);
+                }
+                let (value, id) = if self.index == 0 {
+                    (self.value >> 7, self.analog.midi_id)
+                } else {
+                    (self.value & 0x7F, self.analog.midi_id + 32)
+                };
+                let mut m = ControlChange::try_new_with_buffer(buffer)?;
+                m.set_channel(self.analog.channel.into_midi());
+                m.set_control(u7::new(id as u8));
+                m.set_control_data(u7::new(value as u8));
+                self.index += 1;
+                Ok(Some(m.into()))
+            }
             AnalogMessageType::PotentiometerWithNoteMessage => Ok(None),
             AnalogMessageType::FSR => Ok(None),
             AnalogMessageType::NRPN7 => Ok(None),
             AnalogMessageType::NRPN8 => Ok(None),
             AnalogMessageType::PitchBend => Ok(None),
-            AnalogMessageType::PotentiometerWithCCMessage14Bit => Ok(None),
         }
     }
 }
@@ -89,6 +104,29 @@ mod tests {
         assert_eq!(m.data(), [176, 0x03, 0x02]);
         assert_eq!(Ok(None), it.next(&mut message_buffer));
     }
+    #[test]
+    fn test_cc_14bit() {
+        let mut message_buffer = [0x00u8; 8];
+        let mut analog = Analog {
+            enabled: true,
+            invert_state: false,
+            upper_limit: 1000,
+            lower_limit: 0,
+            lower_adc_offset: 0,
+            upper_adc_offset: 0,
+            message_type: AnalogMessageType::PotentiometerWithCCMessage14Bit,
+            midi_id: 0x03,
+            channel: ChannelOrAll::default(),
+        };
+        let mut it = analog.handle(MAX_ADC_VALUE);
+
+        let m = it.next(&mut message_buffer).unwrap().unwrap();
+        assert_eq!(m.data(), [176, 0x03, 0x7]);
+        let m = it.next(&mut message_buffer).unwrap().unwrap();
+        assert_eq!(m.data(), [176, 0x23, 0x68]);
+        assert_eq!(Ok(None), it.next(&mut message_buffer));
+    }
+
     #[test]
     fn test_overflow() {
         let mut message_buffer = [0x00u8; 1];
