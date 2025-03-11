@@ -351,7 +351,7 @@ mod tests {
 
     #[test]
     fn test_note_on() {
-        let mut message_buffer = [0x00u8; 8];
+        let mut buf = [0x00u8; 8];
         let mut button = Button {
             button_type: ButtonType::Momentary,
             message_type: ButtonMessageType::Notes,
@@ -360,18 +360,15 @@ mod tests {
             channel: ChannelOrAll::default(),
             state: ButtonState::default(),
         };
-        let result = button
-            .handle(Action::Pressed)
-            .next(&mut message_buffer)
-            .unwrap()
-            .unwrap();
-
-        let buf = result.data();
-        assert_eq!(buf, [0x90, 0x03, 0x7F]);
+        let mut m = button.handle(Action::Pressed);
+        assert_eq!(
+            m.next(&mut buf).unwrap().unwrap().data(),
+            [0x90, 0x03, 0x7F]
+        );
     }
     #[test]
     fn test_program_change() {
-        let mut message_buffer = [0x00u8; 8];
+        let mut buf = [0x00u8; 8];
         let mut button = Button {
             button_type: ButtonType::Momentary,
             message_type: ButtonMessageType::ProgramChange,
@@ -380,16 +377,12 @@ mod tests {
             channel: ChannelOrAll::default(),
             state: ButtonState::default(),
         };
-        let result = button
-            .handle(Action::Pressed)
-            .next(&mut message_buffer)
-            .unwrap()
-            .unwrap();
-        assert_eq!(result.data(), [0xC0, 0x03]);
+        let mut m = button.handle(Action::Pressed);
+        assert_eq!(m.next(&mut buf).unwrap().unwrap().data(), [0xC0, 0x03]);
     }
     #[test]
     fn test_program_change_release() {
-        let mut message_buffer = [0x00u8; 8];
+        let mut buf = [0x00u8; 8];
         let mut button = Button {
             button_type: ButtonType::Momentary,
             message_type: ButtonMessageType::ProgramChange,
@@ -398,16 +391,13 @@ mod tests {
             channel: ChannelOrAll::default(),
             state: ButtonState::default(),
         };
-        let result = button
-            .handle(Action::Released)
-            .next(&mut message_buffer)
-            .unwrap();
-        assert_eq!(result, None);
+        let mut m = button.handle(Action::Released);
+        assert_eq!(m.next(&mut buf), Ok(None));
     }
 
     #[test]
     fn test_control_change() {
-        let mut message_buffer = [0x00u8; 8];
+        let mut buf = [0x00u8; 8];
         let mut button = Button {
             button_type: ButtonType::Momentary,
             message_type: ButtonMessageType::ControlChange,
@@ -416,16 +406,15 @@ mod tests {
             channel: ChannelOrAll::default(),
             state: ButtonState::default(),
         };
-        let result = button
-            .handle(Action::Pressed)
-            .next(&mut message_buffer)
-            .unwrap()
-            .unwrap();
-        assert_eq!(result.data(), [0xB0, 0x03, 0x7F]);
+        let mut m = button.handle(Action::Pressed);
+        assert_eq!(
+            m.next(&mut buf).unwrap().unwrap().data(),
+            [0xB0, 0x03, 0x7F]
+        );
     }
     #[test]
     fn test_control_change_release() {
-        let mut message_buffer = [0x00u8; 8];
+        let mut buf = [0x00u8; 8];
         let mut button = Button {
             button_type: ButtonType::Momentary,
             message_type: ButtonMessageType::ControlChange,
@@ -434,16 +423,13 @@ mod tests {
             channel: ChannelOrAll::default(),
             state: ButtonState::default(),
         };
-        let result = button
-            .handle(Action::Released)
-            .next(&mut message_buffer)
-            .unwrap();
-        assert_eq!(result, None);
+        let mut m = button.handle(Action::Released);
+        assert_eq!(m.next(&mut buf), Ok(None));
     }
 
     #[test]
     fn test_control_change_with_reset() {
-        let mut message_buffer = [0x00u8; 8];
+        let mut buf = [0x00u8; 8];
         let mut button = Button {
             button_type: ButtonType::Momentary,
             message_type: ButtonMessageType::ControlChangeWithReset,
@@ -452,16 +438,15 @@ mod tests {
             channel: ChannelOrAll::default(),
             state: ButtonState::default(),
         };
-        let result = button
-            .handle(Action::Pressed)
-            .next(&mut message_buffer)
-            .unwrap()
-            .unwrap();
-        assert_eq!(result.data(), [0xB0, 0x03, 0x7F]);
+        let mut m = button.handle(Action::Pressed);
+        assert_eq!(
+            m.next(&mut buf).unwrap().unwrap().data(),
+            [0xB0, 0x03, 0x7F]
+        );
     }
     #[test]
     fn test_control_change_with_reset_release() {
-        let mut message_buffer = [0x00u8; 8];
+        let mut buf = [0x00u8; 8];
         let mut button = Button {
             button_type: ButtonType::Momentary,
             message_type: ButtonMessageType::ControlChangeWithReset,
@@ -470,17 +455,16 @@ mod tests {
             channel: ChannelOrAll::default(),
             state: ButtonState::default(),
         };
-        let result = button
-            .handle(Action::Released)
-            .next(&mut message_buffer)
-            .unwrap()
-            .unwrap();
-        assert_eq!(result.data(), [0xB0, 0x03, 0x00]);
+        let mut m = button.handle(Action::Released);
+        assert_eq!(
+            m.next(&mut buf).unwrap().unwrap().data(),
+            [0xB0, 0x03, 0x00]
+        );
     }
 
     #[test]
     fn test_control_change_with_value0() {
-        let mut message_buffer = [0x00u8; 8];
+        let mut buf = [0x00u8; 8];
         let mut button = Button {
             button_type: ButtonType::Momentary,
             message_type: ButtonMessageType::ControlChangeWithValue0,
@@ -489,17 +473,16 @@ mod tests {
             channel: ChannelOrAll::default(),
             state: ButtonState::default(),
         };
-        let result = button
-            .handle(Action::Pressed)
-            .next(&mut message_buffer)
-            .unwrap()
-            .unwrap();
-        assert_eq!(result.data(), [0xB0, 0x03, 0x00]);
+        let mut m = button.handle(Action::Pressed);
+        assert_eq!(
+            m.next(&mut buf).unwrap().unwrap().data(),
+            [0xB0, 0x03, 0x00]
+        );
     }
 
     #[test]
     fn test_no_message() {
-        let mut message_buffer = [0x00u8; 8];
+        let mut buf = [0x00u8; 8];
         let mut button = Button {
             button_type: ButtonType::Momentary,
             message_type: ButtonMessageType::NoMessage,
@@ -508,16 +491,13 @@ mod tests {
             channel: ChannelOrAll::default(),
             state: ButtonState::default(),
         };
-        let result = button
-            .handle(Action::Pressed)
-            .next(&mut message_buffer)
-            .unwrap();
+        let result = button.handle(Action::Pressed).next(&mut buf).unwrap();
         assert_eq!(result, None);
     }
 
     #[test]
     fn test_realtime_clock() {
-        let mut message_buffer = [0x00u8; 8];
+        let mut buf = [0x00u8; 8];
         let mut button = Button {
             button_type: ButtonType::Momentary,
             message_type: ButtonMessageType::RealTimeClock,
@@ -526,16 +506,12 @@ mod tests {
             channel: ChannelOrAll::default(),
             state: ButtonState::default(),
         };
-        let result = button
-            .handle(Action::Pressed)
-            .next(&mut message_buffer)
-            .unwrap()
-            .unwrap();
-        assert_eq!(result.data(), [0xF8]);
+        let mut m = button.handle(Action::Pressed);
+        assert_eq!(m.next(&mut buf).unwrap().unwrap().data(), [0xF8]);
     }
     #[test]
     fn test_realtime_start() {
-        let mut message_buffer = [0x00u8; 8];
+        let mut buf = [0x00u8; 8];
         let mut button = Button {
             button_type: ButtonType::Momentary,
             message_type: ButtonMessageType::RealTimeStart,
@@ -544,16 +520,12 @@ mod tests {
             channel: ChannelOrAll::default(),
             state: ButtonState::default(),
         };
-        let result = button
-            .handle(Action::Pressed)
-            .next(&mut message_buffer)
-            .unwrap()
-            .unwrap();
-        assert_eq!(result.data(), [0xFA]);
+        let mut m = button.handle(Action::Pressed);
+        assert_eq!(m.next(&mut buf).unwrap().unwrap().data(), [0xFA]);
     }
     #[test]
     fn test_realtime_stop() {
-        let mut message_buffer = [0x00u8; 8];
+        let mut buf = [0x00u8; 8];
         let mut button = Button {
             button_type: ButtonType::Momentary,
             message_type: ButtonMessageType::RealTimeStop,
@@ -562,16 +534,12 @@ mod tests {
             channel: ChannelOrAll::default(),
             state: ButtonState::default(),
         };
-        let result = button
-            .handle(Action::Pressed)
-            .next(&mut message_buffer)
-            .unwrap()
-            .unwrap();
-        assert_eq!(result.data(), [0xFC]);
+        let mut m = button.handle(Action::Pressed);
+        assert_eq!(m.next(&mut buf).unwrap().unwrap().data(), [0xFC]);
     }
     #[test]
     fn test_realtime_continue() {
-        let mut message_buffer = [0x00u8; 8];
+        let mut buf = [0x00u8; 8];
         let mut button = Button {
             button_type: ButtonType::Momentary,
             message_type: ButtonMessageType::RealTimeContinue,
@@ -580,16 +548,12 @@ mod tests {
             channel: ChannelOrAll::default(),
             state: ButtonState::default(),
         };
-        let result = button
-            .handle(Action::Pressed)
-            .next(&mut message_buffer)
-            .unwrap()
-            .unwrap();
-        assert_eq!(result.data(), [0xFB]);
+        let mut m = button.handle(Action::Pressed);
+        assert_eq!(m.next(&mut buf).unwrap().unwrap().data(), [0xFB]);
     }
     #[test]
     fn test_realtime_active_sensing() {
-        let mut message_buffer = [0x00u8; 8];
+        let mut buf = [0x00u8; 8];
         let mut button = Button {
             button_type: ButtonType::Momentary,
             message_type: ButtonMessageType::RealTimeActiveSensing,
@@ -598,16 +562,12 @@ mod tests {
             channel: ChannelOrAll::default(),
             state: ButtonState::default(),
         };
-        let result = button
-            .handle(Action::Pressed)
-            .next(&mut message_buffer)
-            .unwrap()
-            .unwrap();
-        assert_eq!(result.data(), [0xFE]);
+        let mut m = button.handle(Action::Pressed);
+        assert_eq!(m.next(&mut buf).unwrap().unwrap().data(), [0xFE]);
     }
     #[test]
     fn test_realtime_reset() {
-        let mut message_buffer = [0x00u8; 8];
+        let mut buf = [0x00u8; 8];
         let mut button = Button {
             button_type: ButtonType::Momentary,
             message_type: ButtonMessageType::RealTimeSystemReset,
@@ -616,17 +576,13 @@ mod tests {
             channel: ChannelOrAll::default(),
             state: ButtonState::default(),
         };
-        let result = button
-            .handle(Action::Pressed)
-            .next(&mut message_buffer)
-            .unwrap()
-            .unwrap();
-        assert_eq!(result.data(), [0xFF]);
+        let mut m = button.handle(Action::Pressed);
+        assert_eq!(m.next(&mut buf).unwrap().unwrap().data(), [0xFF]);
     }
 
     #[test]
     fn test_realtime_program_change_incr() {
-        let mut message_buffer = [0x00u8; 8];
+        let mut buf = [0x00u8; 8];
         let mut button = Button {
             button_type: ButtonType::Momentary,
             message_type: ButtonMessageType::ProgramChangeIncr,
@@ -637,20 +593,20 @@ mod tests {
         };
         let result_1 = button
             .handle(Action::Pressed)
-            .next(&mut message_buffer)
+            .next(&mut buf)
             .unwrap()
             .unwrap();
         assert_eq!(result_1.data(), [0xC0, 0x7F]);
         let result_1 = button
             .handle(Action::Pressed)
-            .next(&mut message_buffer)
+            .next(&mut buf)
             .unwrap()
             .unwrap();
         assert_eq!(result_1.data(), [0xC0, 0x00]);
     }
     #[test]
     fn test_realtime_program_change_decr() {
-        let mut message_buffer = [0x00u8; 8];
+        let mut buf = [0x00u8; 8];
         let mut button = Button {
             button_type: ButtonType::Momentary,
             message_type: ButtonMessageType::ProgramChangeDecr,
@@ -661,20 +617,20 @@ mod tests {
         };
         let result_1 = button
             .handle(Action::Pressed)
-            .next(&mut message_buffer)
+            .next(&mut buf)
             .unwrap()
             .unwrap();
         assert_eq!(result_1.data(), [0xC0, 0x00]);
         let result_1 = button
             .handle(Action::Pressed)
-            .next(&mut message_buffer)
+            .next(&mut buf)
             .unwrap()
             .unwrap();
         assert_eq!(result_1.data(), [0xC0, 0x7F]);
     }
     #[test]
     fn test_note_off_only() {
-        let mut message_buffer = [0x00u8; 8];
+        let mut buf = [0x00u8; 8];
         let mut button = Button {
             button_type: ButtonType::Momentary,
             message_type: ButtonMessageType::NoteOffOnly,
@@ -683,16 +639,15 @@ mod tests {
             channel: ChannelOrAll::default(),
             state: ButtonState::default(),
         };
-        let result = button
-            .handle(Action::Pressed)
-            .next(&mut message_buffer)
-            .unwrap()
-            .unwrap();
-        assert_eq!(result.data(), [0x80, 0x03, 0x7F]);
+        let mut m = button.handle(Action::Pressed);
+        assert_eq!(
+            m.next(&mut buf).unwrap().unwrap().data(),
+            [0x80, 0x03, 0x7F]
+        );
     }
     #[test]
     fn test_multi_value_inc_reset_note() {
-        let mut message_buffer = [0x00u8; 8];
+        let mut buf = [0x00u8; 8];
         let mut button = Button {
             button_type: ButtonType::Momentary,
             message_type: ButtonMessageType::MultiValueIncResetNote,
@@ -703,38 +658,38 @@ mod tests {
         };
         let result_1 = button
             .handle(Action::Pressed)
-            .next(&mut message_buffer)
+            .next(&mut buf)
             .unwrap()
             .unwrap();
         assert_eq!(result_1.data(), [0x90, 0x03, 50]);
         let result_2 = button
             .handle(Action::Pressed)
-            .next(&mut message_buffer)
+            .next(&mut buf)
             .unwrap()
             .unwrap();
         assert_eq!(result_2.data(), [0x90, 0x03, 100]);
         let result_3 = button
             .handle(Action::Pressed)
-            .next(&mut message_buffer)
+            .next(&mut buf)
             .unwrap()
             .unwrap();
         assert_eq!(result_3.data(), [0x90, 0x03, 50]);
         let result_4 = button
             .handle(Action::Pressed)
-            .next(&mut message_buffer)
+            .next(&mut buf)
             .unwrap()
             .unwrap();
         assert_eq!(result_4.data(), [0x90, 0x03, 100]);
         let result_5 = button
             .handle(Action::Pressed)
-            .next(&mut message_buffer)
+            .next(&mut buf)
             .unwrap()
             .unwrap();
         assert_eq!(result_5.data(), [0x90, 0x03, 50]);
     }
     #[test]
     fn test_multi_value_inc_reset_cc() {
-        let mut message_buffer = [0x00u8; 8];
+        let mut buf = [0x00u8; 8];
         let mut button = Button {
             button_type: ButtonType::Momentary,
             message_type: ButtonMessageType::MultiValueIncResetCC,
@@ -745,38 +700,38 @@ mod tests {
         };
         let result_1 = button
             .handle(Action::Pressed)
-            .next(&mut message_buffer)
+            .next(&mut buf)
             .unwrap()
             .unwrap();
         assert_eq!(result_1.data(), [0xB0, 0x03, 40]);
         let result_2 = button
             .handle(Action::Pressed)
-            .next(&mut message_buffer)
+            .next(&mut buf)
             .unwrap()
             .unwrap();
         assert_eq!(result_2.data(), [0xB0, 0x03, 80]);
         let result_3 = button
             .handle(Action::Pressed)
-            .next(&mut message_buffer)
+            .next(&mut buf)
             .unwrap()
             .unwrap();
         assert_eq!(result_3.data(), [0xB0, 0x03, 120]);
         let result_4 = button
             .handle(Action::Pressed)
-            .next(&mut message_buffer)
+            .next(&mut buf)
             .unwrap()
             .unwrap();
         assert_eq!(result_4.data(), [0xB0, 0x03, 40]);
         let result_5 = button
             .handle(Action::Pressed)
-            .next(&mut message_buffer)
+            .next(&mut buf)
             .unwrap()
             .unwrap();
         assert_eq!(result_5.data(), [0xB0, 0x03, 80]);
     }
     #[test]
     fn test_multi_value_inc_dec_note() {
-        let mut message_buffer = [0x00u8; 8];
+        let mut buf = [0x00u8; 8];
         let mut button = Button {
             button_type: ButtonType::Momentary,
             message_type: ButtonMessageType::MultiValueIncDecNote,
@@ -787,38 +742,38 @@ mod tests {
         };
         let result_1 = button
             .handle(Action::Pressed)
-            .next(&mut message_buffer)
+            .next(&mut buf)
             .unwrap()
             .unwrap();
         assert_eq!(result_1.data(), [0x90, 0x03, 50]);
         let result_2 = button
             .handle(Action::Pressed)
-            .next(&mut message_buffer)
+            .next(&mut buf)
             .unwrap()
             .unwrap();
         assert_eq!(result_2.data(), [0x90, 0x03, 100]);
         let result_3 = button
             .handle(Action::Pressed)
-            .next(&mut message_buffer)
+            .next(&mut buf)
             .unwrap()
             .unwrap();
         assert_eq!(result_3.data(), [0x90, 0x03, 50]);
         let result_4 = button
             .handle(Action::Pressed)
-            .next(&mut message_buffer)
+            .next(&mut buf)
             .unwrap()
             .unwrap();
         assert_eq!(result_4.data(), [0x90, 0x03, 100]);
         let result_5 = button
             .handle(Action::Pressed)
-            .next(&mut message_buffer)
+            .next(&mut buf)
             .unwrap()
             .unwrap();
         assert_eq!(result_5.data(), [0x90, 0x03, 50]);
     }
     #[test]
     fn test_multi_value_inc_dec_cc() {
-        let mut message_buffer = [0x00u8; 8];
+        let mut buf = [0x00u8; 8];
         let mut button = Button {
             button_type: ButtonType::Momentary,
             message_type: ButtonMessageType::MultiValueIncDecCC,
@@ -829,44 +784,44 @@ mod tests {
         };
         let result_1 = button
             .handle(Action::Pressed)
-            .next(&mut message_buffer)
+            .next(&mut buf)
             .unwrap()
             .unwrap();
         assert_eq!(result_1.data(), [0xB0, 0x03, 40]);
         let result_2 = button
             .handle(Action::Pressed)
-            .next(&mut message_buffer)
+            .next(&mut buf)
             .unwrap()
             .unwrap();
         assert_eq!(result_2.data(), [0xB0, 0x03, 80]);
         let result_3 = button
             .handle(Action::Pressed)
-            .next(&mut message_buffer)
+            .next(&mut buf)
             .unwrap()
             .unwrap();
         assert_eq!(result_3.data(), [0xB0, 0x03, 120]);
         let result_4 = button
             .handle(Action::Pressed)
-            .next(&mut message_buffer)
+            .next(&mut buf)
             .unwrap()
             .unwrap();
         assert_eq!(result_4.data(), [0xB0, 0x03, 80]);
         let result_5 = button
             .handle(Action::Pressed)
-            .next(&mut message_buffer)
+            .next(&mut buf)
             .unwrap()
             .unwrap();
         assert_eq!(result_5.data(), [0xB0, 0x03, 40]);
         let result_6 = button
             .handle(Action::Pressed)
-            .next(&mut message_buffer)
+            .next(&mut buf)
             .unwrap()
             .unwrap();
         assert_eq!(result_6.data(), [0xB0, 0x03, 80]);
     }
     #[test]
     fn test_mmc_play() {
-        let mut message_buffer = [0x00u8; 8];
+        let mut buf = [0x00u8; 8];
         let mut button = Button {
             button_type: ButtonType::Momentary,
             message_type: ButtonMessageType::MMCPlay,
@@ -875,16 +830,15 @@ mod tests {
             channel: ChannelOrAll::default(),
             state: ButtonState::default(),
         };
-        let result = button
-            .handle(Action::Pressed)
-            .next(&mut message_buffer)
-            .unwrap()
-            .unwrap();
-        assert_eq!(result.data(), [0xF0, 0x7F, 0x03, 0x06, 0x02, 0xF7]);
+        let mut m = button.handle(Action::Pressed);
+        assert_eq!(
+            m.next(&mut buf).unwrap().unwrap().data(),
+            [0xF0, 0x7F, 0x03, 0x06, 0x02, 0xF7]
+        );
     }
     #[test]
     fn test_mmc_stop() {
-        let mut message_buffer = [0x00u8; 8];
+        let mut buf = [0x00u8; 8];
         let mut button = Button {
             button_type: ButtonType::Momentary,
             message_type: ButtonMessageType::MMCStop,
@@ -893,16 +847,15 @@ mod tests {
             channel: ChannelOrAll::default(),
             state: ButtonState::default(),
         };
-        let result = button
-            .handle(Action::Pressed)
-            .next(&mut message_buffer)
-            .unwrap()
-            .unwrap();
-        assert_eq!(result.data(), [0xF0, 0x7F, 0x04, 0x06, 0x01, 0xF7]);
+        let mut m = button.handle(Action::Pressed);
+        assert_eq!(
+            m.next(&mut buf).unwrap().unwrap().data(),
+            [0xF0, 0x7F, 0x04, 0x06, 0x01, 0xF7]
+        );
     }
     #[test]
     fn test_mmc_record() {
-        let mut message_buffer = [0x00u8; 8];
+        let mut buf = [0x00u8; 8];
         let mut button = Button {
             button_type: ButtonType::Momentary,
             message_type: ButtonMessageType::MMCRecord,
@@ -911,16 +864,15 @@ mod tests {
             channel: ChannelOrAll::default(),
             state: ButtonState::default(),
         };
-        let result = button
-            .handle(Action::Pressed)
-            .next(&mut message_buffer)
-            .unwrap()
-            .unwrap();
-        assert_eq!(result.data(), [0xF0, 0x7F, 0x05, 0x06, 0x06, 0xF7]);
+        let mut m = button.handle(Action::Pressed);
+        assert_eq!(
+            m.next(&mut buf).unwrap().unwrap().data(),
+            [0xF0, 0x7F, 0x05, 0x06, 0x06, 0xF7]
+        );
     }
     #[test]
     fn test_mmc_pause() {
-        let mut message_buffer = [0x00u8; 8];
+        let mut buf = [0x00u8; 8];
         let mut button = Button {
             button_type: ButtonType::Momentary,
             message_type: ButtonMessageType::MMCPause,
@@ -929,11 +881,10 @@ mod tests {
             channel: ChannelOrAll::default(),
             state: ButtonState::default(),
         };
-        let result = button
-            .handle(Action::Pressed)
-            .next(&mut message_buffer)
-            .unwrap()
-            .unwrap();
-        assert_eq!(result.data(), [0xF0, 0x7F, 0x05, 0x06, 0x09, 0xF7]);
+        let mut m = button.handle(Action::Pressed);
+        assert_eq!(
+            m.next(&mut buf).unwrap().unwrap().data(),
+            [0xF0, 0x7F, 0x05, 0x06, 0x09, 0xF7]
+        );
     }
 }
