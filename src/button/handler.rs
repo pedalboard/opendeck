@@ -45,12 +45,11 @@ impl<'a> ButtonMessages<'a> {
         &mut self,
         buffer: &'buf mut [u8],
     ) -> Result<Option<BytesMessage<&'buf mut [u8]>>, BufferOverflow> {
+        let channel = match self.channels.next() {
+            Some((channel, _)) => channel,
+            None => return Ok(None),
+        };
         let status = self.button.latch(&self.action);
-        let oc = self.channels.next();
-        if oc.is_none() {
-            return Ok(None);
-        }
-        let channel = oc.unwrap();
         match self.button.message_type {
             ButtonMessageType::Notes => match status {
                 ButtonStatus::On => {
@@ -379,6 +378,86 @@ mod tests {
         );
         assert_eq!(m.next(&mut buf), Ok(None));
     }
+    #[test]
+    fn test_note_on_all_channels() {
+        let mut buf = [0x00u8; 8];
+        let mut button = Button {
+            button_type: ButtonType::Momentary,
+            message_type: ButtonMessageType::Notes,
+            midi_id: 0x03,
+            value: 0x7F,
+            channel: ChannelOrAll::All,
+            state: ButtonState::default(),
+        };
+        let mut m = button.handle(Action::Pressed);
+        assert_eq!(
+            m.next(&mut buf).unwrap().unwrap().data(),
+            [0x90, 0x03, 0x7F]
+        );
+        assert_eq!(
+            m.next(&mut buf).unwrap().unwrap().data(),
+            [0x91, 0x03, 0x7F]
+        );
+        assert_eq!(
+            m.next(&mut buf).unwrap().unwrap().data(),
+            [0x92, 0x03, 0x7F]
+        );
+        assert_eq!(
+            m.next(&mut buf).unwrap().unwrap().data(),
+            [0x93, 0x03, 0x7F]
+        );
+        assert_eq!(
+            m.next(&mut buf).unwrap().unwrap().data(),
+            [0x94, 0x03, 0x7F]
+        );
+        assert_eq!(
+            m.next(&mut buf).unwrap().unwrap().data(),
+            [0x95, 0x03, 0x7F]
+        );
+        assert_eq!(
+            m.next(&mut buf).unwrap().unwrap().data(),
+            [0x96, 0x03, 0x7F]
+        );
+        assert_eq!(
+            m.next(&mut buf).unwrap().unwrap().data(),
+            [0x97, 0x03, 0x7F]
+        );
+        assert_eq!(
+            m.next(&mut buf).unwrap().unwrap().data(),
+            [0x98, 0x03, 0x7F]
+        );
+        assert_eq!(
+            m.next(&mut buf).unwrap().unwrap().data(),
+            [0x99, 0x03, 0x7F]
+        );
+        assert_eq!(
+            m.next(&mut buf).unwrap().unwrap().data(),
+            [0x9A, 0x03, 0x7F]
+        );
+        assert_eq!(
+            m.next(&mut buf).unwrap().unwrap().data(),
+            [0x9B, 0x03, 0x7F]
+        );
+        assert_eq!(
+            m.next(&mut buf).unwrap().unwrap().data(),
+            [0x9C, 0x03, 0x7F]
+        );
+        assert_eq!(
+            m.next(&mut buf).unwrap().unwrap().data(),
+            [0x9D, 0x03, 0x7F]
+        );
+        assert_eq!(
+            m.next(&mut buf).unwrap().unwrap().data(),
+            [0x9E, 0x03, 0x7F]
+        );
+        assert_eq!(
+            m.next(&mut buf).unwrap().unwrap().data(),
+            [0x9F, 0x03, 0x7F]
+        );
+
+        assert_eq!(m.next(&mut buf), Ok(None));
+    }
+
     #[test]
     fn test_program_change() {
         let mut buf = [0x00u8; 8];

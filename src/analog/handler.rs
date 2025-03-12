@@ -18,19 +18,26 @@ use midi2::{
 pub struct AnalogMessages<'a> {
     analog: &'a mut Analog,
     value: u16,
-    index: usize,
     channels: Channels,
-    channel: u4,
 }
 impl<'a> AnalogMessages<'a> {
     pub fn new(analog: &'a mut Analog, ch: ChannelOrAll, value: u16) -> Self {
-        let channels = Channels::new(ch);
+        let mt = &analog.message_type;
+        let nr_of_messages = match mt {
+            AnalogMessageType::Button => 0,
+            AnalogMessageType::PotentiometerWithCCMessage7Bit => 1,
+            AnalogMessageType::PotentiometerWithCCMessage14Bit => 2,
+            AnalogMessageType::PitchBend => 1,
+            AnalogMessageType::PotentiometerWithNoteMessage => 1,
+            AnalogMessageType::FSR => 1,
+            AnalogMessageType::NRPN7 => 3,
+            AnalogMessageType::NRPN14 => 4,
+        };
+        let channels = Channels::new_with_multiple_messages(ch, nr_of_messages);
         Self {
             analog,
             value,
-            index: 0,
             channels,
-            channel: u4::new(0),
         }
     }
     pub fn next<'buf>(
@@ -40,103 +47,80 @@ impl<'a> AnalogMessages<'a> {
         if !self.analog.enabled {
             return Ok(None);
         }
-        if self.index == 0 {
-            let oc = self.channels.next();
-            if oc.is_none() {
-                return Ok(None);
-            }
-            self.channel = oc.unwrap();
-        }
-        let m = match self.analog.message_type {
+        let (channel, index) = match self.channels.next() {
+            Some((channel, index)) => (channel, index),
+            None => return Ok(None),
+        };
+        match self.analog.message_type {
             AnalogMessageType::Button => Ok(None),
             AnalogMessageType::PotentiometerWithCCMessage7Bit => {
-                if self.index > 0 {
-                    return Ok(None);
-                }
                 let mut m = ControlChange::try_new_with_buffer(buffer)?;
-                m.set_channel(self.channel);
+                m.set_channel(channel);
                 m.set_control(u7::new(self.analog.midi_id as u8));
                 m.set_control_data(u7::new(self.value as u8));
                 Ok(Some(m.into()))
             }
             AnalogMessageType::PotentiometerWithCCMessage14Bit => {
-                if self.index > 1 {
-                    return Ok(None);
-                }
-                let (value, id) = if self.index == 0 {
+                let (value, id) = if index == 0 {
                     (self.value >> 7, self.analog.midi_id)
                 } else {
                     (self.value & 0x7F, self.analog.midi_id + 32)
                 };
                 let mut m = ControlChange::try_new_with_buffer(buffer)?;
-                m.set_channel(self.channel);
+                m.set_channel(channel);
                 m.set_control(u7::new(id as u8));
                 m.set_control_data(u7::new(value as u8));
                 Ok(Some(m.into()))
             }
             AnalogMessageType::PitchBend => {
-                if self.index > 0 {
-                    return Ok(None);
-                }
                 let mut m = PitchBend::try_new_with_buffer(buffer)?;
-                m.set_channel(self.channel);
+                m.set_channel(channel);
                 m.set_bend(u14::new(self.value));
                 Ok(Some(m.into()))
             }
             AnalogMessageType::PotentiometerWithNoteMessage | AnalogMessageType::FSR => {
-                if self.index > 0 {
-                    return Ok(None);
-                }
                 let mut m = NoteOn::try_new_with_buffer(buffer)?;
-                m.set_channel(self.channel);
+                m.set_channel(channel);
                 m.set_note_number(u7::new(self.analog.midi_id as u8));
                 m.set_velocity(u7::new(self.value as u8));
                 Ok(Some(m.into()))
             }
             AnalogMessageType::NRPN7 => {
-                if self.index > 2 {
-                    return Ok(None);
-                }
                 let mut m = ControlChange::try_new_with_buffer(buffer)?;
-                m.set_channel(self.channel);
+                m.set_channel(channel);
 
-                if self.index == 0 {
+                if index == 0 {
                     m.set_control(u7::new(NRPN_LSB));
                     m.set_control_data(u7::new((self.analog.midi_id & 0x7F) as u8));
-                } else if self.index == 1 {
+                } else if index == 1 {
                     m.set_control(u7::new(NRPN_MSB));
                     m.set_control_data(u7::new((self.analog.midi_id >> 7) as u8));
-                } else if self.index == 2 {
+                } else if index == 2 {
                     m.set_control(u7::new(NRPN_DATA_LSB));
                     m.set_control_data(u7::new(self.value as u8));
                 }
                 Ok(Some(m.into()))
             }
             AnalogMessageType::NRPN14 => {
-                if self.index > 3 {
-                    return Ok(None);
-                }
                 let mut m = ControlChange::try_new_with_buffer(buffer)?;
-                m.set_channel(self.channel);
+                m.set_channel(channel);
 
-                if self.index == 0 {
+                if index == 0 {
                     m.set_control(u7::new(NRPN_LSB));
                     m.set_control_data(u7::new((self.analog.midi_id & 0x7F) as u8));
-                } else if self.index == 1 {
+                } else if index == 1 {
                     m.set_control(u7::new(NRPN_MSB));
                     m.set_control_data(u7::new((self.analog.midi_id >> 7) as u8));
-                } else if self.index == 2 {
+                } else if index == 2 {
                     m.set_control(u7::new(NRPN_DATA_LSB));
                     m.set_control_data(u7::new((self.value & 0x7F) as u8));
-                } else if self.index == 3 {
+                } else if index == 3 {
                     m.set_control(u7::new(NRPN_DATA_MSB));
                     m.set_control_data(u7::new((self.value >> 7) as u8));
                 }
                 Ok(Some(m.into()))
             }
-        };
-        self.index += 1;
-        m
+        }
     }
 }
 
@@ -201,14 +185,65 @@ mod tests {
             upper_adc_offset: 0,
             message_type: AnalogMessageType::PotentiometerWithCCMessage7Bit,
             midi_id: 0x03,
-            channel: ChannelOrAll::default(),
+            channel: ChannelOrAll::Channel(1),
         };
         let mut it = analog.handle(100);
 
         let m = it.next(&mut message_buffer).unwrap().unwrap();
-        assert_eq!(m.data(), [176, 0x03, 0x02]);
+        assert_eq!(m.data(), [0xB1, 0x03, 0x02]);
         assert_eq!(Ok(None), it.next(&mut message_buffer));
     }
+    #[test]
+    fn test_cc_7bit_on_all_channels() {
+        let mut buf = [0x00u8; 8];
+        let mut analog = Analog {
+            enabled: true,
+            invert: false,
+            upper_limit: 99,
+            lower_limit: 0,
+            lower_adc_offset: 0,
+            upper_adc_offset: 0,
+            message_type: AnalogMessageType::PotentiometerWithCCMessage7Bit,
+            midi_id: 0x03,
+            channel: ChannelOrAll::All,
+        };
+        let mut it = analog.handle(100);
+
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB0, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB1, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB2, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB3, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB4, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB5, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB6, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB7, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB8, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB9, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xBA, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xBB, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xBC, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xBD, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xBE, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xBF, 0x03, 0x02]);
+        assert_eq!(Ok(None), it.next(&mut buf));
+    }
+
     #[test]
     fn test_cc_14bit() {
         let mut message_buffer = [0x00u8; 8];
