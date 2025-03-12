@@ -1,6 +1,5 @@
 use crate::analog::{Analog, AnalogMessageType};
 use crate::handler::ChannelMessages;
-use crate::ChannelOrAll;
 
 const MAX_ADC_VALUE: u16 = 4095; // (2 ^ 12) - 1
 const NRPN_MSB: u8 = 0x63;

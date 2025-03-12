@@ -1,7 +1,6 @@
 use crate::{
     button::{Button, ButtonMessageType, ButtonType},
     handler::ChannelMessages,
-    ChannelOrAll,
 };
 
 use midi2::{
