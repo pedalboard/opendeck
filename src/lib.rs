@@ -12,6 +12,7 @@ pub mod button;
 pub mod config;
 pub mod encoder;
 pub mod global;
+pub mod handler;
 pub mod led;
 pub mod parser;
 pub mod renderer;

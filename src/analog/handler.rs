@@ -1,5 +1,5 @@
 use crate::analog::{Analog, AnalogMessageType};
-use crate::global::handler::ChannelMessages;
+use crate::handler::ChannelMessages;
 use crate::ChannelOrAll;
 
 const MAX_ADC_VALUE: u16 = 4095; // (2 ^ 12) - 1

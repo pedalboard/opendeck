@@ -1,6 +1,6 @@
 use crate::{
     button::{Button, ButtonMessageType, ButtonType},
-    global::handler::ChannelMessages,
+    handler::ChannelMessages,
     ChannelOrAll,
 };
 
