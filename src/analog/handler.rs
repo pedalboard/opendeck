@@ -32,7 +32,7 @@ impl<'a> AnalogMessages<'a> {
             AnalogMessageType::NRPN7 => 3,
             AnalogMessageType::NRPN14 => 4,
         };
-        let ch = analog.channel.clone();
+        let ch = analog.channel;
         let channel_messages = ChannelMessages::new_with_multiple_messages(ch, nr_of_messages);
         Self {
             analog,

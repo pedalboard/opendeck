@@ -34,7 +34,7 @@ pub struct ButtonMessages<'a> {
 
 impl<'a> ButtonMessages<'a> {
     pub fn new(button: &'a mut Button, action: Action) -> Self {
-        let ch = button.channel.clone();
+        let ch = button.channel;
         Self {
             button,
             action,
