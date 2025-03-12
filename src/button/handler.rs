@@ -30,22 +30,23 @@ enum ButtonStatus {
 pub struct ButtonMessages<'a> {
     button: &'a mut Button,
     action: Action,
-    channels: ChannelMessages,
+    channel_messages: ChannelMessages,
 }
 
 impl<'a> ButtonMessages<'a> {
-    pub fn new(button: &'a mut Button, channel: ChannelOrAll, action: Action) -> Self {
+    pub fn new(button: &'a mut Button, action: Action) -> Self {
+        let ch = button.channel.clone();
         Self {
             button,
             action,
-            channels: ChannelMessages::new(channel),
+            channel_messages: ChannelMessages::new(ch),
         }
     }
     pub fn next<'buf>(
         &mut self,
         buffer: &'buf mut [u8],
     ) -> Result<Option<BytesMessage<&'buf mut [u8]>>, BufferOverflow> {
-        let channel = match self.channels.next() {
+        let channel = match self.channel_messages.next() {
             Some((channel, _)) => channel,
             None => return Ok(None),
         };
@@ -267,7 +268,7 @@ impl<'a> ButtonMessages<'a> {
 
 impl Button {
     pub fn handle(&mut self, action: Action) -> ButtonMessages<'_> {
-        ButtonMessages::new(self, self.channel, action)
+        ButtonMessages::new(self, action)
     }
     fn latch(&mut self, action: &Action) -> ButtonStatus {
         match self.button_type {

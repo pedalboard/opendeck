@@ -18,10 +18,10 @@ use midi2::{
 pub struct AnalogMessages<'a> {
     analog: &'a mut Analog,
     value: u16,
-    channels: ChannelMessages,
+    channel_messages: ChannelMessages,
 }
 impl<'a> AnalogMessages<'a> {
-    pub fn new(analog: &'a mut Analog, ch: ChannelOrAll, value: u16) -> Self {
+    pub fn new(analog: &'a mut Analog, value: u16) -> Self {
         let mt = &analog.message_type;
         let nr_of_messages = match mt {
             AnalogMessageType::Button => 0,
@@ -33,11 +33,12 @@ impl<'a> AnalogMessages<'a> {
             AnalogMessageType::NRPN7 => 3,
             AnalogMessageType::NRPN14 => 4,
         };
-        let channels = ChannelMessages::new_with_multiple_messages(ch, nr_of_messages);
+        let ch = analog.channel.clone();
+        let channel_messages = ChannelMessages::new_with_multiple_messages(ch, nr_of_messages);
         Self {
             analog,
             value,
-            channels,
+            channel_messages,
         }
     }
     pub fn next<'buf>(
@@ -47,7 +48,7 @@ impl<'a> AnalogMessages<'a> {
         if !self.analog.enabled {
             return Ok(None);
         }
-        let (channel, index) = match self.channels.next() {
+        let (channel, index) = match self.channel_messages.next() {
             Some((channel, index)) => (channel, index),
             None => return Ok(None),
         };
@@ -126,7 +127,7 @@ impl<'a> AnalogMessages<'a> {
 
 impl Analog {
     pub fn handle(&mut self, value: u16) -> AnalogMessages<'_> {
-        AnalogMessages::new(self, self.channel, self.scale_value(value))
+        AnalogMessages::new(self, self.scale_value(value))
     }
     fn scale_value(&self, value: u16) -> u16 {
         let input = if self.invert {
