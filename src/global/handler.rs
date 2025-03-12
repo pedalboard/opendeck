@@ -26,14 +26,14 @@ impl Messages<'_> {
     }
 }
 
-pub struct Channels {
+pub struct ChannelMessages {
     channel_or_all: ChannelOrAll,
     nr_of_messages: usize,
     current_channel: i8,
     index: usize,
 }
 
-impl Channels {
+impl ChannelMessages {
     pub fn new_with_multiple_messages(channel_or_all: ChannelOrAll, nr_of_messages: usize) -> Self {
         Self {
             channel_or_all,
@@ -52,7 +52,7 @@ impl Channels {
     }
 }
 
-impl Iterator for Channels {
+impl Iterator for ChannelMessages {
     type Item = (u4, usize);
     fn next(&mut self) -> Option<Self::Item> {
         match self.channel_or_all {
@@ -99,14 +99,14 @@ mod tests {
 
     #[test]
     fn test_all_channels_single_message() {
-        let all = Channels::new(ChannelOrAll::All).collect::<Vec<_, 16>>();
+        let all = ChannelMessages::new(ChannelOrAll::All).collect::<Vec<_, 16>>();
         let expected = (0..16).map(|i| (u4::new(i), 0)).collect::<Vec<_, 16>>();
         assert_eq!(all, expected);
     }
     #[test]
     fn test_all_channels_multipe_message() {
-        let all =
-            Channels::new_with_multiple_messages(ChannelOrAll::All, 3).collect::<Vec<_, 48>>();
+        let all = ChannelMessages::new_with_multiple_messages(ChannelOrAll::All, 3)
+            .collect::<Vec<_, 48>>();
         let mut expected: Vec<_, 48> = Vec::new();
         for i in 0..16 {
             for j in 0..3 {
@@ -117,14 +117,14 @@ mod tests {
     }
     #[test]
     fn test_single_channel_single_message() {
-        let single = Channels::new(ChannelOrAll::Channel(1)).collect::<Vec<_, 16>>();
+        let single = ChannelMessages::new(ChannelOrAll::Channel(1)).collect::<Vec<_, 16>>();
         let mut expected: Vec<_, 48> = Vec::new();
         expected.push((u4::new(1), 0)).unwrap();
         assert_eq!(single, expected);
     }
     #[test]
     fn test_single_channel_multipe_message() {
-        let all = Channels::new_with_multiple_messages(ChannelOrAll::Channel(2), 4)
+        let all = ChannelMessages::new_with_multiple_messages(ChannelOrAll::Channel(2), 4)
             .collect::<Vec<_, 48>>();
         let mut expected: Vec<_, 48> = Vec::new();
         for j in 0..4 {
@@ -134,15 +134,15 @@ mod tests {
     }
     #[test]
     fn test_no_channel_single_message() {
-        let single = Channels::new(ChannelOrAll::None).collect::<Vec<_, 16>>();
+        let single = ChannelMessages::new(ChannelOrAll::None).collect::<Vec<_, 16>>();
         let mut expected: Vec<_, 48> = Vec::new();
         expected.push((u4::new(0), 0)).unwrap();
         assert_eq!(single, expected);
     }
     #[test]
     fn test_no() {
-        let all =
-            Channels::new_with_multiple_messages(ChannelOrAll::None, 2).collect::<Vec<_, 48>>();
+        let all = ChannelMessages::new_with_multiple_messages(ChannelOrAll::None, 2)
+            .collect::<Vec<_, 48>>();
         let mut expected: Vec<_, 48> = Vec::new();
         for j in 0..2 {
             expected.push((u4::new(0), j)).unwrap();

@@ -1,5 +1,5 @@
 use crate::analog::{Analog, AnalogMessageType};
-use crate::global::handler::Channels;
+use crate::global::handler::ChannelMessages;
 use crate::ChannelOrAll;
 
 const MAX_ADC_VALUE: u16 = 4095; // (2 ^ 12) - 1
@@ -18,7 +18,7 @@ use midi2::{
 pub struct AnalogMessages<'a> {
     analog: &'a mut Analog,
     value: u16,
-    channels: Channels,
+    channels: ChannelMessages,
 }
 impl<'a> AnalogMessages<'a> {
     pub fn new(analog: &'a mut Analog, ch: ChannelOrAll, value: u16) -> Self {
@@ -33,7 +33,7 @@ impl<'a> AnalogMessages<'a> {
             AnalogMessageType::NRPN7 => 3,
             AnalogMessageType::NRPN14 => 4,
         };
-        let channels = Channels::new_with_multiple_messages(ch, nr_of_messages);
+        let channels = ChannelMessages::new_with_multiple_messages(ch, nr_of_messages);
         Self {
             analog,
             value,

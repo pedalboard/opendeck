@@ -1,6 +1,6 @@
 use crate::{
     button::{Button, ButtonMessageType, ButtonType},
-    global::handler::Channels,
+    global::handler::ChannelMessages,
     ChannelOrAll,
 };
 
@@ -30,7 +30,7 @@ enum ButtonStatus {
 pub struct ButtonMessages<'a> {
     button: &'a mut Button,
     action: Action,
-    channels: Channels,
+    channels: ChannelMessages,
 }
 
 impl<'a> ButtonMessages<'a> {
@@ -38,7 +38,7 @@ impl<'a> ButtonMessages<'a> {
         Self {
             button,
             action,
-            channels: Channels::new(channel),
+            channels: ChannelMessages::new(channel),
         }
     }
     pub fn next<'buf>(
