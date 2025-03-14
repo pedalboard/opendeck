@@ -88,6 +88,11 @@ impl Encoder {
         }
     }
     fn increment(&mut self, p: &EncoderPulse) {
+        self.state.pulse_count += 1;
+        if self.state.pulse_count < self.pulses_per_step {
+            return;
+        }
+        self.state.pulse_count = 0;
         match p {
             EncoderPulse::Clockwise => {
                 self.value += 1;
@@ -123,9 +128,9 @@ mod tests {
     #[test]
     fn test_increment() {
         let mut encoder = Encoder {
-            value: 0,
             lower_limit: 2,
             upper_limit: 4,
+            pulses_per_step: 1,
             ..Encoder::default()
         };
         encoder.increment(&EncoderPulse::Clockwise);
@@ -141,6 +146,23 @@ mod tests {
         encoder.increment(&EncoderPulse::CounterClockwise);
         assert_eq!(2, encoder.value);
         encoder.increment(&EncoderPulse::CounterClockwise);
+        assert_eq!(2, encoder.value);
+    }
+
+    #[test]
+    fn test_pulses_per_count() {
+        let mut encoder = Encoder {
+            value: 0,
+            pulses_per_step: 2,
+            ..Encoder::default()
+        };
+        encoder.increment(&EncoderPulse::Clockwise);
+        assert_eq!(0, encoder.value);
+        encoder.increment(&EncoderPulse::Clockwise);
+        assert_eq!(1, encoder.value);
+        encoder.increment(&EncoderPulse::Clockwise);
+        assert_eq!(1, encoder.value);
+        encoder.increment(&EncoderPulse::Clockwise);
         assert_eq!(2, encoder.value);
     }
 
@@ -162,6 +184,7 @@ mod tests {
             enabled: true,
             message_type: EncoderMessageType::ControlChange,
             value: 1,
+            pulses_per_step: 1,
             midi_id: 0x03,
             channel: ChannelOrAll::Channel(1),
             ..Encoder::default()
@@ -181,6 +204,7 @@ mod tests {
             message_type: EncoderMessageType::ControlChange,
             value: 1,
             midi_id: 0x03,
+            pulses_per_step: 1,
             channel: ChannelOrAll::Channel(1),
             ..Encoder::default()
         };
