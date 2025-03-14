@@ -1,14 +1,9 @@
-use crate::encoder::{Accelleration, Encoder, EncoderMessageType};
+use crate::encoder::{Encoder, EncoderMessageType};
 use crate::handler::ChannelMessages;
 
-use midi2::{
-    channel_voice1::{ControlChange, NoteOn, PitchBend},
-    error::BufferOverflow,
-    prelude::*,
-    BytesMessage,
-};
+use midi2::{channel_voice1::ControlChange, error::BufferOverflow, prelude::*, BytesMessage};
 
-pub enum EncoderIncrement {
+pub enum EncoderPulse {
     Clockwise,
     CounterClockwise,
 }
@@ -16,10 +11,10 @@ pub enum EncoderIncrement {
 pub struct EncoderMessages<'a> {
     encoder: &'a mut Encoder,
     channel_messages: ChannelMessages,
-    inc: EncoderIncrement,
+    pulse: EncoderPulse,
 }
 impl<'a> EncoderMessages<'a> {
-    pub fn new(encoder: &'a mut Encoder, inc: EncoderIncrement) -> Self {
+    pub fn new(encoder: &'a mut Encoder, pulse: EncoderPulse) -> Self {
         let mt = &encoder.message_type;
         let nr_of_messages = match mt {
             EncoderMessageType::ControlChange => 1,
@@ -43,7 +38,7 @@ impl<'a> EncoderMessages<'a> {
         Self {
             encoder,
             channel_messages,
-            inc,
+            pulse,
         }
     }
     pub fn next<'buf>(
@@ -59,11 +54,11 @@ impl<'a> EncoderMessages<'a> {
         };
         match self.encoder.message_type {
             EncoderMessageType::ControlChange => {
+                self.encoder.increment(&self.pulse);
                 let mut m = ControlChange::try_new_with_buffer(buffer)?;
                 m.set_channel(channel);
                 m.set_control(u7::new(self.encoder.midi_id as u8));
-                // FIXME calculate value
-                m.set_control_data(u7::new(0x00));
+                m.set_control_data(u7::new(self.encoder.value as u8));
                 Ok(Some(m.into()))
             }
             EncoderMessageType::ControlChange14bit => Ok(None),
@@ -85,8 +80,18 @@ impl<'a> EncoderMessages<'a> {
 }
 
 impl Encoder {
-    pub fn handle(&mut self, inc: EncoderIncrement) -> EncoderMessages<'_> {
-        EncoderMessages::new(self, inc)
+    pub fn handle(&mut self, p: EncoderPulse) -> EncoderMessages<'_> {
+        EncoderMessages::new(self, p)
+    }
+    fn increment(&mut self, p: &EncoderPulse) {
+        match p {
+            EncoderPulse::Clockwise => {
+                self.value += 1;
+            }
+            EncoderPulse::CounterClockwise => {
+                self.value += 1;
+            }
+        }
     }
 }
 
@@ -94,6 +99,7 @@ impl Encoder {
 mod tests {
 
     use super::*;
+    use crate::encoder::Accelleration;
     use crate::ChannelOrAll;
 
     #[test]
@@ -109,12 +115,12 @@ mod tests {
             second_midi_id: 0x00,
             pulses_per_step: 4,
             remote_sync: false,
-            repeated_value: 0,
+            value: 0,
             accelleration: Accelleration::None,
 
             channel: ChannelOrAll::default(),
         };
-        let mut it = encoder.handle(EncoderIncrement::Clockwise);
+        let mut it = encoder.handle(EncoderPulse::Clockwise);
 
         assert_eq!(Ok(None), it.next(&mut buf));
     }
@@ -129,14 +135,14 @@ mod tests {
             message_type: EncoderMessageType::ControlChange,
             midi_id: 0x03,
             second_midi_id: 0x00,
-            pulses_per_step: 4,
+            pulses_per_step: 1,
             remote_sync: false,
-            repeated_value: 0,
+            value: 1,
             accelleration: Accelleration::None,
 
             channel: ChannelOrAll::Channel(1),
         };
-        let mut it = encoder.handle(EncoderIncrement::Clockwise);
+        let mut it = encoder.handle(EncoderPulse::Clockwise);
 
         let m = it.next(&mut buf).unwrap().unwrap();
         assert_eq!(m.data(), [0xB1, 0x03, 0x02]);

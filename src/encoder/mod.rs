@@ -18,7 +18,7 @@ pub struct Encoder {
     remote_sync: bool,
     upper_limit: u16,
     lower_limit: u16,
-    repeated_value: u16,
+    value: u16,
     second_midi_id: u16,
 }
 
@@ -36,7 +36,7 @@ impl Encoder {
             lower_limit: u16::MIN,
             upper_limit: u16::MIN,
             second_midi_id: u16::MIN,
-            repeated_value: u16::MIN,
+            value: u16::MIN,
         }
     }
     pub fn set(&mut self, section: &EncoderSection) {
@@ -52,7 +52,7 @@ impl Encoder {
             EncoderSection::LowerLimit(v) => self.lower_limit = *v,
             EncoderSection::UpperLimit(v) => self.upper_limit = *v,
             EncoderSection::SecondMidiId(v) => self.second_midi_id = *v,
-            EncoderSection::RepeatedValue(v) => self.repeated_value = *v,
+            EncoderSection::RepeatedValue(v) => self.value = *v,
             EncoderSection::MidiIdMSB(_) => {}
         }
     }
@@ -69,7 +69,7 @@ impl Encoder {
             EncoderSection::LowerLimit(_) => self.lower_limit,
             EncoderSection::UpperLimit(_) => self.upper_limit,
             EncoderSection::SecondMidiId(_) => self.second_midi_id,
-            EncoderSection::RepeatedValue(_) => self.repeated_value,
+            EncoderSection::RepeatedValue(_) => self.value,
             EncoderSection::MidiIdMSB(_) => 0x00,
         }
     }
