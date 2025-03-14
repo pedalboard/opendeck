@@ -9,7 +9,7 @@ pub mod renderer;
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Encoder {
     enabled: bool,
-    invert_state: bool,
+    inverted: bool,
     message_type: EncoderMessageType,
     midi_id: u16,
     channel: ChannelOrAll,
@@ -26,7 +26,7 @@ impl Encoder {
     pub fn new(midi_id: u16) -> Self {
         Encoder {
             enabled: true,
-            invert_state: false,
+            inverted: false,
             message_type: EncoderMessageType::default(),
             channel: ChannelOrAll::default(),
             pulses_per_step: 2,
@@ -45,7 +45,7 @@ impl Encoder {
             EncoderSection::Channel(v) => self.channel = *v,
             EncoderSection::Enabled(v) => self.enabled = *v,
             EncoderSection::MidiIdLSB(v) => self.midi_id = *v,
-            EncoderSection::InvertState(v) => self.invert_state = *v,
+            EncoderSection::Inverted(v) => self.inverted = *v,
             EncoderSection::PulsesPerStep(v) => self.pulses_per_step = *v,
             EncoderSection::RemoteSync(v) => self.remote_sync = *v,
             EncoderSection::Accelleration(v) => self.accelleration = *v,
@@ -62,7 +62,7 @@ impl Encoder {
             EncoderSection::Channel(_) => self.channel.into(),
             EncoderSection::Enabled(_) => self.enabled.into(),
             EncoderSection::MidiIdLSB(_) => self.midi_id,
-            EncoderSection::InvertState(_) => self.invert_state.into(),
+            EncoderSection::Inverted(_) => self.inverted.into(),
             EncoderSection::PulsesPerStep(_) => self.pulses_per_step.into(),
             EncoderSection::RemoteSync(_) => self.remote_sync.into(),
             EncoderSection::Accelleration(_) => self.accelleration.into(),
@@ -130,7 +130,7 @@ enum EncoderSectionId {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum EncoderSection {
     Enabled(bool),
-    InvertState(bool),
+    Inverted(bool),
     MessageType(EncoderMessageType),
     MidiIdLSB(u16),
     Channel(ChannelOrAll),

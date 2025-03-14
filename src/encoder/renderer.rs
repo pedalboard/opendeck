@@ -14,7 +14,7 @@ impl From<EncoderSection> for Section {
                 id: EncoderSectionId::RemoteSync.into(),
                 value: value as u16,
             },
-            EncoderSection::InvertState(value) => Section {
+            EncoderSection::Inverted(value) => Section {
                 id: EncoderSectionId::InvertState.into(),
                 value: value as u16,
             },

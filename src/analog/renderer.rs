@@ -10,7 +10,7 @@ impl From<AnalogSection> for Section {
                 id: AnalogSectionId::Enabled.into(),
                 value: value as u16,
             },
-            AnalogSection::Invert(value) => Section {
+            AnalogSection::Inverted(value) => Section {
                 id: AnalogSectionId::InvertState.into(),
                 value: value as u16,
             },

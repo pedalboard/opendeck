@@ -9,7 +9,7 @@ impl TryFrom<Section> for EncoderSection {
     fn try_from(x: Section) -> Result<Self, Self::Error> {
         if let Ok(id) = EncoderSectionId::try_from(x.id) {
             match id {
-                EncoderSectionId::InvertState => Ok(EncoderSection::InvertState(x.value > 0)),
+                EncoderSectionId::InvertState => Ok(EncoderSection::Inverted(x.value > 0)),
                 EncoderSectionId::RemoteSync => Ok(EncoderSection::RemoteSync(x.value > 0)),
                 EncoderSectionId::Enabled => Ok(EncoderSection::Enabled(x.value > 0)),
                 EncoderSectionId::MessageType => EncoderMessageType::try_from(x.value)

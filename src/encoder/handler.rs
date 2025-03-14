@@ -101,7 +101,7 @@ mod tests {
         let mut buf = [0x00u8; 8];
         let mut encoder = Encoder {
             enabled: false,
-            invert_state: false,
+            inverted: false,
             upper_limit: 99,
             lower_limit: 0,
             message_type: EncoderMessageType::ControlChange,
@@ -123,7 +123,7 @@ mod tests {
         let mut buf = [0x00u8; 8];
         let mut encoder = Encoder {
             enabled: true,
-            invert_state: false,
+            inverted: false,
             upper_limit: 99,
             lower_limit: 0,
             message_type: EncoderMessageType::ControlChange,
