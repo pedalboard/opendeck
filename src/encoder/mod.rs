@@ -36,7 +36,7 @@ impl Encoder {
             inverted: false,
             message_type: EncoderMessageType::default(),
             channel: ChannelOrAll::default(),
-            pulses_per_step: 2,
+            pulses_per_step: 4,
             midi_id,
             accelleration: Accelleration::None,
             remote_sync: false,
