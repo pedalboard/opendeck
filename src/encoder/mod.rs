@@ -75,6 +75,12 @@ impl Encoder {
     }
 }
 
+impl Default for Encoder {
+    fn default() -> Self {
+        Encoder::new(0)
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, IntEnum, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[repr(u16)]

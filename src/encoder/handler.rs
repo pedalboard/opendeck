@@ -89,8 +89,14 @@ impl Encoder {
                 self.value += 1;
             }
             EncoderPulse::CounterClockwise => {
-                self.value += 1;
+                self.value -= 1;
             }
+        }
+        if self.value > self.upper_limit {
+            self.value = self.upper_limit;
+        }
+        if self.value < self.lower_limit {
+            self.value = self.lower_limit;
         }
     }
 }
@@ -147,5 +153,28 @@ mod tests {
         let m = it.next(&mut buf).unwrap().unwrap();
         assert_eq!(m.data(), [0xB1, 0x03, 0x02]);
         assert_eq!(Ok(None), it.next(&mut buf));
+    }
+    #[test]
+    fn test_increment() {
+        let mut encoder = Encoder {
+            value: 0,
+            lower_limit: 2,
+            upper_limit: 4,
+            ..Encoder::default()
+        };
+        encoder.increment(&EncoderPulse::Clockwise);
+        assert_eq!(2, encoder.value);
+        encoder.increment(&EncoderPulse::Clockwise);
+        assert_eq!(3, encoder.value);
+        encoder.increment(&EncoderPulse::Clockwise);
+        assert_eq!(4, encoder.value);
+        encoder.increment(&EncoderPulse::Clockwise);
+        assert_eq!(4, encoder.value);
+        encoder.increment(&EncoderPulse::CounterClockwise);
+        assert_eq!(3, encoder.value);
+        encoder.increment(&EncoderPulse::CounterClockwise);
+        assert_eq!(2, encoder.value);
+        encoder.increment(&EncoderPulse::CounterClockwise);
+        assert_eq!(2, encoder.value);
     }
 }
