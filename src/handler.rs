@@ -5,8 +5,6 @@ use crate::ChannelOrAll;
 use midi2::ux::u4;
 use midi2::{error::BufferOverflow, BytesMessage};
 
-// FIXME move this to top level
-
 pub enum Messages<'a> {
     Button(ButtonMessages<'a>),
     Analog(AnalogMessages<'a>),

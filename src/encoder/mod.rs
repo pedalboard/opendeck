@@ -20,12 +20,19 @@ pub struct Encoder {
     lower_limit: u16,
     value: u16,
     second_midi_id: u16,
+    state: EncoderState,
+}
+
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+struct EncoderState {
+    pulse_count: u8,
 }
 
 impl Encoder {
     pub fn new(midi_id: u16) -> Self {
         Encoder {
-            enabled: true,
+            enabled: false,
             inverted: false,
             message_type: EncoderMessageType::default(),
             channel: ChannelOrAll::default(),
@@ -34,9 +41,10 @@ impl Encoder {
             accelleration: Accelleration::None,
             remote_sync: false,
             lower_limit: u16::MIN,
-            upper_limit: u16::MIN,
+            upper_limit: 0x7F,
             second_midi_id: u16::MIN,
             value: u16::MIN,
+            state: EncoderState::default(),
         }
     }
     pub fn set(&mut self, section: &EncoderSection) {

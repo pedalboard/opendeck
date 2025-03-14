@@ -118,7 +118,6 @@ impl EncoderPulse {
 mod tests {
 
     use super::*;
-    use crate::encoder::Accelleration;
     use crate::ChannelOrAll;
 
     #[test]
@@ -150,18 +149,7 @@ mod tests {
         let mut buf = [0x00u8; 8];
         let mut encoder = Encoder {
             enabled: false,
-            inverted: false,
-            upper_limit: 99,
-            lower_limit: 0,
-            message_type: EncoderMessageType::ControlChange,
-            midi_id: 0x03,
-            second_midi_id: 0x00,
-            pulses_per_step: 4,
-            remote_sync: false,
-            value: 0,
-            accelleration: Accelleration::None,
-
-            channel: ChannelOrAll::default(),
+            ..Encoder::default()
         };
         let mut it = encoder.handle(EncoderPulse::Clockwise);
 
@@ -172,18 +160,11 @@ mod tests {
         let mut buf = [0x00u8; 8];
         let mut encoder = Encoder {
             enabled: true,
-            inverted: false,
-            upper_limit: 99,
-            lower_limit: 0,
             message_type: EncoderMessageType::ControlChange,
-            midi_id: 0x03,
-            second_midi_id: 0x00,
-            pulses_per_step: 1,
-            remote_sync: false,
             value: 1,
-            accelleration: Accelleration::None,
-
+            midi_id: 0x03,
             channel: ChannelOrAll::Channel(1),
+            ..Encoder::default()
         };
         let mut it = encoder.handle(EncoderPulse::Clockwise);
 
@@ -197,17 +178,11 @@ mod tests {
         let mut encoder = Encoder {
             enabled: true,
             inverted: true,
-            upper_limit: 99,
-            lower_limit: 0,
             message_type: EncoderMessageType::ControlChange,
-            midi_id: 0x03,
-            second_midi_id: 0x00,
-            pulses_per_step: 1,
-            remote_sync: false,
             value: 1,
-            accelleration: Accelleration::None,
-
+            midi_id: 0x03,
             channel: ChannelOrAll::Channel(1),
+            ..Encoder::default()
         };
         let mut it = encoder.handle(EncoderPulse::Clockwise);
 
