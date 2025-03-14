@@ -81,7 +81,11 @@ impl<'a> EncoderMessages<'a> {
 
 impl Encoder {
     pub fn handle(&mut self, p: EncoderPulse) -> EncoderMessages<'_> {
-        EncoderMessages::new(self, p)
+        if self.inverted {
+            EncoderMessages::new(self, p.invert())
+        } else {
+            EncoderMessages::new(self, p)
+        }
     }
     fn increment(&mut self, p: &EncoderPulse) {
         match p {
@@ -101,12 +105,45 @@ impl Encoder {
     }
 }
 
+impl EncoderPulse {
+    fn invert(self) -> EncoderPulse {
+        match self {
+            EncoderPulse::Clockwise => EncoderPulse::CounterClockwise,
+            EncoderPulse::CounterClockwise => EncoderPulse::Clockwise,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
     use super::*;
     use crate::encoder::Accelleration;
     use crate::ChannelOrAll;
+
+    #[test]
+    fn test_increment() {
+        let mut encoder = Encoder {
+            value: 0,
+            lower_limit: 2,
+            upper_limit: 4,
+            ..Encoder::default()
+        };
+        encoder.increment(&EncoderPulse::Clockwise);
+        assert_eq!(2, encoder.value);
+        encoder.increment(&EncoderPulse::Clockwise);
+        assert_eq!(3, encoder.value);
+        encoder.increment(&EncoderPulse::Clockwise);
+        assert_eq!(4, encoder.value);
+        encoder.increment(&EncoderPulse::Clockwise);
+        assert_eq!(4, encoder.value);
+        encoder.increment(&EncoderPulse::CounterClockwise);
+        assert_eq!(3, encoder.value);
+        encoder.increment(&EncoderPulse::CounterClockwise);
+        assert_eq!(2, encoder.value);
+        encoder.increment(&EncoderPulse::CounterClockwise);
+        assert_eq!(2, encoder.value);
+    }
 
     #[test]
     fn test_disable() {
@@ -155,26 +192,27 @@ mod tests {
         assert_eq!(Ok(None), it.next(&mut buf));
     }
     #[test]
-    fn test_increment() {
+    fn test_cc_7bit_inverted() {
+        let mut buf = [0x00u8; 8];
         let mut encoder = Encoder {
-            value: 0,
-            lower_limit: 2,
-            upper_limit: 4,
-            ..Encoder::default()
+            enabled: true,
+            inverted: true,
+            upper_limit: 99,
+            lower_limit: 0,
+            message_type: EncoderMessageType::ControlChange,
+            midi_id: 0x03,
+            second_midi_id: 0x00,
+            pulses_per_step: 1,
+            remote_sync: false,
+            value: 1,
+            accelleration: Accelleration::None,
+
+            channel: ChannelOrAll::Channel(1),
         };
-        encoder.increment(&EncoderPulse::Clockwise);
-        assert_eq!(2, encoder.value);
-        encoder.increment(&EncoderPulse::Clockwise);
-        assert_eq!(3, encoder.value);
-        encoder.increment(&EncoderPulse::Clockwise);
-        assert_eq!(4, encoder.value);
-        encoder.increment(&EncoderPulse::Clockwise);
-        assert_eq!(4, encoder.value);
-        encoder.increment(&EncoderPulse::CounterClockwise);
-        assert_eq!(3, encoder.value);
-        encoder.increment(&EncoderPulse::CounterClockwise);
-        assert_eq!(2, encoder.value);
-        encoder.increment(&EncoderPulse::CounterClockwise);
-        assert_eq!(2, encoder.value);
+        let mut it = encoder.handle(EncoderPulse::Clockwise);
+
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB1, 0x03, 0x00]);
+        assert_eq!(Ok(None), it.next(&mut buf));
     }
 }
