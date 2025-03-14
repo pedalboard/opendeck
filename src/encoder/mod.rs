@@ -87,7 +87,7 @@ pub enum EncoderMessageType {
     PresetChange = 0x4,
     PitchBend = 0x5,
     NRPN7 = 0x6,
-    NRPN8 = 0x7,
+    NRPN14 = 0x7,
     ControlChange14bit = 0x8,
     ControlChange41h01h = 0x9,
     BPM = 0xA,

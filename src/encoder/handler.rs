@@ -34,7 +34,7 @@ impl<'a> EncoderMessages<'a> {
             EncoderMessageType::PitchBend => 1,
             EncoderMessageType::ProgramChange => 1,
             EncoderMessageType::NRPN7 => 1,
-            EncoderMessageType::NRPN8 => 2,
+            EncoderMessageType::NRPN14 => 2,
             EncoderMessageType::PresetChange => 0,
             EncoderMessageType::BPM => 1,
         };
@@ -77,7 +77,7 @@ impl<'a> EncoderMessages<'a> {
             EncoderMessageType::PitchBend => Ok(None),
             EncoderMessageType::ProgramChange => Ok(None),
             EncoderMessageType::NRPN7 => Ok(None),
-            EncoderMessageType::NRPN8 => Ok(None),
+            EncoderMessageType::NRPN14 => Ok(None),
             EncoderMessageType::PresetChange => Ok(None),
             EncoderMessageType::BPM => Ok(None),
         }
