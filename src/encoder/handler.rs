@@ -64,7 +64,6 @@ impl<'a> EncoderMessages<'a> {
                 m.set_control_data(u7::new(self.encoder.value as u8));
                 Ok(Some(m.into()))
             }
-            EncoderMessageType::ControlChange14bit => Ok(None),
             EncoderMessageType::ControlChange7Fh01h => {
                 let value = match self.pulse {
                     EncoderPulse::Clockwise => 0x01,
@@ -98,6 +97,7 @@ impl<'a> EncoderMessages<'a> {
                 m.set_control_data(u7::new(value));
                 Ok(Some(m.into()))
             }
+            EncoderMessageType::ControlChange14bit => Ok(None),
             EncoderMessageType::SingleNoteWithVariableValue => Ok(None),
             EncoderMessageType::SingleNoteWithFixedValueBothDirections => Ok(None),
             EncoderMessageType::SingleNoteWithFixedValueOneDirection0OtherDirection => Ok(None),

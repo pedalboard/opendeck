@@ -1,5 +1,6 @@
 use crate::analog::handler::AnalogMessages;
 use crate::button::handler::ButtonMessages;
+use crate::encoder::handler::EncoderMessages;
 
 use crate::ChannelOrAll;
 use midi2::ux::u4;
@@ -8,6 +9,7 @@ use midi2::{error::BufferOverflow, BytesMessage};
 pub enum Messages<'a> {
     Button(ButtonMessages<'a>),
     Analog(AnalogMessages<'a>),
+    Encoder(EncoderMessages<'a>),
     None,
 }
 
@@ -19,6 +21,7 @@ impl Messages<'_> {
         match self {
             Messages::Button(m) => m.next(buffer),
             Messages::Analog(m) => m.next(buffer),
+            Messages::Encoder(m) => m.next(buffer),
             Messages::None => Ok(None),
         }
     }
