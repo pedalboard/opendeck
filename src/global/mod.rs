@@ -68,7 +68,7 @@ impl GlobalMidi {
             MidiIndex::BLEtoDINthru => self.ble_to_din_thru = *value > 0,
             MidiIndex::BLEtoUSBthru => self.ble_to_usb_thru = *value > 0,
             MidiIndex::BLEtoBLEthru => self.ble_to_ble_thru = *value > 0,
-            MidiIndex::UseglobalMIDIchannel => self.use_global_midi_channel = *value > 0,
+            MidiIndex::UseGlobalMIDIchannel => self.use_global_midi_channel = *value > 0,
             MidiIndex::SendMIDIclock => self.send_midi_clock = *value > 0,
             MidiIndex::GlobalMIDIchannel => {
                 self.global_midi_channel = ChannelOrAll::from(*value);
@@ -90,7 +90,7 @@ impl GlobalMidi {
             MidiIndex::BLEtoDINthru => self.ble_to_din_thru.into(),
             MidiIndex::BLEtoUSBthru => self.ble_to_usb_thru.into(),
             MidiIndex::BLEtoBLEthru => self.ble_to_ble_thru.into(),
-            MidiIndex::UseglobalMIDIchannel => self.use_global_midi_channel.into(),
+            MidiIndex::UseGlobalMIDIchannel => self.use_global_midi_channel.into(),
             MidiIndex::SendMIDIclock => self.send_midi_clock.into(),
             MidiIndex::GlobalMIDIchannel => self.global_midi_channel.into(),
         }
@@ -132,7 +132,7 @@ pub enum MidiIndex {
     BLEtoDINthru = 0xA,
     BLEtoUSBthru = 0xB,
     BLEtoBLEthru = 0xC,
-    UseglobalMIDIchannel = 0xD,
+    UseGlobalMIDIchannel = 0xD,
     GlobalMIDIchannel = 0xE,
     SendMIDIclock = 0xF,
 }
