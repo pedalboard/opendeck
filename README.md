@@ -13,6 +13,7 @@ The implementation is not yet complete. The following features are missing:
 * handlers with effect on global settings
   * BPM
   * Preset Change
+* configurable ADC max
 
 ## configuration improvements
 

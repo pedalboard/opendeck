@@ -1,8 +1,9 @@
 use crate::{
     analog::Analog,
-    button::Button,
-    encoder::Encoder,
+    button::{handler::Action, Button},
+    encoder::{handler::EncoderPulse, Encoder},
     global::{GlobalMidi, GlobalPreset, GlobalSection},
+    handler::Messages,
     led::Led,
     parser::{OpenDeckParseError, OpenDeckParser},
     renderer::{Buffer, OpenDeckRenderer},
@@ -63,25 +64,25 @@ impl<const B: usize, const A: usize, const E: usize, const L: usize> Default
 }
 
 impl<const B: usize, const A: usize, const E: usize, const L: usize> Preset<B, E, A, L> {
-    pub fn button_mut(&mut self, index: &u16) -> Option<&mut Button> {
+    fn button_mut(&mut self, index: &u16) -> Option<&mut Button> {
         self.buttons.get_mut(*index as usize)
     }
     fn button(&mut self, index: &u16) -> Option<&Button> {
         self.buttons.get(*index as usize)
     }
-    pub fn encoder_mut(&mut self, index: &u16) -> Option<&mut Encoder> {
+    fn encoder_mut(&mut self, index: &u16) -> Option<&mut Encoder> {
         self.encoders.get_mut(*index as usize)
     }
     fn encoder(&mut self, index: &u16) -> Option<&Encoder> {
         self.encoders.get(*index as usize)
     }
-    pub fn analog_mut(&mut self, index: &u16) -> Option<&mut Analog> {
+    fn analog_mut(&mut self, index: &u16) -> Option<&mut Analog> {
         self.analogs.get_mut(*index as usize)
     }
     fn analog(&mut self, index: &u16) -> Option<&Analog> {
         self.analogs.get(*index as usize)
     }
-    pub fn led_mut(&mut self, index: &u16) -> Option<&mut Led> {
+    fn led_mut(&mut self, index: &u16) -> Option<&mut Led> {
         self.leds.get_mut(*index as usize)
     }
     fn led(&mut self, index: &u16) -> Option<&Led> {
@@ -348,7 +349,32 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
         (res_values, for_amount)
     }
 
-    pub fn current_preset_mut(&mut self) -> Option<&mut Preset<B, A, E, L>> {
+    fn current_preset_mut(&mut self) -> Option<&mut Preset<B, A, E, L>> {
         self.presets.get_mut(self.global.preset.current)
+    }
+
+    pub fn handle_button(&mut self, index: usize, action: Action) -> Messages {
+        if let Some(preset) = self.current_preset_mut() {
+            if let Some(button) = preset.button_mut(&(index as u16)) {
+                return Messages::Button(button.handle(action));
+            }
+        }
+        Messages::None
+    }
+    pub fn handle_analog(&mut self, index: usize, value: u16) -> Messages {
+        if let Some(preset) = self.current_preset_mut() {
+            if let Some(analog) = preset.analog_mut(&(index as u16)) {
+                return Messages::Analog(analog.handle(value));
+            }
+        }
+        Messages::None
+    }
+    pub fn handle_encoder(&mut self, index: usize, pulse: EncoderPulse) -> Messages {
+        if let Some(preset) = self.current_preset_mut() {
+            if let Some(encoder) = preset.encoder_mut(&(index as u16)) {
+                return Messages::Encoder(encoder.handle(pulse));
+            }
+        }
+        Messages::None
     }
 }
