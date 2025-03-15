@@ -22,13 +22,13 @@ pub struct Analog {
 impl Analog {
     pub fn new(midi_id: u16) -> Self {
         Analog {
-            enabled: true,
+            enabled: false,
             inverted: false,
             message_type: AnalogMessageType::default(),
             channel: ChannelOrAll::default(),
             midi_id,
             lower_limit: u16::MIN,
-            upper_limit: u16::MIN,
+            upper_limit: 0x7F,
             lower_adc_offset: 0,
             upper_adc_offset: 0,
         }
