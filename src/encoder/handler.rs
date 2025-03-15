@@ -48,6 +48,9 @@ impl<'a> EncoderMessages<'a> {
         if !self.encoder.enabled {
             return Ok(None);
         }
+        if !self.encoder.pulse_count_reached() {
+            return Ok(None);
+        }
         let (channel, _index) = match self.channel_messages.next() {
             Some((channel, index)) => (channel, index),
             None => return Ok(None),
@@ -88,11 +91,6 @@ impl Encoder {
         }
     }
     fn increment(&mut self, p: &EncoderPulse) {
-        self.state.pulse_count += 1;
-        if self.state.pulse_count < self.pulses_per_step {
-            return;
-        }
-        self.state.pulse_count = 0;
         match p {
             EncoderPulse::Clockwise => {
                 self.value += 1;
@@ -107,6 +105,14 @@ impl Encoder {
         if self.value < self.lower_limit {
             self.value = self.lower_limit;
         }
+    }
+    fn pulse_count_reached(&mut self) -> bool {
+        self.state.pulse_count += 1;
+        if self.state.pulse_count < self.pulses_per_step {
+            return false;
+        }
+        self.state.pulse_count = 0;
+        true
     }
 }
 
@@ -153,17 +159,13 @@ mod tests {
     fn test_pulses_per_count() {
         let mut encoder = Encoder {
             value: 0,
-            pulses_per_step: 2,
+            pulses_per_step: 4,
             ..Encoder::default()
         };
-        encoder.increment(&EncoderPulse::Clockwise);
-        assert_eq!(0, encoder.value);
-        encoder.increment(&EncoderPulse::Clockwise);
-        assert_eq!(1, encoder.value);
-        encoder.increment(&EncoderPulse::Clockwise);
-        assert_eq!(1, encoder.value);
-        encoder.increment(&EncoderPulse::Clockwise);
-        assert_eq!(2, encoder.value);
+        assert!(!encoder.pulse_count_reached());
+        assert!(!encoder.pulse_count_reached());
+        assert!(!encoder.pulse_count_reached());
+        assert!(encoder.pulse_count_reached());
     }
 
     #[test]
@@ -210,6 +212,27 @@ mod tests {
         };
         let mut it = encoder.handle(EncoderPulse::Clockwise);
 
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB1, 0x03, 0x00]);
+        assert_eq!(Ok(None), it.next(&mut buf));
+    }
+    #[test]
+    fn test_cc_7bit_more_pulses_needed() {
+        let mut buf = [0x00u8; 8];
+        let mut encoder = Encoder {
+            enabled: true,
+            inverted: true,
+            message_type: EncoderMessageType::ControlChange,
+            value: 1,
+            midi_id: 0x03,
+            pulses_per_step: 2,
+            channel: ChannelOrAll::Channel(1),
+            ..Encoder::default()
+        };
+        let mut it = encoder.handle(EncoderPulse::Clockwise);
+        assert_eq!(Ok(None), it.next(&mut buf));
+
+        let mut it = encoder.handle(EncoderPulse::Clockwise);
         let m = it.next(&mut buf).unwrap().unwrap();
         assert_eq!(m.data(), [0xB1, 0x03, 0x00]);
         assert_eq!(Ok(None), it.next(&mut buf));
