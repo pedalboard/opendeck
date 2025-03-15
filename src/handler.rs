@@ -92,7 +92,7 @@ impl Iterator for ChannelMessages {
     }
 }
 
-pub struct HiRes(u16);
+pub struct HiRes(pub u16);
 
 impl HiRes {
     pub fn new(value: u16) -> Self {
@@ -103,6 +103,13 @@ impl HiRes {
     }
     pub fn lsb(self) -> u7 {
         u7::new((self.0 & 0x7F) as u8)
+    }
+    pub fn control_change(self, index: usize, control: u16) -> (u7, u7) {
+        if index == 0 {
+            (self.msb(), u7::new(control as u8))
+        } else {
+            (self.lsb(), u7::new((control + 32) as u8))
+        }
     }
 }
 

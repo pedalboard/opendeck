@@ -61,14 +61,10 @@ impl<'a> AnalogMessages<'a> {
                 Ok(Some(m.into()))
             }
             AnalogMessageType::PotentiometerWithCCMessage14Bit => {
-                let (value, id) = if index == 0 {
-                    (HiRes::new(self.value).msb(), self.analog.midi_id)
-                } else {
-                    (HiRes::new(self.value).lsb(), self.analog.midi_id + 32)
-                };
+                let (value, id) = HiRes::new(self.value).control_change(index, self.analog.midi_id);
                 let mut m = ControlChange::try_new_with_buffer(buffer)?;
                 m.set_channel(channel);
-                m.set_control(u7::new(id as u8));
+                m.set_control(id);
                 m.set_control_data(value);
                 Ok(Some(m.into()))
             }
@@ -91,13 +87,13 @@ impl<'a> AnalogMessages<'a> {
 
                 if index == 0 {
                     m.set_control(u7::new(NRPN_LSB));
-                    m.set_control_data(u7::new((self.analog.midi_id & 0x7F) as u8));
+                    m.set_control_data(HiRes::new(self.analog.midi_id).lsb());
                 } else if index == 1 {
                     m.set_control(u7::new(NRPN_MSB));
-                    m.set_control_data(u7::new((self.analog.midi_id >> 7) as u8));
+                    m.set_control_data(HiRes::new(self.analog.midi_id).msb());
                 } else if index == 2 {
                     m.set_control(u7::new(NRPN_DATA_LSB));
-                    m.set_control_data(u7::new(self.value as u8));
+                    m.set_control_data(HiRes::new(self.value).lsb());
                 }
                 Ok(Some(m.into()))
             }
@@ -107,10 +103,10 @@ impl<'a> AnalogMessages<'a> {
 
                 if index == 0 {
                     m.set_control(u7::new(NRPN_LSB));
-                    m.set_control_data(u7::new((self.analog.midi_id & 0x7F) as u8));
+                    m.set_control_data(HiRes::new(self.analog.midi_id).lsb());
                 } else if index == 1 {
                     m.set_control(u7::new(NRPN_MSB));
-                    m.set_control_data(u7::new((self.analog.midi_id >> 7) as u8));
+                    m.set_control_data(HiRes::new(self.analog.midi_id).msb());
                 } else if index == 2 {
                     m.set_control(u7::new(NRPN_DATA_LSB));
                     m.set_control_data(HiRes::new(self.value).lsb());

@@ -1,5 +1,5 @@
 use crate::encoder::{Encoder, EncoderMessageType};
-use crate::handler::ChannelMessages;
+use crate::handler::{ChannelMessages, HiRes};
 
 use midi2::{channel_voice1::ControlChange, error::BufferOverflow, prelude::*, BytesMessage};
 
@@ -51,7 +51,7 @@ impl<'a> EncoderMessages<'a> {
         if !self.encoder.pulse_count_reached() {
             return Ok(None);
         }
-        let (channel, _index) = match self.channel_messages.next() {
+        let (channel, index) = match self.channel_messages.next() {
             Some((channel, index)) => (channel, index),
             None => return Ok(None),
         };
@@ -62,6 +62,18 @@ impl<'a> EncoderMessages<'a> {
                 m.set_channel(channel);
                 m.set_control(u7::new(self.encoder.midi_id as u8));
                 m.set_control_data(u7::new(self.encoder.value as u8));
+                Ok(Some(m.into()))
+            }
+            EncoderMessageType::ControlChange14bit => {
+                if index == 0 {
+                    self.encoder.increment(&self.pulse);
+                }
+                let (value, id) =
+                    HiRes::new(self.encoder.value).control_change(index, self.encoder.midi_id);
+                let mut m = ControlChange::try_new_with_buffer(buffer)?;
+                m.set_channel(channel);
+                m.set_control(id);
+                m.set_control_data(value);
                 Ok(Some(m.into()))
             }
             EncoderMessageType::ControlChange7Fh01h => {
@@ -97,15 +109,14 @@ impl<'a> EncoderMessages<'a> {
                 m.set_control_data(u7::new(value));
                 Ok(Some(m.into()))
             }
-            EncoderMessageType::ControlChange14bit => Ok(None),
-            EncoderMessageType::SingleNoteWithVariableValue => Ok(None),
-            EncoderMessageType::SingleNoteWithFixedValueBothDirections => Ok(None),
-            EncoderMessageType::SingleNoteWithFixedValueOneDirection0OtherDirection => Ok(None),
-            EncoderMessageType::TwoNoteWithFixedValueBothDirections => Ok(None),
             EncoderMessageType::PitchBend => Ok(None),
             EncoderMessageType::ProgramChange => Ok(None),
             EncoderMessageType::NRPN7 => Ok(None),
             EncoderMessageType::NRPN14 => Ok(None),
+            EncoderMessageType::SingleNoteWithVariableValue => Ok(None),
+            EncoderMessageType::SingleNoteWithFixedValueBothDirections => Ok(None),
+            EncoderMessageType::SingleNoteWithFixedValueOneDirection0OtherDirection => Ok(None),
+            EncoderMessageType::TwoNoteWithFixedValueBothDirections => Ok(None),
             EncoderMessageType::PresetChange => Ok(None),
             EncoderMessageType::BPM => Ok(None),
         }
@@ -265,6 +276,27 @@ mod tests {
         let mut it = encoder.handle(EncoderPulse::Clockwise);
         let m = it.next(&mut buf).unwrap().unwrap();
         assert_eq!(m.data(), [0xB1, 0x03, 0x00]);
+        assert_eq!(Ok(None), it.next(&mut buf));
+    }
+    #[test]
+    fn test_cc_14bit() {
+        let mut buf = [0x00u8; 8];
+        let mut encoder = Encoder {
+            enabled: true,
+            message_type: EncoderMessageType::ControlChange14bit,
+            value: 999,
+            upper_limit: 0x3FFF,
+            pulses_per_step: 1,
+            midi_id: 0x03,
+            channel: ChannelOrAll::Channel(1),
+            ..Encoder::default()
+        };
+        let mut it = encoder.handle(EncoderPulse::Clockwise);
+
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB1, 0x03, 7]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB1, 0x23, 104]);
         assert_eq!(Ok(None), it.next(&mut buf));
     }
     #[test]
