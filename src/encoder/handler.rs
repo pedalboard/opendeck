@@ -1,6 +1,7 @@
 use crate::encoder::{Encoder, EncoderMessageType};
 use crate::handler::{ChannelMessages, HiRes};
 
+use channel_voice1::ProgramChange;
 use midi2::{
     channel_voice1::{ControlChange, PitchBend},
     error::BufferOverflow,
@@ -121,7 +122,13 @@ impl<'a> EncoderMessages<'a> {
                 m.set_bend(u14::new(self.encoder.value));
                 Ok(Some(m.into()))
             }
-            EncoderMessageType::ProgramChange => Ok(None),
+            EncoderMessageType::ProgramChange => {
+                self.encoder.increment(&self.pulse);
+                let mut m = ProgramChange::try_new_with_buffer(buffer)?;
+                m.set_channel(channel);
+                m.set_program(u7::new(self.encoder.value as u8));
+                Ok(Some(m.into()))
+            }
             EncoderMessageType::NRPN7 => Ok(None),
             EncoderMessageType::NRPN14 => Ok(None),
             EncoderMessageType::SingleNoteWithVariableValue => Ok(None),
@@ -398,6 +405,23 @@ mod tests {
 
         let m = it.next(&mut buf).unwrap().unwrap();
         assert_eq!(m.data(), [0xE0, 104, 7]);
+        assert_eq!(Ok(None), it.next(&mut buf));
+    }
+    #[test]
+    fn test_program_change() {
+        let mut buf = [0x00u8; 8];
+        let mut encoder = Encoder {
+            enabled: true,
+            message_type: EncoderMessageType::ProgramChange,
+            value: 9,
+            pulses_per_step: 1,
+            midi_id: 0x03,
+            ..Encoder::default()
+        };
+        let mut it = encoder.handle(EncoderPulse::Clockwise);
+
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xC0, 10]);
         assert_eq!(Ok(None), it.next(&mut buf));
     }
 }
