@@ -3,7 +3,7 @@ use crate::button::handler::ButtonMessages;
 use crate::encoder::handler::EncoderMessages;
 
 use crate::ChannelOrAll;
-use midi2::ux::u4;
+use midi2::ux::{u4, u7};
 use midi2::{error::BufferOverflow, BytesMessage};
 
 pub enum Messages<'a> {
@@ -92,6 +92,20 @@ impl Iterator for ChannelMessages {
     }
 }
 
+pub struct HiRes(u16);
+
+impl HiRes {
+    pub fn new(value: u16) -> Self {
+        HiRes(value)
+    }
+    pub fn msb(self) -> u7 {
+        u7::new(((self.0 >> 7) & 0x7f) as u8)
+    }
+    pub fn lsb(self) -> u7 {
+        u7::new((self.0 & 0x7F) as u8)
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -149,5 +163,16 @@ mod tests {
             expected.push((u4::new(0), j)).unwrap();
         }
         assert_eq!(all, expected);
+    }
+    #[test]
+    fn test_msb() {
+        let value = HiRes(0b1110_1111_0101_0101);
+        assert_eq!(value.msb(), u7::new(0b0101_1110));
+    }
+
+    #[test]
+    fn test_lsb() {
+        let value = HiRes(0b1010_1010_1010_1010);
+        assert_eq!(value.lsb(), u7::new(0b0010_1010));
     }
 }

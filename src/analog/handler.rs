@@ -1,5 +1,5 @@
 use crate::analog::{Analog, AnalogMessageType};
-use crate::handler::ChannelMessages;
+use crate::handler::{ChannelMessages, HiRes};
 
 const MAX_ADC_VALUE: u16 = 4095; // (2 ^ 12) - 1
 const NRPN_MSB: u8 = 0x63;
@@ -62,14 +62,14 @@ impl<'a> AnalogMessages<'a> {
             }
             AnalogMessageType::PotentiometerWithCCMessage14Bit => {
                 let (value, id) = if index == 0 {
-                    (self.value >> 7, self.analog.midi_id)
+                    (HiRes::new(self.value).msb(), self.analog.midi_id)
                 } else {
-                    (self.value & 0x7F, self.analog.midi_id + 32)
+                    (HiRes::new(self.value).lsb(), self.analog.midi_id + 32)
                 };
                 let mut m = ControlChange::try_new_with_buffer(buffer)?;
                 m.set_channel(channel);
                 m.set_control(u7::new(id as u8));
-                m.set_control_data(u7::new(value as u8));
+                m.set_control_data(value);
                 Ok(Some(m.into()))
             }
             AnalogMessageType::PitchBend => {
@@ -113,11 +113,12 @@ impl<'a> AnalogMessages<'a> {
                     m.set_control_data(u7::new((self.analog.midi_id >> 7) as u8));
                 } else if index == 2 {
                     m.set_control(u7::new(NRPN_DATA_LSB));
-                    m.set_control_data(u7::new((self.value & 0x7F) as u8));
+                    m.set_control_data(HiRes::new(self.value).lsb());
                 } else if index == 3 {
                     m.set_control(u7::new(NRPN_DATA_MSB));
-                    m.set_control_data(u7::new((self.value >> 7) as u8));
+                    m.set_control_data(HiRes::new(self.value).msb());
                 }
+
                 Ok(Some(m.into()))
             }
         }
