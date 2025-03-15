@@ -76,8 +76,28 @@ impl<'a> EncoderMessages<'a> {
                 m.set_control_data(u7::new(value));
                 Ok(Some(m.into()))
             }
-            EncoderMessageType::ControlChange3Fh41h => Ok(None),
-            EncoderMessageType::ControlChange41h01h => Ok(None),
+            EncoderMessageType::ControlChange3Fh41h => {
+                let value = match self.pulse {
+                    EncoderPulse::Clockwise => 0x3F,
+                    EncoderPulse::CounterClockwise => 0x41,
+                };
+                let mut m = ControlChange::try_new_with_buffer(buffer)?;
+                m.set_channel(channel);
+                m.set_control(u7::new(self.encoder.midi_id as u8));
+                m.set_control_data(u7::new(value));
+                Ok(Some(m.into()))
+            }
+            EncoderMessageType::ControlChange41h01h => {
+                let value = match self.pulse {
+                    EncoderPulse::Clockwise => 0x41,
+                    EncoderPulse::CounterClockwise => 0x01,
+                };
+                let mut m = ControlChange::try_new_with_buffer(buffer)?;
+                m.set_channel(channel);
+                m.set_control(u7::new(self.encoder.midi_id as u8));
+                m.set_control_data(u7::new(value));
+                Ok(Some(m.into()))
+            }
             EncoderMessageType::SingleNoteWithVariableValue => Ok(None),
             EncoderMessageType::SingleNoteWithFixedValueBothDirections => Ok(None),
             EncoderMessageType::SingleNoteWithFixedValueOneDirection0OtherDirection => Ok(None),
@@ -269,6 +289,54 @@ mod tests {
         let mut it = encoder.handle(EncoderPulse::CounterClockwise);
         let m = it.next(&mut buf).unwrap().unwrap();
         assert_eq!(m.data(), [0xB1, 0x03, 0x7F]);
+        assert_eq!(Ok(None), it.next(&mut buf));
+    }
+    #[test]
+    fn test_control_change_3fh41h() {
+        let mut buf = [0x00u8; 8];
+        let mut encoder = Encoder {
+            enabled: true,
+            message_type: EncoderMessageType::ControlChange3Fh41h,
+            midi_id: 0x03,
+            pulses_per_step: 1,
+            channel: ChannelOrAll::Channel(1),
+            ..Encoder::default()
+        };
+
+        // Test Clockwise pulse
+        let mut it = encoder.handle(EncoderPulse::Clockwise);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB1, 0x03, 0x3F]);
+        assert_eq!(Ok(None), it.next(&mut buf));
+
+        // Test CounterClockwise pulse
+        let mut it = encoder.handle(EncoderPulse::CounterClockwise);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB1, 0x03, 0x41]);
+        assert_eq!(Ok(None), it.next(&mut buf));
+    }
+    #[test]
+    fn test_control_change_41h01h() {
+        let mut buf = [0x00u8; 8];
+        let mut encoder = Encoder {
+            enabled: true,
+            message_type: EncoderMessageType::ControlChange41h01h,
+            midi_id: 0x03,
+            pulses_per_step: 1,
+            channel: ChannelOrAll::Channel(1),
+            ..Encoder::default()
+        };
+
+        // Test Clockwise pulse
+        let mut it = encoder.handle(EncoderPulse::Clockwise);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB1, 0x03, 0x41]);
+        assert_eq!(Ok(None), it.next(&mut buf));
+
+        // Test CounterClockwise pulse
+        let mut it = encoder.handle(EncoderPulse::CounterClockwise);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB1, 0x03, 0x01]);
         assert_eq!(Ok(None), it.next(&mut buf));
     }
 }
