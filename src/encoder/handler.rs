@@ -1,7 +1,12 @@
 use crate::encoder::{Encoder, EncoderMessageType};
 use crate::handler::{ChannelMessages, HiRes};
 
-use midi2::{channel_voice1::ControlChange, error::BufferOverflow, prelude::*, BytesMessage};
+use midi2::{
+    channel_voice1::{ControlChange, PitchBend},
+    error::BufferOverflow,
+    prelude::*,
+    BytesMessage,
+};
 
 pub enum EncoderPulse {
     Clockwise,
@@ -109,7 +114,13 @@ impl<'a> EncoderMessages<'a> {
                 m.set_control_data(u7::new(value));
                 Ok(Some(m.into()))
             }
-            EncoderMessageType::PitchBend => Ok(None),
+            EncoderMessageType::PitchBend => {
+                self.encoder.increment(&self.pulse);
+                let mut m = PitchBend::try_new_with_buffer(buffer)?;
+                m.set_channel(channel);
+                m.set_bend(u14::new(self.encoder.value));
+                Ok(Some(m.into()))
+            }
             EncoderMessageType::ProgramChange => Ok(None),
             EncoderMessageType::NRPN7 => Ok(None),
             EncoderMessageType::NRPN14 => Ok(None),
@@ -369,6 +380,24 @@ mod tests {
         let mut it = encoder.handle(EncoderPulse::CounterClockwise);
         let m = it.next(&mut buf).unwrap().unwrap();
         assert_eq!(m.data(), [0xB1, 0x03, 0x01]);
+        assert_eq!(Ok(None), it.next(&mut buf));
+    }
+    #[test]
+    fn test_pitch_bend() {
+        let mut buf = [0x00u8; 8];
+        let mut encoder = Encoder {
+            enabled: true,
+            message_type: EncoderMessageType::PitchBend,
+            value: 999,
+            upper_limit: 0x3FFF,
+            pulses_per_step: 1,
+            midi_id: 0x03,
+            ..Encoder::default()
+        };
+        let mut it = encoder.handle(EncoderPulse::Clockwise);
+
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xE0, 104, 7]);
         assert_eq!(Ok(None), it.next(&mut buf));
     }
 }
