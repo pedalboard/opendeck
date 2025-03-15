@@ -65,7 +65,17 @@ impl<'a> EncoderMessages<'a> {
                 Ok(Some(m.into()))
             }
             EncoderMessageType::ControlChange14bit => Ok(None),
-            EncoderMessageType::ControlChange7Fh01h => Ok(None),
+            EncoderMessageType::ControlChange7Fh01h => {
+                let value = match self.pulse {
+                    EncoderPulse::Clockwise => 0x01,
+                    EncoderPulse::CounterClockwise => 0x7F,
+                };
+                let mut m = ControlChange::try_new_with_buffer(buffer)?;
+                m.set_channel(channel);
+                m.set_control(u7::new(self.encoder.midi_id as u8));
+                m.set_control_data(u7::new(value));
+                Ok(Some(m.into()))
+            }
             EncoderMessageType::ControlChange3Fh41h => Ok(None),
             EncoderMessageType::ControlChange41h01h => Ok(None),
             EncoderMessageType::SingleNoteWithVariableValue => Ok(None),
@@ -235,6 +245,30 @@ mod tests {
         let mut it = encoder.handle(EncoderPulse::Clockwise);
         let m = it.next(&mut buf).unwrap().unwrap();
         assert_eq!(m.data(), [0xB1, 0x03, 0x00]);
+        assert_eq!(Ok(None), it.next(&mut buf));
+    }
+    #[test]
+    fn test_control_change_7fh01h() {
+        let mut buf = [0x00u8; 8];
+        let mut encoder = Encoder {
+            enabled: true,
+            message_type: EncoderMessageType::ControlChange7Fh01h,
+            midi_id: 0x03,
+            pulses_per_step: 1,
+            channel: ChannelOrAll::Channel(1),
+            ..Encoder::default()
+        };
+
+        // Test Clockwise pulse
+        let mut it = encoder.handle(EncoderPulse::Clockwise);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB1, 0x03, 0x01]);
+        assert_eq!(Ok(None), it.next(&mut buf));
+
+        // Test CounterClockwise pulse
+        let mut it = encoder.handle(EncoderPulse::CounterClockwise);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB1, 0x03, 0x7F]);
         assert_eq!(Ok(None), it.next(&mut buf));
     }
 }
