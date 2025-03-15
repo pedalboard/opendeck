@@ -3,7 +3,7 @@ use crate::handler::{ChannelMessages, HiRes};
 
 use channel_voice1::ProgramChange;
 use midi2::{
-    channel_voice1::{ControlChange, PitchBend},
+    channel_voice1::{ControlChange, NoteOn, PitchBend},
     error::BufferOverflow,
     prelude::*,
     BytesMessage,
@@ -31,7 +31,7 @@ impl<'a> EncoderMessages<'a> {
             EncoderMessageType::SingleNoteWithVariableValue => 1,
             EncoderMessageType::SingleNoteWithFixedValueBothDirections => 1,
             EncoderMessageType::SingleNoteWithFixedValueOneDirection0OtherDirection => 1,
-            EncoderMessageType::TwoNoteWithFixedValueBothDirections => 2,
+            EncoderMessageType::TwoNoteWithFixedValueBothDirections => 1,
             EncoderMessageType::PitchBend => 1,
             EncoderMessageType::ProgramChange => 1,
             EncoderMessageType::NRPN7 => 3,
@@ -142,10 +142,43 @@ impl<'a> EncoderMessages<'a> {
                 m.set_control_data(data);
                 Ok(Some(m.into()))
             }
-            EncoderMessageType::SingleNoteWithVariableValue => Ok(None),
-            EncoderMessageType::SingleNoteWithFixedValueBothDirections => Ok(None),
-            EncoderMessageType::SingleNoteWithFixedValueOneDirection0OtherDirection => Ok(None),
-            EncoderMessageType::TwoNoteWithFixedValueBothDirections => Ok(None),
+            EncoderMessageType::SingleNoteWithVariableValue => {
+                self.encoder.increment(&self.pulse);
+                let mut m = NoteOn::try_new_with_buffer(buffer)?;
+                m.set_channel(channel);
+                m.set_note_number(u7::new(self.encoder.midi_id as u8));
+                m.set_velocity(u7::new(self.encoder.value as u8));
+                Ok(Some(m.into()))
+            }
+            EncoderMessageType::SingleNoteWithFixedValueBothDirections => {
+                let mut m = NoteOn::try_new_with_buffer(buffer)?;
+                m.set_channel(channel);
+                m.set_note_number(u7::new(self.encoder.midi_id as u8));
+                m.set_velocity(u7::new(self.encoder.value as u8));
+                Ok(Some(m.into()))
+            }
+            EncoderMessageType::SingleNoteWithFixedValueOneDirection0OtherDirection => {
+                let note = match self.pulse {
+                    EncoderPulse::Clockwise => self.encoder.midi_id,
+                    EncoderPulse::CounterClockwise => 0,
+                };
+                let mut m = NoteOn::try_new_with_buffer(buffer)?;
+                m.set_channel(channel);
+                m.set_note_number(u7::new(note as u8));
+                m.set_velocity(u7::new(self.encoder.value as u8));
+                Ok(Some(m.into()))
+            }
+            EncoderMessageType::TwoNoteWithFixedValueBothDirections => {
+                let note = match self.pulse {
+                    EncoderPulse::Clockwise => self.encoder.midi_id,
+                    EncoderPulse::CounterClockwise => self.encoder.second_midi_id,
+                };
+                let mut m = NoteOn::try_new_with_buffer(buffer)?;
+                m.set_channel(channel);
+                m.set_note_number(u7::new(note as u8));
+                m.set_velocity(u7::new(self.encoder.value as u8));
+                Ok(Some(m.into()))
+            }
             EncoderMessageType::PresetChange => Ok(None),
             EncoderMessageType::BPM => Ok(None),
         }
@@ -481,6 +514,96 @@ mod tests {
         assert_eq!(m.data(), [0xB1, 38, 104]);
         let m = it.next(&mut buf).unwrap().unwrap();
         assert_eq!(m.data(), [0xB1, 6, 7]);
+        assert_eq!(Ok(None), it.next(&mut buf));
+    }
+    #[test]
+    fn test_single_note_with_variable_value() {
+        let mut buf = [0x00u8; 8];
+        let mut encoder = Encoder {
+            enabled: true,
+            message_type: EncoderMessageType::SingleNoteWithVariableValue,
+            value: 99,
+            midi_id: 60,
+            pulses_per_step: 1,
+            channel: ChannelOrAll::Channel(1),
+            ..Encoder::default()
+        };
+
+        let mut it = encoder.handle(EncoderPulse::Clockwise);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0x91, 60, 100]);
+        assert_eq!(Ok(None), it.next(&mut buf));
+    }
+
+    #[test]
+    fn test_single_note_with_fixed_value_both_directions() {
+        let mut buf = [0x00u8; 8];
+        let mut encoder = Encoder {
+            enabled: true,
+            message_type: EncoderMessageType::SingleNoteWithFixedValueBothDirections,
+            value: 100,
+            midi_id: 60,
+            pulses_per_step: 1,
+            channel: ChannelOrAll::Channel(1),
+            ..Encoder::default()
+        };
+
+        let mut it = encoder.handle(EncoderPulse::Clockwise);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0x91, 60, 100]);
+        assert_eq!(Ok(None), it.next(&mut buf));
+    }
+
+    #[test]
+    fn test_single_note_with_fixed_value_one_direction_0_other_direction() {
+        let mut buf = [0x00u8; 8];
+        let mut encoder = Encoder {
+            enabled: true,
+            message_type: EncoderMessageType::SingleNoteWithFixedValueOneDirection0OtherDirection,
+            value: 100,
+            midi_id: 60,
+            pulses_per_step: 1,
+            channel: ChannelOrAll::Channel(1),
+            ..Encoder::default()
+        };
+
+        // Test clockwise pulse
+        let mut it = encoder.handle(EncoderPulse::Clockwise);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0x91, 60, 100]);
+        assert_eq!(Ok(None), it.next(&mut buf));
+
+        // Test counter-clockwise pulse
+        let mut it = encoder.handle(EncoderPulse::CounterClockwise);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0x91, 0, 100]);
+        assert_eq!(Ok(None), it.next(&mut buf));
+    }
+
+    #[test]
+    fn test_two_note_with_fixed_value_both_directions() {
+        let mut buf = [0x00u8; 8];
+        let mut encoder = Encoder {
+            enabled: true,
+            message_type: EncoderMessageType::TwoNoteWithFixedValueBothDirections,
+            value: 100,
+            midi_id: 60,
+            second_midi_id: 61,
+            pulses_per_step: 1,
+            channel: ChannelOrAll::Channel(1),
+            ..Encoder::default()
+        };
+
+        // Test clockwise pulse
+        let mut it = encoder.handle(EncoderPulse::Clockwise);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0x91, 60, 100]);
+        assert_eq!(Ok(None), it.next(&mut buf));
+
+        // Test counter-clockwise pulse
+        let mut it = encoder.handle(EncoderPulse::CounterClockwise);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0x91, 61, 100]);
         assert_eq!(Ok(None), it.next(&mut buf));
     }
 }
