@@ -34,10 +34,10 @@ impl<'a> EncoderMessages<'a> {
             EncoderMessageType::TwoNoteWithFixedValueBothDirections => 2,
             EncoderMessageType::PitchBend => 1,
             EncoderMessageType::ProgramChange => 1,
-            EncoderMessageType::NRPN7 => 1,
-            EncoderMessageType::NRPN14 => 2,
+            EncoderMessageType::NRPN7 => 3,
+            EncoderMessageType::NRPN14 => 4,
             EncoderMessageType::PresetChange => 0,
-            EncoderMessageType::BPM => 1,
+            EncoderMessageType::BPM => 0,
         };
         let ch = encoder.channel;
         let channel_messages = ChannelMessages::new_with_multiple_messages(ch, nr_of_messages);
@@ -129,8 +129,19 @@ impl<'a> EncoderMessages<'a> {
                 m.set_program(u7::new(self.encoder.value as u8));
                 Ok(Some(m.into()))
             }
-            EncoderMessageType::NRPN7 => Ok(None),
-            EncoderMessageType::NRPN14 => Ok(None),
+            EncoderMessageType::NRPN7 | EncoderMessageType::NRPN14 => {
+                if index == 0 {
+                    self.encoder.increment(&self.pulse);
+                }
+                let (control, data) =
+                    crate::handler::nprn::encode(index, self.encoder.midi_id, self.encoder.value);
+
+                let mut m = ControlChange::try_new_with_buffer(buffer)?;
+                m.set_channel(channel);
+                m.set_control(control);
+                m.set_control_data(data);
+                Ok(Some(m.into()))
+            }
             EncoderMessageType::SingleNoteWithVariableValue => Ok(None),
             EncoderMessageType::SingleNoteWithFixedValueBothDirections => Ok(None),
             EncoderMessageType::SingleNoteWithFixedValueOneDirection0OtherDirection => Ok(None),
@@ -422,6 +433,54 @@ mod tests {
 
         let m = it.next(&mut buf).unwrap().unwrap();
         assert_eq!(m.data(), [0xC0, 10]);
+        assert_eq!(Ok(None), it.next(&mut buf));
+    }
+    #[test]
+    fn test_nrpn7() {
+        let mut buf = [0x00u8; 8];
+        let mut encoder = Encoder {
+            enabled: true,
+            message_type: EncoderMessageType::NRPN7,
+            value: 99,
+            midi_id: 1624,
+            pulses_per_step: 1,
+            channel: ChannelOrAll::Channel(1),
+            ..Encoder::default()
+        };
+        let mut it = encoder.handle(EncoderPulse::Clockwise);
+
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB1, 98, 88]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB1, 99, 12]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB1, 38, 100]);
+        assert_eq!(Ok(None), it.next(&mut buf));
+    }
+
+    #[test]
+    fn test_nrpn14() {
+        let mut buf = [0x00u8; 8];
+        let mut encoder = Encoder {
+            enabled: true,
+            message_type: EncoderMessageType::NRPN14,
+            value: 999,
+            upper_limit: 0x3FFF,
+            midi_id: 1624,
+            pulses_per_step: 1,
+            channel: ChannelOrAll::Channel(1),
+            ..Encoder::default()
+        };
+        let mut it = encoder.handle(EncoderPulse::Clockwise);
+
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB1, 98, 88]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB1, 99, 12]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB1, 38, 104]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB1, 6, 7]);
         assert_eq!(Ok(None), it.next(&mut buf));
     }
 }

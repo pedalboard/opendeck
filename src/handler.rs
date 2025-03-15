@@ -113,6 +113,27 @@ impl HiRes {
     }
 }
 
+pub mod nprn {
+    use super::*;
+
+    const NRPN_MSB: u8 = 0x63;
+    const NRPN_LSB: u8 = 0x62;
+    const NRPN_DATA_MSB: u8 = 0x06;
+    const NRPN_DATA_LSB: u8 = 0x26;
+
+    pub fn encode(index: usize, id: u16, value: u16) -> (u7, u7) {
+        if index == 0 {
+            (u7::new(NRPN_LSB), HiRes::new(id).lsb())
+        } else if index == 1 {
+            (u7::new(NRPN_MSB), HiRes::new(id).msb())
+        } else if index == 2 {
+            (u7::new(NRPN_DATA_LSB), HiRes::new(value).lsb())
+        } else {
+            (u7::new(NRPN_DATA_MSB), HiRes::new(value).msb())
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
 

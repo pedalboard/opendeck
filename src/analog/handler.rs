@@ -2,10 +2,6 @@ use crate::analog::{Analog, AnalogMessageType};
 use crate::handler::{ChannelMessages, HiRes};
 
 const MAX_ADC_VALUE: u16 = 4095; // (2 ^ 12) - 1
-const NRPN_MSB: u8 = 0x63;
-const NRPN_LSB: u8 = 0x62;
-const NRPN_DATA_MSB: u8 = 0x06;
-const NRPN_DATA_LSB: u8 = 0x26;
 
 use midi2::{
     channel_voice1::{ControlChange, NoteOn, PitchBend},
@@ -81,40 +77,13 @@ impl<'a> AnalogMessages<'a> {
                 m.set_velocity(u7::new(self.value as u8));
                 Ok(Some(m.into()))
             }
-            AnalogMessageType::NRPN7 => {
+            AnalogMessageType::NRPN7 | AnalogMessageType::NRPN14 => {
+                let (control, data) =
+                    crate::handler::nprn::encode(index, self.analog.midi_id, self.value);
                 let mut m = ControlChange::try_new_with_buffer(buffer)?;
                 m.set_channel(channel);
-
-                if index == 0 {
-                    m.set_control(u7::new(NRPN_LSB));
-                    m.set_control_data(HiRes::new(self.analog.midi_id).lsb());
-                } else if index == 1 {
-                    m.set_control(u7::new(NRPN_MSB));
-                    m.set_control_data(HiRes::new(self.analog.midi_id).msb());
-                } else if index == 2 {
-                    m.set_control(u7::new(NRPN_DATA_LSB));
-                    m.set_control_data(HiRes::new(self.value).lsb());
-                }
-                Ok(Some(m.into()))
-            }
-            AnalogMessageType::NRPN14 => {
-                let mut m = ControlChange::try_new_with_buffer(buffer)?;
-                m.set_channel(channel);
-
-                if index == 0 {
-                    m.set_control(u7::new(NRPN_LSB));
-                    m.set_control_data(HiRes::new(self.analog.midi_id).lsb());
-                } else if index == 1 {
-                    m.set_control(u7::new(NRPN_MSB));
-                    m.set_control_data(HiRes::new(self.analog.midi_id).msb());
-                } else if index == 2 {
-                    m.set_control(u7::new(NRPN_DATA_LSB));
-                    m.set_control_data(HiRes::new(self.value).lsb());
-                } else if index == 3 {
-                    m.set_control(u7::new(NRPN_DATA_MSB));
-                    m.set_control_data(HiRes::new(self.value).msb());
-                }
-
+                m.set_control(control);
+                m.set_control_data(data);
                 Ok(Some(m.into()))
             }
         }
