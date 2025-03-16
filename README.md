@@ -14,6 +14,7 @@ The implementation is not yet complete. The following features are missing:
   * BPM
   * Preset Change
 * configurable ADC max
+* Acceleration
 
 ## configuration improvements
 

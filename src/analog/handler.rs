@@ -44,7 +44,7 @@ impl<'a> AnalogMessages<'a> {
             return Ok(None);
         }
         let (channel, index) = match self.channel_messages.next() {
-            Some((channel, index)) => (channel, index),
+            Some((channel, index, _)) => (channel, index),
             None => return Ok(None),
         };
         match self.analog.message_type {

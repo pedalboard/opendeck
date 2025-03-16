@@ -20,7 +20,14 @@ pub struct EncoderMessages<'a> {
     pulse: EncoderPulse,
 }
 impl<'a> EncoderMessages<'a> {
-    pub fn new(encoder: &'a mut Encoder, pulse: EncoderPulse) -> Self {
+    fn none(encoder: &'a mut Encoder) -> Self {
+        Self {
+            encoder,
+            channel_messages: ChannelMessages::none(),
+            pulse: EncoderPulse::Clockwise,
+        }
+    }
+    fn new(encoder: &'a mut Encoder, pulse: EncoderPulse) -> Self {
         let mt = &encoder.message_type;
         let nr_of_messages = match mt {
             EncoderMessageType::ControlChange => 1,
@@ -54,16 +61,13 @@ impl<'a> EncoderMessages<'a> {
         if !self.encoder.enabled {
             return Ok(None);
         }
-        if !self.encoder.pulse_count_reached() {
-            return Ok(None);
-        }
-        let (channel, index) = match self.channel_messages.next() {
-            Some((channel, index)) => (channel, index),
+        let (channel, index, incr) = match self.channel_messages.next() {
+            Some((channel, index, incr)) => (channel, index, incr),
             None => return Ok(None),
         };
         match self.encoder.message_type {
             EncoderMessageType::ControlChange => {
-                self.encoder.increment(&self.pulse);
+                self.encoder.increment(&self.pulse, incr);
                 let mut m = ControlChange::try_new_with_buffer(buffer)?;
                 m.set_channel(channel);
                 m.set_control(u7::new(self.encoder.midi_id as u8));
@@ -71,9 +75,7 @@ impl<'a> EncoderMessages<'a> {
                 Ok(Some(m.into()))
             }
             EncoderMessageType::ControlChange14bit => {
-                if index == 0 {
-                    self.encoder.increment(&self.pulse);
-                }
+                self.encoder.increment(&self.pulse, incr);
                 let (value, id) =
                     HiRes::new(self.encoder.value).control_change(index, self.encoder.midi_id);
                 let mut m = ControlChange::try_new_with_buffer(buffer)?;
@@ -116,23 +118,21 @@ impl<'a> EncoderMessages<'a> {
                 Ok(Some(m.into()))
             }
             EncoderMessageType::PitchBend => {
-                self.encoder.increment(&self.pulse);
+                self.encoder.increment(&self.pulse, incr);
                 let mut m = PitchBend::try_new_with_buffer(buffer)?;
                 m.set_channel(channel);
                 m.set_bend(u14::new(self.encoder.value));
                 Ok(Some(m.into()))
             }
             EncoderMessageType::ProgramChange => {
-                self.encoder.increment(&self.pulse);
+                self.encoder.increment(&self.pulse, incr);
                 let mut m = ProgramChange::try_new_with_buffer(buffer)?;
                 m.set_channel(channel);
                 m.set_program(u7::new(self.encoder.value as u8));
                 Ok(Some(m.into()))
             }
             EncoderMessageType::NRPN7 | EncoderMessageType::NRPN14 => {
-                if index == 0 {
-                    self.encoder.increment(&self.pulse);
-                }
+                self.encoder.increment(&self.pulse, incr);
                 let (control, data) =
                     crate::handler::nprn::encode(index, self.encoder.midi_id, self.encoder.value);
 
@@ -143,7 +143,7 @@ impl<'a> EncoderMessages<'a> {
                 Ok(Some(m.into()))
             }
             EncoderMessageType::SingleNoteWithVariableValue => {
-                self.encoder.increment(&self.pulse);
+                self.encoder.increment(&self.pulse, incr);
                 let mut m = NoteOn::try_new_with_buffer(buffer)?;
                 m.set_channel(channel);
                 m.set_note_number(u7::new(self.encoder.midi_id as u8));
@@ -187,13 +187,19 @@ impl<'a> EncoderMessages<'a> {
 
 impl Encoder {
     pub fn handle(&mut self, p: EncoderPulse) -> EncoderMessages<'_> {
+        if !self.pulse_count_reached() {
+            return EncoderMessages::none(self);
+        }
         if self.inverted {
             EncoderMessages::new(self, p.invert())
         } else {
             EncoderMessages::new(self, p)
         }
     }
-    fn increment(&mut self, p: &EncoderPulse) {
+    fn increment(&mut self, p: &EncoderPulse, incr: bool) {
+        if !incr {
+            return;
+        }
         match p {
             EncoderPulse::Clockwise => {
                 self.value += 1;
@@ -242,19 +248,19 @@ mod tests {
             pulses_per_step: 1,
             ..Encoder::default()
         };
-        encoder.increment(&EncoderPulse::Clockwise);
+        encoder.increment(&EncoderPulse::Clockwise, true);
         assert_eq!(2, encoder.value);
-        encoder.increment(&EncoderPulse::Clockwise);
+        encoder.increment(&EncoderPulse::Clockwise, true);
         assert_eq!(3, encoder.value);
-        encoder.increment(&EncoderPulse::Clockwise);
+        encoder.increment(&EncoderPulse::Clockwise, true);
         assert_eq!(4, encoder.value);
-        encoder.increment(&EncoderPulse::Clockwise);
+        encoder.increment(&EncoderPulse::Clockwise, true);
         assert_eq!(4, encoder.value);
-        encoder.increment(&EncoderPulse::CounterClockwise);
+        encoder.increment(&EncoderPulse::CounterClockwise, true);
         assert_eq!(3, encoder.value);
-        encoder.increment(&EncoderPulse::CounterClockwise);
+        encoder.increment(&EncoderPulse::CounterClockwise, true);
         assert_eq!(2, encoder.value);
-        encoder.increment(&EncoderPulse::CounterClockwise);
+        encoder.increment(&EncoderPulse::CounterClockwise, true);
         assert_eq!(2, encoder.value);
     }
 
@@ -300,6 +306,56 @@ mod tests {
         assert_eq!(m.data(), [0xB1, 0x03, 0x02]);
         assert_eq!(Ok(None), it.next(&mut buf));
     }
+    #[test]
+    fn test_cc_7bit_all_channels() {
+        let mut buf = [0x00u8; 8];
+        let mut encoder = Encoder {
+            enabled: true,
+            message_type: EncoderMessageType::ControlChange,
+            value: 1,
+            pulses_per_step: 1,
+            midi_id: 0x03,
+            channel: ChannelOrAll::All,
+            ..Encoder::default()
+        };
+        let mut it = encoder.handle(EncoderPulse::Clockwise);
+
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB0, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB1, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB2, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB3, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB4, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB5, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB6, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB7, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB8, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xB9, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xBA, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xBB, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xBC, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xBD, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xBE, 0x03, 0x02]);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data(), [0xBF, 0x03, 0x02]);
+
+        assert_eq!(Ok(None), it.next(&mut buf));
+    }
+
     #[test]
     fn test_cc_7bit_inverted() {
         let mut buf = [0x00u8; 8];

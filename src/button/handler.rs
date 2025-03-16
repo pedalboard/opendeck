@@ -46,7 +46,7 @@ impl<'a> ButtonMessages<'a> {
         buffer: &'buf mut [u8],
     ) -> Result<Option<BytesMessage<&'buf mut [u8]>>, BufferOverflow> {
         let channel = match self.channel_messages.next() {
-            Some((channel, _)) => channel,
+            Some((channel, _, _)) => channel,
             None => return Ok(None),
         };
         let status = self.button.latch(&self.action);
