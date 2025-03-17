@@ -190,6 +190,7 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
                     wish, for_amount, block, res_values,
                 ))
             }
+            // FIXME support OpenDeckRequest::ComponentInfo
             _ => None,
         }
     }
@@ -231,7 +232,8 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
                     touchscreen_buttons: 0,
                 }),
             ),
-            _ => None,
+            SpecialRequest::FactoryReset => None,
+            SpecialRequest::Backup => None,
         }
     }
 

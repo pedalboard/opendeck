@@ -18,6 +18,9 @@ The implementation is not yet complete. The following features are missing:
 
 ## configuration improvements
 
-* value_size feature for configuration protocol
 * iterator for configuration output messages
 * use midi2 sysex messages in API
+* support factory reset
+* support component info
+* value_size feature for configuration protocol
+* support backup
