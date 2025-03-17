@@ -14,15 +14,15 @@ pub struct GlobalPreset {
 }
 
 impl GlobalPreset {
-    pub fn set(&mut self, index: &PresetIndex, value: &u16) {
+    pub fn set(&mut self, index: PresetIndex, value: u16) {
         match index {
-            PresetIndex::Active => self.current = *value as usize,
-            PresetIndex::ForceValueRefresh => self.force_value_refresh = *value > 0,
-            PresetIndex::EnableMidiChange => self.enable_midi_chnage = *value > 0,
-            PresetIndex::Preservation => self.preserve_preset = *value > 0,
+            PresetIndex::Active => self.current = value as usize,
+            PresetIndex::ForceValueRefresh => self.force_value_refresh = value > 0,
+            PresetIndex::EnableMidiChange => self.enable_midi_chnage = value > 0,
+            PresetIndex::Preservation => self.preserve_preset = value > 0,
         }
     }
-    pub fn get(&mut self, index: &PresetIndex) -> u16 {
+    pub fn get(&mut self, index: PresetIndex) -> u16 {
         match index {
             PresetIndex::Active => self.current as u16,
             PresetIndex::ForceValueRefresh => self.force_value_refresh.into(),
@@ -53,29 +53,29 @@ pub struct GlobalMidi {
 }
 
 impl GlobalMidi {
-    pub fn set(&mut self, index: &MidiIndex, value: &u16) {
+    pub fn set(&mut self, index: MidiIndex, value: u16) {
         match index {
-            MidiIndex::StandardNoteOff => self.standard_note_off = *value > 0,
-            MidiIndex::RunningStatus => self.running_status = *value > 0,
-            MidiIndex::DINtoUSBthru => self.din_to_usb_thru = *value > 0,
-            MidiIndex::DINMIDIstate => self.din_midi_state = *value > 0,
-            MidiIndex::USBtoDINthru => self.usb_to_din_thru = *value > 0,
-            MidiIndex::USBtoUSBthru => self.usb_to_usb_thru = *value > 0,
-            MidiIndex::USBtoBLEthru => self.usb_to_ble_thru = *value > 0,
-            MidiIndex::DINtoDINthru => self.din_to_din_thru = *value > 0,
-            MidiIndex::DINtoBLEthru => self.din_to_ble_thru = *value > 0,
-            MidiIndex::BLEMIDIstate => self.ble_midi_state = *value > 0,
-            MidiIndex::BLEtoDINthru => self.ble_to_din_thru = *value > 0,
-            MidiIndex::BLEtoUSBthru => self.ble_to_usb_thru = *value > 0,
-            MidiIndex::BLEtoBLEthru => self.ble_to_ble_thru = *value > 0,
-            MidiIndex::UseGlobalMIDIchannel => self.use_global_midi_channel = *value > 0,
-            MidiIndex::SendMIDIclock => self.send_midi_clock = *value > 0,
+            MidiIndex::StandardNoteOff => self.standard_note_off = value > 0,
+            MidiIndex::RunningStatus => self.running_status = value > 0,
+            MidiIndex::DINtoUSBthru => self.din_to_usb_thru = value > 0,
+            MidiIndex::DINMIDIstate => self.din_midi_state = value > 0,
+            MidiIndex::USBtoDINthru => self.usb_to_din_thru = value > 0,
+            MidiIndex::USBtoUSBthru => self.usb_to_usb_thru = value > 0,
+            MidiIndex::USBtoBLEthru => self.usb_to_ble_thru = value > 0,
+            MidiIndex::DINtoDINthru => self.din_to_din_thru = value > 0,
+            MidiIndex::DINtoBLEthru => self.din_to_ble_thru = value > 0,
+            MidiIndex::BLEMIDIstate => self.ble_midi_state = value > 0,
+            MidiIndex::BLEtoDINthru => self.ble_to_din_thru = value > 0,
+            MidiIndex::BLEtoUSBthru => self.ble_to_usb_thru = value > 0,
+            MidiIndex::BLEtoBLEthru => self.ble_to_ble_thru = value > 0,
+            MidiIndex::UseGlobalMIDIchannel => self.use_global_midi_channel = value > 0,
+            MidiIndex::SendMIDIclock => self.send_midi_clock = value > 0,
             MidiIndex::GlobalMIDIchannel => {
-                self.global_midi_channel = ChannelOrAll::from(*value);
+                self.global_midi_channel = ChannelOrAll::from(value);
             }
         }
     }
-    pub fn get(&mut self, index: &MidiIndex) -> u16 {
+    pub fn get(&mut self, index: MidiIndex) -> u16 {
         match index {
             MidiIndex::StandardNoteOff => self.standard_note_off.into(),
             MidiIndex::RunningStatus => self.running_status.into(),
@@ -105,7 +105,7 @@ pub enum GlobalSectionId {
     Presets = 2,
 }
 
-#[derive(Debug, Clone, PartialEq, IntEnum, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, IntEnum, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[repr(u16)]
 pub enum PresetIndex {
@@ -115,7 +115,7 @@ pub enum PresetIndex {
     EnableMidiChange = 3,
 }
 
-#[derive(Debug, Clone, PartialEq, IntEnum, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, IntEnum, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[repr(u16)]
 pub enum MidiIndex {
@@ -137,7 +137,7 @@ pub enum MidiIndex {
     SendMIDIclock = 0xF,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum GlobalSection {
     Midi(MidiIndex, u16),

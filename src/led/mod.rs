@@ -63,19 +63,19 @@ impl Led {
             channel: ChannelOrAll::default(),
         }
     }
-    pub fn set(&mut self, section: &LedSection) {
+    pub fn set(&mut self, section: LedSection) {
         match section {
-            LedSection::ColorTesting(v) => self.color_testing = *v,
-            LedSection::BlinkTesting(v) => self.blink_testing = *v,
-            LedSection::RGBEnabled(v) => self.rgb_enabled = *v,
-            LedSection::ControlType(v) => self.control_type = *v,
-            LedSection::ActivationId(v) => self.activation_id = *v,
-            LedSection::ActivationValue(v) => self.activation_value = *v,
-            LedSection::Channel(v) => self.channel = *v,
+            LedSection::ColorTesting(v) => self.color_testing = v,
+            LedSection::BlinkTesting(v) => self.blink_testing = v,
+            LedSection::RGBEnabled(v) => self.rgb_enabled = v,
+            LedSection::ControlType(v) => self.control_type = v,
+            LedSection::ActivationId(v) => self.activation_id = v,
+            LedSection::ActivationValue(v) => self.activation_value = v,
+            LedSection::Channel(v) => self.channel = v,
             LedSection::Global(_) => {}
         }
     }
-    pub fn get(&self, section: &LedSection) -> u16 {
+    pub fn get(&self, section: LedSection) -> u16 {
         match section {
             LedSection::ColorTesting(_) => self.color_testing.into(),
             LedSection::BlinkTesting(_) => self.blink_testing.into(),
@@ -141,7 +141,7 @@ enum LedSectionId {
     Channel = 7,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum LedSection {
     ColorTesting(Color),

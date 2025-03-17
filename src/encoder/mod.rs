@@ -47,24 +47,24 @@ impl Encoder {
             state: EncoderState::default(),
         }
     }
-    pub fn set(&mut self, section: &EncoderSection) {
+    pub fn set(&mut self, section: EncoderSection) {
         match section {
-            EncoderSection::MessageType(v) => self.message_type = *v,
-            EncoderSection::Channel(v) => self.channel = *v,
-            EncoderSection::Enabled(v) => self.enabled = *v,
-            EncoderSection::MidiIdLSB(v) => self.midi_id = *v,
-            EncoderSection::Inverted(v) => self.inverted = *v,
-            EncoderSection::PulsesPerStep(v) => self.pulses_per_step = *v,
-            EncoderSection::RemoteSync(v) => self.remote_sync = *v,
-            EncoderSection::Accelleration(v) => self.accelleration = *v,
-            EncoderSection::LowerLimit(v) => self.lower_limit = *v,
-            EncoderSection::UpperLimit(v) => self.upper_limit = *v,
-            EncoderSection::SecondMidiId(v) => self.second_midi_id = *v,
-            EncoderSection::RepeatedValue(v) => self.value = *v,
+            EncoderSection::MessageType(v) => self.message_type = v,
+            EncoderSection::Channel(v) => self.channel = v,
+            EncoderSection::Enabled(v) => self.enabled = v,
+            EncoderSection::MidiIdLSB(v) => self.midi_id = v,
+            EncoderSection::Inverted(v) => self.inverted = v,
+            EncoderSection::PulsesPerStep(v) => self.pulses_per_step = v,
+            EncoderSection::RemoteSync(v) => self.remote_sync = v,
+            EncoderSection::Accelleration(v) => self.accelleration = v,
+            EncoderSection::LowerLimit(v) => self.lower_limit = v,
+            EncoderSection::UpperLimit(v) => self.upper_limit = v,
+            EncoderSection::SecondMidiId(v) => self.second_midi_id = v,
+            EncoderSection::RepeatedValue(v) => self.value = v,
             EncoderSection::MidiIdMSB(_) => {}
         }
     }
-    pub fn get(&self, section: &EncoderSection) -> u16 {
+    pub fn get(&self, section: EncoderSection) -> u16 {
         match section {
             EncoderSection::MessageType(_) => self.message_type.into(),
             EncoderSection::Channel(_) => self.channel.into(),
@@ -140,7 +140,7 @@ enum EncoderSectionId {
     SecondMidiId = 0xC,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum EncoderSection {
     Enabled(bool),

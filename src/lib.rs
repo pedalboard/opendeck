@@ -67,7 +67,7 @@ pub enum MessageStatus {
     UARTAllocationError = 0x80,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum OpenDeckRequest {
     Special(SpecialRequest),
@@ -95,7 +95,7 @@ impl ByteOrder {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Copy, Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum SpecialRequest {
     Handshake = 0x01,
@@ -113,18 +113,18 @@ pub enum SpecialRequest {
     Backup = 0x1B,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Copy, Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ValueSize {
     OneByte = 1,
     TwoBytes = 2,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct HardwareUid(pub u32);
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct NrOfSupportedComponents {
     pub buttons: usize,
@@ -134,7 +134,7 @@ pub struct NrOfSupportedComponents {
     pub touchscreen_buttons: usize,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum SpecialResponse {
     Handshake,
@@ -184,7 +184,7 @@ pub enum BlockId {
     Touchscreen,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Block {
     Global(GlobalSection),
@@ -196,7 +196,7 @@ pub enum Block {
     Touchscreen,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Wish {
     Get,
@@ -209,7 +209,7 @@ enum AmountId {
     All,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Amount {
     Single,

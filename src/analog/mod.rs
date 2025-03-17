@@ -33,20 +33,20 @@ impl Analog {
             upper_adc_offset: 0,
         }
     }
-    pub fn set(&mut self, section: &AnalogSection) {
+    pub fn set(&mut self, section: AnalogSection) {
         match section {
-            AnalogSection::MessageType(v) => self.message_type = *v,
-            AnalogSection::Channel(v) => self.channel = *v,
-            AnalogSection::Enabled(v) => self.enabled = *v,
-            AnalogSection::MidiId(v) => self.midi_id = *v,
-            AnalogSection::Inverted(v) => self.inverted = *v,
-            AnalogSection::LowerCCLimit(v) => self.lower_limit = *v,
-            AnalogSection::UpperCCLimit(v) => self.upper_limit = *v,
-            AnalogSection::LowerADCOffset(v) => self.lower_adc_offset = *v,
-            AnalogSection::UpperADCOffset(v) => self.upper_adc_offset = *v,
+            AnalogSection::MessageType(v) => self.message_type = v,
+            AnalogSection::Channel(v) => self.channel = v,
+            AnalogSection::Enabled(v) => self.enabled = v,
+            AnalogSection::MidiId(v) => self.midi_id = v,
+            AnalogSection::Inverted(v) => self.inverted = v,
+            AnalogSection::LowerCCLimit(v) => self.lower_limit = v,
+            AnalogSection::UpperCCLimit(v) => self.upper_limit = v,
+            AnalogSection::LowerADCOffset(v) => self.lower_adc_offset = v,
+            AnalogSection::UpperADCOffset(v) => self.upper_adc_offset = v,
         }
     }
-    pub fn get(&self, section: &AnalogSection) -> u16 {
+    pub fn get(&self, section: AnalogSection) -> u16 {
         match section {
             AnalogSection::MessageType(_) => self.message_type as u16,
             AnalogSection::Channel(_) => self.channel.into(),
@@ -93,7 +93,7 @@ enum AnalogSectionId {
     UpperADCOffset = 0xB,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum AnalogSection {
     Enabled(bool),

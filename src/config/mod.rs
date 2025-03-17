@@ -16,7 +16,7 @@ const OPENDECK_MAX_NR_MESSAGES: usize = 2;
 
 use heapless::Vec;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct FirmwareVersion {
     pub major: u8,
@@ -64,29 +64,29 @@ impl<const B: usize, const A: usize, const E: usize, const L: usize> Default
 }
 
 impl<const B: usize, const A: usize, const E: usize, const L: usize> Preset<B, E, A, L> {
-    fn button_mut(&mut self, index: &u16) -> Option<&mut Button> {
-        self.buttons.get_mut(*index as usize)
+    fn button_mut(&mut self, index: u16) -> Option<&mut Button> {
+        self.buttons.get_mut(index as usize)
     }
-    fn button(&mut self, index: &u16) -> Option<&Button> {
-        self.buttons.get(*index as usize)
+    fn button(&mut self, index: u16) -> Option<&Button> {
+        self.buttons.get(index as usize)
     }
-    fn encoder_mut(&mut self, index: &u16) -> Option<&mut Encoder> {
-        self.encoders.get_mut(*index as usize)
+    fn encoder_mut(&mut self, index: u16) -> Option<&mut Encoder> {
+        self.encoders.get_mut(index as usize)
     }
-    fn encoder(&mut self, index: &u16) -> Option<&Encoder> {
-        self.encoders.get(*index as usize)
+    fn encoder(&mut self, index: u16) -> Option<&Encoder> {
+        self.encoders.get(index as usize)
     }
-    fn analog_mut(&mut self, index: &u16) -> Option<&mut Analog> {
-        self.analogs.get_mut(*index as usize)
+    fn analog_mut(&mut self, index: u16) -> Option<&mut Analog> {
+        self.analogs.get_mut(index as usize)
     }
-    fn analog(&mut self, index: &u16) -> Option<&Analog> {
-        self.analogs.get(*index as usize)
+    fn analog(&mut self, index: u16) -> Option<&Analog> {
+        self.analogs.get(index as usize)
     }
-    fn led_mut(&mut self, index: &u16) -> Option<&mut Led> {
-        self.leds.get_mut(*index as usize)
+    fn led_mut(&mut self, index: u16) -> Option<&mut Led> {
+        self.leds.get_mut(index as usize)
     }
-    fn led(&mut self, index: &u16) -> Option<&Led> {
-        self.leds.get(*index as usize)
+    fn led(&mut self, index: u16) -> Option<&Led> {
+        self.leds.get(index as usize)
     }
 }
 
@@ -134,7 +134,7 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
         let mut responses = Vec::new();
         match parser.parse(request) {
             Ok(req) => {
-                if let Some(odr) = self.process_req(&req) {
+                if let Some(odr) = self.process_req(req) {
                     #[cfg(feature = "defmt")]
                     defmt::info!("opendeck-res: {}", odr);
 
@@ -174,7 +174,7 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
         responses
     }
 
-    fn process_req(&mut self, req: &OpenDeckRequest) -> Option<OpenDeckResponse> {
+    fn process_req(&mut self, req: OpenDeckRequest) -> Option<OpenDeckResponse> {
         #[cfg(feature = "defmt")]
         defmt::info!("opendeck-req: {}", req);
         match req {
@@ -187,17 +187,14 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
             OpenDeckRequest::Configuration(wish, amount, block) => {
                 let (res_values, for_amount) = self.process_config(wish, amount, block);
                 Some(OpenDeckResponse::Configuration(
-                    wish.clone(),
-                    for_amount,
-                    block.clone(),
-                    res_values,
+                    wish, for_amount, block, res_values,
                 ))
             }
             _ => None,
         }
     }
 
-    fn process_special_req(&mut self, special: &SpecialRequest) -> Option<SpecialResponse> {
+    fn process_special_req(&mut self, special: SpecialRequest) -> Option<SpecialResponse> {
         match special {
             SpecialRequest::BootloaderMode => {
                 (self.bootloader)();
@@ -213,15 +210,13 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
             }
             SpecialRequest::ValueSize => Some(SpecialResponse::ValueSize),
             SpecialRequest::ValuesPerMessage => Some(SpecialResponse::ValuesPerMessage(32)),
-            SpecialRequest::FirmwareVersion => {
-                Some(SpecialResponse::FirmwareVersion(self.version.clone()))
-            }
+            SpecialRequest::FirmwareVersion => Some(SpecialResponse::FirmwareVersion(self.version)),
             SpecialRequest::HardwareUID => {
                 Some(SpecialResponse::HardwareUID(HardwareUid(self.uid)))
             }
             SpecialRequest::FirmwareVersionAndHardwareUUID => {
                 Some(SpecialResponse::FirmwareVersionAndHardwareUUID(
-                    self.version.clone(),
+                    self.version,
                     HardwareUid(self.uid),
                 ))
             }
@@ -240,14 +235,9 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
         }
     }
 
-    fn process_config(
-        &mut self,
-        wish: &Wish,
-        amount: &Amount,
-        block: &Block,
-    ) -> (NewValues, Amount) {
+    fn process_config(&mut self, wish: Wish, amount: Amount, block: Block) -> (NewValues, Amount) {
         let mut res_values = Vec::new();
-        let mut for_amount = amount.clone();
+        let mut for_amount = amount;
 
         if let Some(preset) = self.current_preset_mut() {
             match block {
@@ -358,7 +348,7 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
 
     pub fn handle_button(&mut self, index: usize, action: Action) -> Messages {
         if let Some(preset) = self.current_preset_mut() {
-            if let Some(button) = preset.button_mut(&(index as u16)) {
+            if let Some(button) = preset.button_mut(index as u16) {
                 return Messages::Button(button.handle(action));
             }
         }
@@ -366,7 +356,7 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
     }
     pub fn handle_analog(&mut self, index: usize, value: u16) -> Messages {
         if let Some(preset) = self.current_preset_mut() {
-            if let Some(analog) = preset.analog_mut(&(index as u16)) {
+            if let Some(analog) = preset.analog_mut(index as u16) {
                 return Messages::Analog(analog.handle(value));
             }
         }
@@ -374,7 +364,7 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
     }
     pub fn handle_encoder(&mut self, index: usize, pulse: EncoderPulse) -> Messages {
         if let Some(preset) = self.current_preset_mut() {
-            if let Some(encoder) = preset.encoder_mut(&(index as u16)) {
+            if let Some(encoder) = preset.encoder_mut(index as u16) {
                 return Messages::Encoder(encoder.handle(pulse));
             }
         }

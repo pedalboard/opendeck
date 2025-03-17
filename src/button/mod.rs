@@ -36,16 +36,16 @@ impl Button {
             state: ButtonState::default(),
         }
     }
-    pub fn set(&mut self, section: &ButtonSection) {
+    pub fn set(&mut self, section: ButtonSection) {
         match section {
-            ButtonSection::Type(t) => self.button_type = *t,
-            ButtonSection::Value(v) => self.value = *v,
-            ButtonSection::MidiId(id) => self.midi_id = *id,
-            ButtonSection::MessageType(t) => self.message_type = *t,
-            ButtonSection::Channel(c) => self.channel = *c,
+            ButtonSection::Type(t) => self.button_type = t,
+            ButtonSection::Value(v) => self.value = v,
+            ButtonSection::MidiId(id) => self.midi_id = id,
+            ButtonSection::MessageType(t) => self.message_type = t,
+            ButtonSection::Channel(c) => self.channel = c,
         }
     }
-    pub fn get(&self, section: &ButtonSection) -> u16 {
+    pub fn get(&self, section: ButtonSection) -> u16 {
         match section {
             ButtonSection::Type(_) => self.button_type as u16,
             ButtonSection::MessageType(_) => self.message_type as u16,
@@ -81,7 +81,7 @@ enum ButtonSectionId {
     Channel = 4,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ButtonSection {
     Type(ButtonType),
