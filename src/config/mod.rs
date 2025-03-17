@@ -142,6 +142,9 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
                         .push(renderer.render(odr, MessageStatus::Response))
                         .unwrap();
 
+                    // The assumption is that the maximum amount of values is < 32 and therefore we
+                    // can fit all values in the first message. The 2nd message below is the final ACK
+                    // response to mark the ALL values reponse as completed..
                     if let OpenDeckRequest::Configuration(wish, Amount::All(0x7E), block) = req {
                         let end = OpenDeckResponse::Configuration(
                             wish,
