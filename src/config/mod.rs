@@ -146,14 +146,14 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
                     // can fit all values in the first message. The 2nd message below is the final ACK
                     // response to mark the ALL values reponse as completed..
                     if let OpenDeckRequest::Configuration(wish, Amount::All(0x7E), block) = req {
-                        let end = OpenDeckResponse::Configuration(
+                        let ack = OpenDeckResponse::Configuration(
                             wish,
-                            Amount::All(0x7E),
+                            Amount::All(0x7F),
                             block,
                             Vec::new(),
                         );
                         responses
-                            .push(renderer.render(end, MessageStatus::Response))
+                            .push(renderer.render(ack, MessageStatus::Response))
                             .unwrap();
                     }
                 }
@@ -419,5 +419,37 @@ mod tests {
             0x00, 0x00, 0xF7,
         ];
         assert_eq!(responses[0], exp);
+    }
+    #[test]
+    fn test_get_all_with_ack() {
+        let version = FirmwareVersion {
+            major: 1,
+            minor: 0,
+            revision: 0,
+        };
+        let uid = 12345;
+        let reboot = || {};
+        let bootloader = || {};
+        let mut config = Config::<1, 20, 1, 1, 1>::new(version, uid, reboot, bootloader);
+
+        let request = [
+            0xF0, 0x00, 0x53, 0x43, 0x00, 0x7E, 0x00, 0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00,
+            0xF7,
+        ];
+        let responses = config.process_sysex(&request);
+
+        assert_eq!(responses.len(), 2);
+        let resp1 = [
+            0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x00, 0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0x04, 0x00, 0x05, 0x00, 0x06,
+            0x00, 0x07, 0x00, 0x08, 0x00, 0x09, 0x00, 0x0A, 0x00, 0x0B, 0x00, 0x0C, 0x00, 0x0D,
+            0x00, 0x0E, 0x00, 0x0F, 0x00, 0x10, 0x00, 0x11, 0x00, 0x12, 0x00, 0x13, 0xF7,
+        ];
+        assert_eq!(responses[0], resp1);
+        let resp2 = [
+            0xF0, 0x00, 0x53, 0x43, 0x01, 0x7F, 0x00, 0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00,
+            0xF7,
+        ];
+        assert_eq!(responses[1], resp2);
     }
 }
