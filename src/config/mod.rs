@@ -371,3 +371,53 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
         Messages::None
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_process_sysex_handshake() {
+        let version = FirmwareVersion {
+            major: 1,
+            minor: 0,
+            revision: 0,
+        };
+        let uid = 12345;
+        let reboot = || {};
+        let bootloader = || {};
+        let mut config = Config::<1, 1, 1, 1, 1>::new(version, uid, reboot, bootloader);
+
+        let request = [0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x01, 0xF7]; // Example SysEx request for handshake
+        let responses = config.process_sysex(&request);
+
+        assert_eq!(responses.len(), 1);
+        let exp = [0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x01, 0xF7];
+        assert_eq!(responses[0], exp);
+    }
+
+    #[test]
+    fn test_process_sysex_configuration() {
+        let version = FirmwareVersion {
+            major: 1,
+            minor: 0,
+            revision: 0,
+        };
+        let uid = 12345;
+        let reboot = || {};
+        let bootloader = || {};
+        let mut config = Config::<1, 1, 1, 1, 1>::new(version, uid, reboot, bootloader);
+
+        let request = [
+            0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x00, 0x00, 0x03, 0x03, 0x00, 0x00, 0x00, 0x00,
+            0xF7,
+        ];
+        let responses = config.process_sysex(&request);
+
+        assert_eq!(responses.len(), 1);
+        let exp = [
+            0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x00, 0x00, 0x03, 0x03, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0xF7,
+        ];
+        assert_eq!(responses[0], exp);
+    }
+}

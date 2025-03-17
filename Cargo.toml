@@ -12,8 +12,8 @@ midi2 = { version = "0.8.2", default-features = false, features = [
 ] }
 defmt = { version = "0.3.10", optional = true }
 heapless = { version = "0.8.0", features = ["defmt-03"] }
-int-enum = "1.1.2"
+int-enum = "1.2.0"
 
 [features]
-default = ["defmt"]
+default = []
 defmt = ["dep:defmt"]
