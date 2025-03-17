@@ -166,9 +166,9 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
                     ))
                     .unwrap();
             }
-            Err(err) => {
+            Err(_err) => {
                 #[cfg(feature = "defmt")]
-                defmt::error!("error parsing sysex message: {}", err)
+                defmt::error!("error parsing sysex message: {}", _err)
             }
         }
         responses
@@ -191,7 +191,7 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
                 ))
             }
             // FIXME support OpenDeckRequest::ComponentInfo
-            _ => None,
+            OpenDeckRequest::ComponentInfo => None,
         }
     }
 
