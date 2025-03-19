@@ -11,9 +11,6 @@ use crate::{
     OpenDeckResponse, SpecialRequest, SpecialResponse, ValueSize, Wish,
 };
 
-// FIXME calculate value based on generic const
-const OPENDECK_MAX_NR_MESSAGES: usize = 2;
-
 use heapless::Vec;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -97,6 +94,8 @@ pub struct GlobalConfig {
 }
 
 pub struct Config<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize> {
+    parser: OpenDeckParser,
+    renderer: OpenDeckRenderer,
     global: GlobalConfig,
     enabled: bool,
     presets: Vec<Preset<B, A, E, L>, P>,
@@ -106,7 +105,66 @@ pub struct Config<const P: usize, const B: usize, const A: usize, const E: usize
     bootloader: fn(),
 }
 
-pub type Responses = Vec<Buffer, OPENDECK_MAX_NR_MESSAGES>;
+pub struct SysExResponseIterator<
+    'a,
+    const P: usize,
+    const B: usize,
+    const A: usize,
+    const E: usize,
+    const L: usize,
+> {
+    config: &'a mut Config<P, B, A, E, L>,
+    index: usize,
+    request: Result<OpenDeckRequest, OpenDeckParseError>,
+}
+
+impl<'buf, const P: usize, const B: usize, const A: usize, const E: usize, const L: usize>
+    SysExResponseIterator<'buf, P, B, A, E, L>
+{
+    pub fn next(&mut self, _buffer: &'buf mut Buffer) -> Option<Buffer> {
+        match self.request {
+            Ok(req) => {
+                if self.index == 0 {
+                    if let Some(odr) = self.config.process_req(req) {
+                        #[cfg(feature = "defmt")]
+                        defmt::info!("opendeck-res: {}", odr);
+
+                        self.index += 1;
+                        return Some(self.config.renderer.render(odr, MessageStatus::Response));
+                    }
+                }
+                if self.index == 1 {
+                    // The assumption is that the maximum amount of values is < 32 and therefore we
+                    // can fit all values in the first message. The 2nd message below is the final ACK
+                    // response to mark the ALL values reponse as completed..
+                    if let OpenDeckRequest::Configuration(wish, Amount::All(0x7E), block) = req {
+                        let ack = OpenDeckResponse::Configuration(
+                            wish,
+                            Amount::All(0x7F),
+                            block,
+                            Vec::new(),
+                        );
+                        self.index += 1;
+                        return Some(self.config.renderer.render(ack, MessageStatus::Response));
+                    }
+                }
+                None
+            }
+            Err(OpenDeckParseError::StatusError(status)) => {
+                self.index += 1;
+                Some(self.config.renderer.render(
+                    OpenDeckResponse::Special(SpecialResponse::Handshake),
+                    status,
+                ))
+            }
+            Err(_err) => {
+                #[cfg(feature = "defmt")]
+                defmt::error!("error parsing sysex message: {}", _err);
+                None
+            }
+        }
+    }
+}
 
 impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize>
     Config<P, B, A, E, L>
@@ -118,6 +176,8 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
         }
 
         Config {
+            parser: OpenDeckParser::new(ValueSize::TwoBytes),
+            renderer: OpenDeckRenderer::new(ValueSize::TwoBytes),
             enabled: false,
             presets,
             version,
@@ -128,50 +188,13 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
         }
     }
     /// Processes a SysEx request and returns an optional responses.
-    pub fn process_sysex(&mut self, request: &[u8]) -> Responses {
-        let parser = OpenDeckParser::new(ValueSize::TwoBytes);
-        let renderer = OpenDeckRenderer::new(ValueSize::TwoBytes);
-        let mut responses = Vec::new();
-        match parser.parse(request) {
-            Ok(req) => {
-                if let Some(odr) = self.process_req(req) {
-                    #[cfg(feature = "defmt")]
-                    defmt::info!("opendeck-res: {}", odr);
-
-                    responses
-                        .push(renderer.render(odr, MessageStatus::Response))
-                        .unwrap();
-
-                    // The assumption is that the maximum amount of values is < 32 and therefore we
-                    // can fit all values in the first message. The 2nd message below is the final ACK
-                    // response to mark the ALL values reponse as completed..
-                    if let OpenDeckRequest::Configuration(wish, Amount::All(0x7E), block) = req {
-                        let ack = OpenDeckResponse::Configuration(
-                            wish,
-                            Amount::All(0x7F),
-                            block,
-                            Vec::new(),
-                        );
-                        responses
-                            .push(renderer.render(ack, MessageStatus::Response))
-                            .unwrap();
-                    }
-                }
-            }
-            Err(OpenDeckParseError::StatusError(status)) => {
-                responses
-                    .push(renderer.render(
-                        OpenDeckResponse::Special(SpecialResponse::Handshake),
-                        status,
-                    ))
-                    .unwrap();
-            }
-            Err(_err) => {
-                #[cfg(feature = "defmt")]
-                defmt::error!("error parsing sysex message: {}", _err)
-            }
+    pub fn process_sysex(&mut self, request: &[u8]) -> SysExResponseIterator<'_, P, B, A, E, L> {
+        let request = self.parser.parse(request);
+        SysExResponseIterator {
+            config: self,
+            index: 0,
+            request,
         }
-        responses
     }
 
     fn process_req(&mut self, req: OpenDeckRequest) -> Option<OpenDeckResponse> {
@@ -390,11 +413,10 @@ mod tests {
         let mut config = Config::<1, 1, 1, 1, 1>::new(version, uid, reboot, bootloader);
 
         let request = [0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x01, 0xF7]; // Example SysEx request for handshake
-        let responses = config.process_sysex(&request);
+        let mut responses = config.process_sysex(&request);
 
-        assert_eq!(responses.len(), 1);
-        let exp = [0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x01, 0xF7];
-        assert_eq!(responses[0], exp);
+        let exp = Buffer::from_slice(&[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x01, 0xF7]).unwrap();
+        assert_eq!(responses.next(&mut Buffer::new()).unwrap(), exp);
     }
 
     #[test]
@@ -413,14 +435,14 @@ mod tests {
             0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x00, 0x00, 0x03, 0x03, 0x00, 0x00, 0x00, 0x00,
             0xF7,
         ];
-        let responses = config.process_sysex(&request);
+        let mut responses = config.process_sysex(&request);
 
-        assert_eq!(responses.len(), 1);
-        let exp = [
+        let exp = Buffer::from_slice(&[
             0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x00, 0x00, 0x03, 0x03, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0xF7,
-        ];
-        assert_eq!(responses[0], exp);
+        ])
+        .unwrap();
+        assert_eq!(responses.next(&mut Buffer::new()).unwrap(), exp);
     }
     #[test]
     fn test_get_all_with_ack() {
@@ -438,20 +460,22 @@ mod tests {
             0xF0, 0x00, 0x53, 0x43, 0x00, 0x7E, 0x00, 0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00,
             0xF7,
         ];
-        let responses = config.process_sysex(&request);
-
-        assert_eq!(responses.len(), 2);
-        let resp1 = [
+        let mut responses = config.process_sysex(&request);
+        let mut buffer = Buffer::new();
+        let resp1 = Buffer::from_slice(&[
             0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x00, 0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0x04, 0x00, 0x05, 0x00, 0x06,
             0x00, 0x07, 0x00, 0x08, 0x00, 0x09, 0x00, 0x0A, 0x00, 0x0B, 0x00, 0x0C, 0x00, 0x0D,
             0x00, 0x0E, 0x00, 0x0F, 0x00, 0x10, 0x00, 0x11, 0x00, 0x12, 0x00, 0x13, 0xF7,
-        ];
-        assert_eq!(responses[0], resp1);
-        let resp2 = [
+        ]);
+        assert_eq!(responses.next(&mut buffer).unwrap(), resp1.unwrap());
+        let resp2 = Buffer::from_slice(&[
             0xF0, 0x00, 0x53, 0x43, 0x01, 0x7F, 0x00, 0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00,
             0xF7,
-        ];
-        assert_eq!(responses[1], resp2);
+        ]);
+        let mut buffer = Buffer::new();
+        assert_eq!(responses.next(&mut buffer).unwrap(), resp2.unwrap());
+        let mut buffer = Buffer::new();
+        assert_eq!(responses.next(&mut buffer), None);
     }
 }

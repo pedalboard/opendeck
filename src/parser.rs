@@ -72,7 +72,7 @@ impl From<u16> for ChannelOrAll {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum OpenDeckParseError {
     BufferTooShort,
