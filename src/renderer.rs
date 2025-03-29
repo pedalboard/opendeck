@@ -1,31 +1,37 @@
-pub struct OpenDeckRenderer {
+pub struct OpenDeckRenderer<'buf> {
+    buffer: &'buf mut [u8],
     value_size: ValueSize,
 }
 
 use crate::{
     Amount, AmountId, Block, BlockId, ByteOrder, ChannelOrAll, HardwareUid, MessageStatus,
     NrOfSupportedComponents, OpenDeckResponse, Section, SpecialRequest, SpecialResponse, ValueSize,
-    MAX_MESSAGE_SIZE, M_ID_0, M_ID_1, M_ID_2, SYSEX_END, SYSEX_START,
+    MAX_MESSAGE_SIZE, M_ID_0, M_ID_1, M_ID_2,
 };
 
 use heapless::Vec;
+use midi2::{error::BufferOverflow, prelude::*, sysex7::Sysex7};
 
-pub type Buffer = Vec<u8, MAX_MESSAGE_SIZE>;
+type Buffer = Vec<u8, MAX_MESSAGE_SIZE>;
 
-impl OpenDeckRenderer {
-    pub fn new(value_size: ValueSize) -> Self {
-        OpenDeckRenderer { value_size }
+impl<'buf> OpenDeckRenderer<'buf> {
+    pub fn new<'a: 'buf>(value_size: ValueSize, buffer: &'a mut [u8]) -> Self {
+        OpenDeckRenderer { value_size, buffer }
     }
 
-    pub fn render(&self, res: OpenDeckResponse, status: MessageStatus) -> Buffer {
+    pub fn render(
+        self,
+        res: OpenDeckResponse,
+        status: MessageStatus,
+    ) -> Result<Option<Sysex7<&'buf mut [u8]>>, BufferOverflow> {
         let mut buf = Vec::new();
-        buf.insert(ByteOrder::Start as usize, SYSEX_START).unwrap();
-        buf.insert(ByteOrder::Id1 as usize, M_ID_0).unwrap();
-        buf.insert(ByteOrder::Id2 as usize, M_ID_1).unwrap();
-        buf.insert(ByteOrder::Id3 as usize, M_ID_2).unwrap();
-        buf.insert(ByteOrder::Status as usize, status as u8)
-            .unwrap();
-        buf.insert(ByteOrder::Part as usize, 0).unwrap();
+        let mut m = Sysex7::try_new_with_buffer(self.buffer)?;
+
+        buf.insert(ByteOrder::Id1.seti(), M_ID_0).unwrap();
+        buf.insert(ByteOrder::Id2.seti(), M_ID_1).unwrap();
+        buf.insert(ByteOrder::Id3.seti(), M_ID_2).unwrap();
+        buf.insert(ByteOrder::Status.seti(), status as u8).unwrap();
+        buf.insert(ByteOrder::Part.seti(), 0).unwrap();
 
         let wish = match res {
             OpenDeckResponse::Special(special) => match special {
@@ -79,9 +85,10 @@ impl OpenDeckRenderer {
             }
         };
 
-        buf.insert(ByteOrder::Wish as usize, wish).unwrap();
-        buf.push(SYSEX_END).unwrap();
-        buf
+        buf.insert(ByteOrder::Wish.seti(), wish).unwrap();
+
+        m.try_set_payload(buf.into_iter().map(u7::new))?;
+        Ok(Some(m))
     }
 }
 
@@ -147,7 +154,7 @@ impl Amount {
                 buf.push(AmountId::Single as u8).unwrap();
             }
             Amount::All(part) => {
-                buf[ByteOrder::Part as usize] = part;
+                buf[ByteOrder::Part.seti()] = part;
                 buf.push(AmountId::All as u8).unwrap();
             }
         };
@@ -201,29 +208,52 @@ mod tests {
     fn should_render_special_messages_with_one_byte() {
         let renderer = OpenDeckRenderer {
             value_size: ValueSize::OneByte,
+            buffer: &mut [0; MAX_MESSAGE_SIZE],
         };
-        assert_eq!(
+        assert_sysex(
             renderer.render(
                 OpenDeckResponse::Special(SpecialResponse::Handshake),
-                MessageStatus::Response
+                MessageStatus::Response,
             ),
-            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x01, 0xF7]
+            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x01, 0xF7],
         );
-        assert_eq!(
+    }
+    #[test]
+    fn should_render_special_messages_with_one_byte_values_size() {
+        let renderer = OpenDeckRenderer {
+            value_size: ValueSize::OneByte,
+            buffer: &mut [0; MAX_MESSAGE_SIZE],
+        };
+
+        assert_sysex(
             renderer.render(
                 OpenDeckResponse::Special(SpecialResponse::ValueSize),
-                MessageStatus::Response
+                MessageStatus::Response,
             ),
-            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x02, 0x01, 0xF7]
+            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x02, 0x01, 0xF7],
         );
-        assert_eq!(
+    }
+    #[test]
+    fn should_render_special_messages_with_one_byte_values_per_message() {
+        let renderer = OpenDeckRenderer {
+            value_size: ValueSize::OneByte,
+            buffer: &mut [0; MAX_MESSAGE_SIZE],
+        };
+        assert_sysex(
             renderer.render(
                 OpenDeckResponse::Special(SpecialResponse::ValuesPerMessage(0x20)),
-                MessageStatus::Response
+                MessageStatus::Response,
             ),
-            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x03, 0x20, 0xF7]
+            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x03, 0x20, 0xF7],
         );
-        assert_eq!(
+    }
+    #[test]
+    fn should_render_special_messages_with_one_byte_firmware() {
+        let renderer = OpenDeckRenderer {
+            value_size: ValueSize::OneByte,
+            buffer: &mut [0; MAX_MESSAGE_SIZE],
+        };
+        assert_sysex(
             renderer.render(
                 OpenDeckResponse::Special(SpecialResponse::FirmwareVersion(FirmwareVersion {
                     major: 0x01,
@@ -232,90 +262,162 @@ mod tests {
                 })),
                 MessageStatus::Response,
             ),
-            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x56, 0x01, 0x02, 0x03, 0xF7]
+            &[
+                0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x56, 0x01, 0x02, 0x03, 0xF7,
+            ],
         );
-        assert_eq!(
+    }
+    #[test]
+    fn should_render_special_messages_with_one_byte_hardware_uid() {
+        let renderer = OpenDeckRenderer {
+            value_size: ValueSize::OneByte,
+            buffer: &mut [0; MAX_MESSAGE_SIZE],
+        };
+        assert_sysex(
             renderer.render(
                 OpenDeckResponse::Special(SpecialResponse::HardwareUID(HardwareUid(0x12345678))),
-                MessageStatus::Response
-            ),
-            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x42, 0x12, 0x34, 0x56, 0x78, 0xF7]
-        );
-        assert_eq!(
-            renderer.render(
-                OpenDeckResponse::Special(SpecialResponse::FirmwareVersionAndHardwareUUID(
-                    FirmwareVersion {
-                        major: 0x03,
-                        minor: 0x04,
-                        revision: 0x05,
-                    },
-                    HardwareUid(0xA2B4C6D8)
-                )),
-                MessageStatus::Response
+                MessageStatus::Response,
             ),
             &[
-                0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x43, 0x03, 0x04, 0x05, 0xA2, 0xB4, 0xC6, 0xD8,
-                0xF7
-            ]
-        );
-        assert_eq!(
-            renderer.render(
-                OpenDeckResponse::Special(SpecialResponse::NrOfSupportedComponents(
-                    crate::NrOfSupportedComponents {
-                        buttons: 8,
-                        encoders: 2,
-                        analog: 2,
-                        leds: 8,
-                        touchscreen_buttons: 1
-                    }
-                )),
-                MessageStatus::Response
-            ),
-            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x4D, 0x08, 0x02, 0x02, 0x08, 0x01, 0xF7]
-        );
-        assert_eq!(
-            renderer.render(
-                OpenDeckResponse::Special(SpecialResponse::NrOfSupportedPresets(10)),
-                MessageStatus::Response
-            ),
-            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x50, 0x0A, 0xF7]
-        );
-        assert_eq!(
-            renderer.render(
-                OpenDeckResponse::Special(SpecialResponse::BootloaderSupport(true)),
-                MessageStatus::Response
-            ),
-            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x51, 0x01, 0xF7]
+                0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x42, 0x12, 0x34, 0x56, 0x78, 0xF7,
+            ],
         );
     }
 
     #[test]
-    fn should_render_special_messages_with_two_bytes() {
+    fn should_render_special_messages_with_one_byte_firmware_hardware_uid() {
+        let renderer = OpenDeckRenderer {
+            value_size: ValueSize::OneByte,
+            buffer: &mut [0; MAX_MESSAGE_SIZE],
+        };
+        assert_sysex(
+            renderer.render(
+                OpenDeckResponse::Special(SpecialResponse::FirmwareVersionAndHardwareUUID(
+                    FirmwareVersion {
+                        major: 0x03,
+                        minor: 0x04,
+                        revision: 0x05,
+                    },
+                    HardwareUid(0x12345678),
+                )),
+                MessageStatus::Response,
+            ),
+            &[
+                0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x43, 0x03, 0x04, 0x05, 0x12, 0x34, 0x56, 0x78,
+                0xF7,
+            ],
+        );
+    }
+    #[test]
+    fn should_render_special_messages_with_one_byte_nr_components() {
+        let renderer = OpenDeckRenderer {
+            value_size: ValueSize::OneByte,
+            buffer: &mut [0; MAX_MESSAGE_SIZE],
+        };
+
+        assert_sysex(
+            renderer.render(
+                OpenDeckResponse::Special(SpecialResponse::NrOfSupportedComponents(
+                    crate::NrOfSupportedComponents {
+                        buttons: 8,
+                        encoders: 2,
+                        analog: 2,
+                        leds: 8,
+                        touchscreen_buttons: 1,
+                    },
+                )),
+                MessageStatus::Response,
+            ),
+            &[
+                0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x4D, 0x08, 0x02, 0x02, 0x08, 0x01, 0xF7,
+            ],
+        );
+    }
+    #[test]
+    fn should_render_special_messages_with_one_byte_nr_presets() {
+        let renderer = OpenDeckRenderer {
+            value_size: ValueSize::OneByte,
+            buffer: &mut [0; MAX_MESSAGE_SIZE],
+        };
+        assert_sysex(
+            renderer.render(
+                OpenDeckResponse::Special(SpecialResponse::NrOfSupportedPresets(10)),
+                MessageStatus::Response,
+            ),
+            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x50, 0x0A, 0xF7],
+        );
+    }
+    #[test]
+    fn should_render_special_messages_with_one_byte_bootloader_support() {
+        let renderer = OpenDeckRenderer {
+            value_size: ValueSize::OneByte,
+            buffer: &mut [0; MAX_MESSAGE_SIZE],
+        };
+
+        assert_sysex(
+            renderer.render(
+                OpenDeckResponse::Special(SpecialResponse::BootloaderSupport(true)),
+                MessageStatus::Response,
+            ),
+            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x51, 0x01, 0xF7],
+        );
+    }
+
+    #[test]
+    fn should_render_special_messages_with_two_bytes_handshake() {
         let renderer = OpenDeckRenderer {
             value_size: ValueSize::TwoBytes,
+            buffer: &mut [0; MAX_MESSAGE_SIZE],
         };
-        assert_eq!(
+        assert_sysex(
             renderer.render(
                 OpenDeckResponse::Special(SpecialResponse::Handshake),
-                MessageStatus::Response
+                MessageStatus::Response,
             ),
-            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x01, 0xF7]
+            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x01, 0xF7],
         );
-        assert_eq!(
+    }
+
+    #[test]
+    fn should_render_special_messages_with_two_bytes_value_size() {
+        let renderer = OpenDeckRenderer {
+            value_size: ValueSize::TwoBytes,
+            buffer: &mut [0; MAX_MESSAGE_SIZE],
+        };
+
+        assert_sysex(
             renderer.render(
                 OpenDeckResponse::Special(SpecialResponse::ValueSize),
-                MessageStatus::Response
+                MessageStatus::Response,
             ),
-            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x02, 0x00, 0x02, 0xF7]
+            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x02, 0x00, 0x02, 0xF7],
         );
-        assert_eq!(
+    }
+
+    #[test]
+    fn should_render_special_messages_with_two_bytes_values_per_message() {
+        let renderer = OpenDeckRenderer {
+            value_size: ValueSize::TwoBytes,
+            buffer: &mut [0; MAX_MESSAGE_SIZE],
+        };
+
+        assert_sysex(
             renderer.render(
                 OpenDeckResponse::Special(SpecialResponse::ValuesPerMessage(0x20)),
-                MessageStatus::Response
+                MessageStatus::Response,
             ),
-            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x03, 0x00, 0x20, 0xF7]
+            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x03, 0x00, 0x20, 0xF7],
         );
-        assert_eq!(
+    }
+
+    #[test]
+    fn should_render_special_messages_with_two_bytes_fimrware() {
+        let renderer = OpenDeckRenderer {
+            value_size: ValueSize::TwoBytes,
+            buffer: &mut [0; MAX_MESSAGE_SIZE],
+        };
+
+        assert_sysex(
             renderer.render(
                 OpenDeckResponse::Special(SpecialResponse::FirmwareVersion(FirmwareVersion {
                     major: 0x01,
@@ -324,19 +426,39 @@ mod tests {
                 })),
                 MessageStatus::Response,
             ),
-            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x56, 0x00, 0x01, 0x00, 0x02, 0x00, 0x03, 0xF7]
+            &[
+                0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x56, 0x00, 0x01, 0x00, 0x02, 0x00, 0x03, 0xF7,
+            ],
         );
-        assert_eq!(
+    }
+
+    #[test]
+    fn should_render_special_messages_with_two_bytes_hardware_uuid() {
+        let renderer = OpenDeckRenderer {
+            value_size: ValueSize::TwoBytes,
+            buffer: &mut [0; MAX_MESSAGE_SIZE],
+        };
+
+        assert_sysex(
             renderer.render(
                 OpenDeckResponse::Special(SpecialResponse::HardwareUID(HardwareUid(0x12345678))),
-                MessageStatus::Response
+                MessageStatus::Response,
             ),
             &[
                 0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x42, 0x00, 0x12, 0x00, 0x34, 0x00, 0x56, 0x00,
-                0x78, 0xF7
-            ]
+                0x78, 0xF7,
+            ],
         );
-        assert_eq!(
+    }
+
+    #[test]
+    fn should_render_special_messages_with_two_bytes_firmware_and_hardware_uuid() {
+        let renderer = OpenDeckRenderer {
+            value_size: ValueSize::TwoBytes,
+            buffer: &mut [0; MAX_MESSAGE_SIZE],
+        };
+
+        assert_sysex(
             renderer.render(
                 OpenDeckResponse::Special(SpecialResponse::FirmwareVersionAndHardwareUUID(
                     FirmwareVersion {
@@ -344,16 +466,25 @@ mod tests {
                         minor: 0x04,
                         revision: 0x05,
                     },
-                    HardwareUid(0x06070809)
+                    HardwareUid(0x06070809),
                 )),
-                MessageStatus::Response
+                MessageStatus::Response,
             ),
             &[
                 0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x43, 0x00, 0x03, 0x00, 0x04, 0x00, 0x05, 0x00,
-                0x06, 0x00, 0x07, 0x00, 0x08, 0x00, 0x09, 0xF7
-            ]
+                0x06, 0x00, 0x07, 0x00, 0x08, 0x00, 0x09, 0xF7,
+            ],
         );
-        assert_eq!(
+    }
+
+    #[test]
+    fn should_render_special_messages_with_two_bytes_nr_supported_components() {
+        let renderer = OpenDeckRenderer {
+            value_size: ValueSize::TwoBytes,
+            buffer: &mut [0; MAX_MESSAGE_SIZE],
+        };
+
+        assert_sysex(
             renderer.render(
                 OpenDeckResponse::Special(SpecialResponse::NrOfSupportedComponents(
                     crate::NrOfSupportedComponents {
@@ -361,83 +492,120 @@ mod tests {
                         encoders: 2,
                         analog: 2,
                         leds: 8,
-                        touchscreen_buttons: 1
-                    }
+                        touchscreen_buttons: 1,
+                    },
                 )),
-                MessageStatus::Response
+                MessageStatus::Response,
             ),
             &[
                 0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x4D, 0x00, 0x08, 0x00, 0x02, 0x00, 0x02, 0x00,
-                0x08, 0x00, 0x01, 0xF7
-            ]
-        );
-        assert_eq!(
-            renderer.render(
-                OpenDeckResponse::Special(SpecialResponse::NrOfSupportedPresets(10)),
-                MessageStatus::Response
-            ),
-            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x50, 0x00, 0x0A, 0xF7]
-        );
-        assert_eq!(
-            renderer.render(
-                OpenDeckResponse::Special(SpecialResponse::BootloaderSupport(true)),
-                MessageStatus::Response
-            ),
-            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x51, 0x00, 0x01, 0xF7]
+                0x08, 0x00, 0x01, 0xF7,
+            ],
         );
     }
 
+    #[test]
+    fn should_render_special_messages_with_two_bytes_nr_presets() {
+        let renderer = OpenDeckRenderer {
+            value_size: ValueSize::TwoBytes,
+            buffer: &mut [0; MAX_MESSAGE_SIZE],
+        };
+
+        assert_sysex(
+            renderer.render(
+                OpenDeckResponse::Special(SpecialResponse::NrOfSupportedPresets(10)),
+                MessageStatus::Response,
+            ),
+            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x50, 0x00, 0x0A, 0xF7],
+        );
+    }
+
+    #[test]
+    fn should_render_special_messages_with_two_bytes_bootloader_support() {
+        let renderer = OpenDeckRenderer {
+            value_size: ValueSize::TwoBytes,
+            buffer: &mut [0; MAX_MESSAGE_SIZE],
+        };
+
+        assert_sysex(
+            renderer.render(
+                OpenDeckResponse::Special(SpecialResponse::BootloaderSupport(true)),
+                MessageStatus::Response,
+            ),
+            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x51, 0x00, 0x01, 0xF7],
+        );
+    }
     #[test]
     fn should_render_configuration_messages_with_two_bytes() {
         let renderer = OpenDeckRenderer {
             value_size: ValueSize::TwoBytes,
+            buffer: &mut [0; MAX_MESSAGE_SIZE],
         };
-        assert_eq!(
+        assert_sysex(
             renderer.render(
                 OpenDeckResponse::Configuration(
                     Wish::Get,
                     Amount::Single,
                     Block::Analog(5, AnalogSection::MidiId(u16::MIN)),
-                    Vec::from_slice(&[5]).unwrap()
+                    Vec::from_slice(&[5]).unwrap(),
                 ),
-                MessageStatus::Response
+                MessageStatus::Response,
             ),
             &[
                 0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x00, 0x00, 0x03, 0x03, 0x00, 0x05, 0x00, 0x00,
-                0x00, 0x05, 0xF7
-            ]
+                0x00, 0x05, 0xF7,
+            ],
         );
-        assert_eq!(
+    }
+    #[test]
+    fn should_render_configuration_messages_global() {
+        let renderer = OpenDeckRenderer {
+            value_size: ValueSize::TwoBytes,
+            buffer: &mut [0; MAX_MESSAGE_SIZE],
+        };
+
+        assert_sysex(
             renderer.render(
                 OpenDeckResponse::Configuration(
                     Wish::Get,
                     Amount::Single,
                     Block::Global(GlobalSection::Presets(PresetIndex::Active, 0x00)),
-                    Vec::new()
+                    Vec::new(),
                 ),
-                MessageStatus::Response
+                MessageStatus::Response,
             ),
             &[
                 0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00,
-                0xF7
-            ]
+                0xF7,
+            ],
         );
+    }
+    #[test]
+    fn should_render_configuration_messages_analog() {
+        let renderer = OpenDeckRenderer {
+            value_size: ValueSize::TwoBytes,
+            buffer: &mut [0; MAX_MESSAGE_SIZE],
+        };
 
-        assert_eq!(
+        assert_sysex(
             renderer.render(
                 OpenDeckResponse::Configuration(
                     Wish::Get,
                     Amount::All(0x00),
                     Block::Analog(0, AnalogSection::MidiId(u16::MIN)),
-                    Vec::from_slice(&[5, 6, 7, 8]).unwrap()
+                    Vec::from_slice(&[5, 6, 7, 8]).unwrap(),
                 ),
-                MessageStatus::Response
+                MessageStatus::Response,
             ),
             &[
                 0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x00, 0x01, 0x03, 0x03, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x05, 0x00, 0x06, 0x00, 0x07, 0x00, 0x08, 0xF7
-            ]
+                0x00, 0x05, 0x00, 0x06, 0x00, 0x07, 0x00, 0x08, 0xF7,
+            ],
         );
+    }
+
+    fn assert_sysex(act: Result<Option<Sysex7<&mut [u8]>>, BufferOverflow>, exp: &[u8]) {
+        assert_eq!(act.unwrap().unwrap().data(), exp)
     }
 
     #[test]

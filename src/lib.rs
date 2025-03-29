@@ -29,6 +29,7 @@ const STD_REQ_MIN_MSG_SIZE: usize = 10 + BYTES_PER_VALUE * 2 + 1;
 
 // FIXME calculate value based on generic const
 const PARAMS_PER_MESSAGE: usize = 32;
+
 const MAX_MESSAGE_SIZE: usize = STD_REQ_MIN_MSG_SIZE + (PARAMS_PER_MESSAGE * BYTES_PER_VALUE);
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -92,6 +93,9 @@ enum ByteOrder {
 impl ByteOrder {
     fn get(self, buf: &[u8]) -> u8 {
         buf[self as usize]
+    }
+    fn seti(self) -> usize {
+        self as usize - 1
     }
 }
 

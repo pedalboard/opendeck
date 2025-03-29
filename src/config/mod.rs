@@ -6,12 +6,13 @@ use crate::{
     handler::Messages,
     led::Led,
     parser::{OpenDeckParseError, OpenDeckParser},
-    renderer::{Buffer, OpenDeckRenderer},
+    renderer::OpenDeckRenderer,
     Amount, Block, HardwareUid, MessageStatus, NewValues, NrOfSupportedComponents, OpenDeckRequest,
     OpenDeckResponse, SpecialRequest, SpecialResponse, ValueSize, Wish,
 };
 
 use heapless::Vec;
+use midi2::{error::BufferOverflow, sysex7::Sysex7};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -95,7 +96,6 @@ pub struct GlobalConfig {
 
 pub struct Config<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize> {
     parser: OpenDeckParser,
-    renderer: OpenDeckRenderer,
     global: GlobalConfig,
     enabled: bool,
     presets: Vec<Preset<B, A, E, L>, P>,
@@ -118,10 +118,14 @@ pub struct SysExResponseIterator<
     request: Result<OpenDeckRequest, OpenDeckParseError>,
 }
 
-impl<'buf, const P: usize, const B: usize, const A: usize, const E: usize, const L: usize>
-    SysExResponseIterator<'buf, P, B, A, E, L>
+impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize>
+    SysExResponseIterator<'_, P, B, A, E, L>
 {
-    pub fn next(&mut self, _buffer: &'buf mut Buffer) -> Option<Buffer> {
+    pub fn next<'buf>(
+        &mut self,
+        buffer: &'buf mut [u8],
+    ) -> Result<Option<Sysex7<&'buf mut [u8]>>, BufferOverflow> {
+        let renderer = OpenDeckRenderer::new(ValueSize::TwoBytes, buffer);
         match self.request {
             Ok(req) => {
                 if self.index == 0 {
@@ -130,7 +134,7 @@ impl<'buf, const P: usize, const B: usize, const A: usize, const E: usize, const
                         defmt::info!("opendeck-res: {}", odr);
 
                         self.index += 1;
-                        return Some(self.config.renderer.render(odr, MessageStatus::Response));
+                        return renderer.render(odr, MessageStatus::Response);
                     }
                 }
                 if self.index == 1 {
@@ -145,22 +149,19 @@ impl<'buf, const P: usize, const B: usize, const A: usize, const E: usize, const
                             Vec::new(),
                         );
                         self.index += 1;
-                        return Some(self.config.renderer.render(ack, MessageStatus::Response));
+                        return renderer.render(ack, MessageStatus::Response);
                     }
                 }
-                None
+                Ok(None)
             }
-            Err(OpenDeckParseError::StatusError(status)) => {
+            Err(OpenDeckParseError::StatusError(s)) => {
                 self.index += 1;
-                Some(self.config.renderer.render(
-                    OpenDeckResponse::Special(SpecialResponse::Handshake),
-                    status,
-                ))
+                renderer.render(OpenDeckResponse::Special(SpecialResponse::Handshake), s)
             }
             Err(_err) => {
                 #[cfg(feature = "defmt")]
                 defmt::error!("error parsing sysex message: {}", _err);
-                None
+                Ok(None)
             }
         }
     }
@@ -177,7 +178,6 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
 
         Config {
             parser: OpenDeckParser::new(ValueSize::TwoBytes),
-            renderer: OpenDeckRenderer::new(ValueSize::TwoBytes),
             enabled: false,
             presets,
             version,
@@ -398,7 +398,10 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
 }
 #[cfg(test)]
 mod tests {
+    use crate::MAX_MESSAGE_SIZE;
+
     use super::*;
+    use midi2::Data;
 
     #[test]
     fn test_process_sysex_handshake() {
@@ -415,8 +418,9 @@ mod tests {
         let request = [0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x01, 0xF7]; // Example SysEx request for handshake
         let mut responses = config.process_sysex(&request);
 
-        let exp = Buffer::from_slice(&[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x01, 0xF7]).unwrap();
-        assert_eq!(responses.next(&mut Buffer::new()).unwrap(), exp);
+        let exp = &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x01, 0xF7][..];
+        let buf = &mut [0; MAX_MESSAGE_SIZE];
+        assert_eq!(responses.next(buf).unwrap().unwrap().data(), exp);
     }
 
     #[test]
@@ -437,12 +441,12 @@ mod tests {
         ];
         let mut responses = config.process_sysex(&request);
 
-        let exp = Buffer::from_slice(&[
+        let exp = &[
             0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x00, 0x00, 0x03, 0x03, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0xF7,
-        ])
-        .unwrap();
-        assert_eq!(responses.next(&mut Buffer::new()).unwrap(), exp);
+        ];
+        let buf = &mut [0; MAX_MESSAGE_SIZE];
+        assert_eq!(responses.next(buf).unwrap().unwrap().data(), exp);
     }
     #[test]
     fn test_get_all_with_ack() {
@@ -461,21 +465,19 @@ mod tests {
             0xF7,
         ];
         let mut responses = config.process_sysex(&request);
-        let mut buffer = Buffer::new();
-        let resp1 = Buffer::from_slice(&[
+        let buf = &mut [0; MAX_MESSAGE_SIZE];
+        let resp1 = [
             0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x00, 0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0x04, 0x00, 0x05, 0x00, 0x06,
             0x00, 0x07, 0x00, 0x08, 0x00, 0x09, 0x00, 0x0A, 0x00, 0x0B, 0x00, 0x0C, 0x00, 0x0D,
             0x00, 0x0E, 0x00, 0x0F, 0x00, 0x10, 0x00, 0x11, 0x00, 0x12, 0x00, 0x13, 0xF7,
-        ]);
-        assert_eq!(responses.next(&mut buffer).unwrap(), resp1.unwrap());
-        let resp2 = Buffer::from_slice(&[
+        ];
+        assert_eq!(responses.next(buf).unwrap().unwrap().data(), resp1);
+        let resp2 = &[
             0xF0, 0x00, 0x53, 0x43, 0x01, 0x7F, 0x00, 0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00,
             0xF7,
-        ]);
-        let mut buffer = Buffer::new();
-        assert_eq!(responses.next(&mut buffer).unwrap(), resp2.unwrap());
-        let mut buffer = Buffer::new();
-        assert_eq!(responses.next(&mut buffer), None);
+        ];
+        assert_eq!(responses.next(buf).unwrap().unwrap().data(), resp2);
+        assert_eq!(responses.next(&mut []).unwrap(), None);
     }
 }
