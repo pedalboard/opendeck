@@ -148,6 +148,9 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
                             block,
                             Vec::new(),
                         );
+                        #[cfg(feature = "defmt")]
+                        defmt::info!("opendeck-ack: {}", ack);
+
                         self.index += 1;
                         return renderer.render(ack, MessageStatus::Response);
                     }
