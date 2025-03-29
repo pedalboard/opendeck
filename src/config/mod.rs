@@ -144,7 +144,7 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
                     if let OpenDeckRequest::Configuration(wish, Amount::All(0x7E), block) = req {
                         let ack = OpenDeckResponse::Configuration(
                             wish,
-                            Amount::All(0x7F),
+                            Amount::All(0x7E),
                             block,
                             Vec::new(),
                         );
@@ -477,7 +477,7 @@ mod tests {
         ];
         assert_eq!(responses.next(buf).unwrap().unwrap().data(), resp1);
         let resp2 = &[
-            0xF0, 0x00, 0x53, 0x43, 0x01, 0x7F, 0x00, 0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00,
+            0xF0, 0x00, 0x53, 0x43, 0x01, 0x7E, 0x00, 0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00,
             0xF7,
         ];
         assert_eq!(responses.next(buf).unwrap().unwrap().data(), resp2);
