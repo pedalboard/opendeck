@@ -108,7 +108,7 @@ pub struct Config<const P: usize, const B: usize, const A: usize, const E: usize
     bootloader: fn(),
 }
 
-pub enum SysExResponseIterator<
+pub enum SysexResponseIterator<
     'a,
     const P: usize,
     const B: usize,
@@ -118,12 +118,12 @@ pub enum SysExResponseIterator<
 > {
     Config(ConfigResponseIterator<'a, P, B, A, E, L>),
     Backup(ConfigBackupIterator<'a, P, B, A, E, L>),
-    Error,
+    Error(SingleResponseIterator),
     None,
 }
 
 impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize>
-    SysExResponseIterator<'_, P, B, A, E, L>
+    SysexResponseIterator<'_, P, B, A, E, L>
 {
     pub fn next<'buf>(
         &mut self,
@@ -131,7 +131,7 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
     ) -> Result<Option<Sysex7<&'buf mut [u8]>>, BufferOverflow> {
         let renderer = OpenDeckRenderer::new(ValueSize::TwoBytes, buffer);
         match self {
-            SysExResponseIterator::Config(i) => {
+            SysexResponseIterator::Config(i) => {
                 if let Some(res) = i.next() {
                     #[cfg(feature = "defmt")]
                     defmt::info!("opendeck-res: {}", res);
@@ -139,15 +139,53 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
                 }
                 Ok(None)
             }
-            SysExResponseIterator::Backup(i) => {
+            SysexResponseIterator::Backup(i) => {
                 if let Some(res) = i.next() {
+                    #[cfg(feature = "defmt")]
+                    defmt::info!("opendeck-bak: {}", res);
                     return renderer.render(res, MessageStatus::Response);
                 }
                 Ok(None)
             }
-            SysExResponseIterator::Error => Ok(None),
-            SysExResponseIterator::None => Ok(None),
+            SysexResponseIterator::Error(i) => {
+                if let Some((res, status)) = i.next() {
+                    #[cfg(feature = "defmt")]
+                    defmt::info!("opendeck-err: {} {}", res, status);
+                    return renderer.render(res, status);
+                }
+                Ok(None)
+            }
+            SysexResponseIterator::None => Ok(None),
         }
+    }
+}
+
+pub struct SingleResponseIterator {
+    response: OpenDeckResponse,
+    message_status: MessageStatus,
+    done: bool,
+}
+
+impl SingleResponseIterator {
+    pub fn new(
+        response: OpenDeckResponse,
+        message_status: MessageStatus,
+    ) -> SingleResponseIterator {
+        SingleResponseIterator {
+            response,
+            message_status,
+            done: false,
+        }
+    }
+}
+
+impl Iterator for SingleResponseIterator {
+    type Item = (OpenDeckResponse, MessageStatus);
+    fn next(&mut self) -> Option<(OpenDeckResponse, MessageStatus)> {
+        if self.done {
+            return None;
+        }
+        Some((self.response.clone(), self.message_status))
     }
 }
 
@@ -223,24 +261,23 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
         }
     }
     /// Processes a SysEx request and returns an optional responses.
-    pub fn process_sysex(&mut self, request: &[u8]) -> SysExResponseIterator<'_, P, B, A, E, L> {
+    pub fn process_sysex(&mut self, request: &[u8]) -> SysexResponseIterator<'_, P, B, A, E, L> {
         let request = self.parser.parse(request);
         match request {
             Ok(OpenDeckRequest::Special(SpecialRequest::Backup)) => {
-                SysExResponseIterator::Backup(ConfigBackupIterator::new(self))
+                SysexResponseIterator::Backup(ConfigBackupIterator::new(self))
             }
             Ok(request) => {
-                SysExResponseIterator::Config(ConfigResponseIterator::new(self, request))
+                SysexResponseIterator::Config(ConfigResponseIterator::new(self, request))
             }
-            Err(OpenDeckParseError::StatusError(s)) => {
-                //  renderer.render(OpenDeckResponse::Special(SpecialResponse::Handshake), s)
-                // FIXME create single response
-                SysExResponseIterator::None
+            Err(OpenDeckParseError::StatusError(message_status)) => {
+                let response = OpenDeckResponse::Special(SpecialResponse::Handshake);
+                SysexResponseIterator::Error(SingleResponseIterator::new(response, message_status))
             }
             Err(_err) => {
                 #[cfg(feature = "defmt")]
                 defmt::error!("error parsing sysex message: {}", _err);
-                SysExResponseIterator::None
+                SysexResponseIterator::None
             }
         }
     }
