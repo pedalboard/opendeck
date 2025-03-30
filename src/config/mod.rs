@@ -14,6 +14,8 @@ use crate::{
 use heapless::Vec;
 use midi2::{error::BufferOverflow, sysex7::Sysex7};
 
+mod backup;
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct FirmwareVersion {
@@ -118,9 +120,19 @@ pub struct SysExResponseIterator<
     request: Result<OpenDeckRequest, OpenDeckParseError>,
 }
 
-impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize>
-    SysExResponseIterator<'_, P, B, A, E, L>
+impl<'a, const P: usize, const B: usize, const A: usize, const E: usize, const L: usize>
+    SysExResponseIterator<'a, P, B, A, E, L>
 {
+    pub fn new(
+        config: &'a mut Config<P, B, A, E, L>,
+        request: Result<OpenDeckRequest, OpenDeckParseError>,
+    ) -> Self {
+        SysExResponseIterator {
+            config,
+            index: 0,
+            request,
+        }
+    }
     pub fn next<'buf>(
         &mut self,
         buffer: &'buf mut [u8],
@@ -128,6 +140,20 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
         let renderer = OpenDeckRenderer::new(ValueSize::TwoBytes, buffer);
         match self.request {
             Ok(req) => {
+                if req == OpenDeckRequest::Special(SpecialRequest::Backup) {
+                    /*
+                                        match self.config.next() {
+                                            None => {
+                                                return Ok(None);
+                                            }
+                                            Some(res) => {
+                                                #[cfg(feature = "defmt")]
+                                                defmt::info!("opendeck-backup: {}", res);
+                                                return renderer.render(res, MessageStatus::Response);
+                                            }
+                                        }
+                    */
+                }
                 if self.index == 0 {
                     if let Some(odr) = self.config.process_req(req) {
                         #[cfg(feature = "defmt")]
@@ -193,14 +219,11 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
     /// Processes a SysEx request and returns an optional responses.
     pub fn process_sysex(&mut self, request: &[u8]) -> SysExResponseIterator<'_, P, B, A, E, L> {
         let request = self.parser.parse(request);
-        SysExResponseIterator {
-            config: self,
-            index: 0,
-            request,
-        }
+
+        SysExResponseIterator::new(self, request)
     }
 
-    fn process_req(&mut self, req: OpenDeckRequest) -> Option<OpenDeckResponse> {
+    pub fn process_req(&mut self, req: OpenDeckRequest) -> Option<OpenDeckResponse> {
         #[cfg(feature = "defmt")]
         defmt::info!("opendeck-req: {}", req);
         match req {
