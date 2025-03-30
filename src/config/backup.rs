@@ -87,9 +87,9 @@ impl<const B: usize, const A: usize, const E: usize, const L: usize>
             self.button_index += 1;
             if self.button_index < B {
                 self.button_iter = ButtonBackupIterator::new(self.button_index);
+                return self.button_iter.next(&preset.buttons[self.button_index]);
             }
         }
-        // Implementation of the iterator logic goes here
         None
     }
 }
@@ -114,7 +114,7 @@ mod tests {
         let uid = 12345;
         let reboot = || {};
         let bootloader = || {};
-        let config = &mut Config::<1, 1, 1, 1, 1>::new(version, uid, reboot, bootloader);
+        let config = &mut Config::<1, 2, 1, 1, 1>::new(version, uid, reboot, bootloader);
 
         let mut iterator = ConfigBackupIterator::new();
         assert_eq!(
@@ -168,8 +168,54 @@ mod tests {
         );
         assert_eq!(
             iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Button(1, ButtonSection::Type(ButtonType::default())),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Button(1, ButtonSection::MessageType(ButtonMessageType::default())),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Button(1, ButtonSection::MidiId(1)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Button(1, ButtonSection::Value(0x01)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Button(1, ButtonSection::Channel(ChannelOrAll::default())),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
             Some(OpenDeckResponse::Special(SpecialResponse::Backup))
         );
+
         assert_eq!(iterator.next(config), None);
     }
 }
