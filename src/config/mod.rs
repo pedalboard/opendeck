@@ -1,6 +1,7 @@
 use crate::{
     analog::Analog,
     button::{handler::Action, Button},
+    config::backup::ConfigBackupIterator,
     encoder::{handler::EncoderPulse, Encoder},
     global::{GlobalMidi, GlobalPreset, GlobalSection},
     handler::Messages,
@@ -107,7 +108,50 @@ pub struct Config<const P: usize, const B: usize, const A: usize, const E: usize
     bootloader: fn(),
 }
 
-pub struct SysExResponseIterator<
+pub enum SysExResponseIterator<
+    'a,
+    const P: usize,
+    const B: usize,
+    const A: usize,
+    const E: usize,
+    const L: usize,
+> {
+    Config(ConfigResponseIterator<'a, P, B, A, E, L>),
+    Backup(ConfigBackupIterator<'a, P, B, A, E, L>),
+    Error,
+    None,
+}
+
+impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize>
+    SysExResponseIterator<'_, P, B, A, E, L>
+{
+    pub fn next<'buf>(
+        &mut self,
+        buffer: &'buf mut [u8],
+    ) -> Result<Option<Sysex7<&'buf mut [u8]>>, BufferOverflow> {
+        let renderer = OpenDeckRenderer::new(ValueSize::TwoBytes, buffer);
+        match self {
+            SysExResponseIterator::Config(i) => {
+                if let Some(res) = i.next() {
+                    #[cfg(feature = "defmt")]
+                    defmt::info!("opendeck-res: {}", res);
+                    return renderer.render(res, MessageStatus::Response);
+                }
+                Ok(None)
+            }
+            SysExResponseIterator::Backup(i) => {
+                if let Some(res) = i.next() {
+                    return renderer.render(res, MessageStatus::Response);
+                }
+                Ok(None)
+            }
+            SysExResponseIterator::Error => Ok(None),
+            SysExResponseIterator::None => Ok(None),
+        }
+    }
+}
+
+pub struct ConfigResponseIterator<
     'a,
     const P: usize,
     const B: usize,
@@ -117,82 +161,44 @@ pub struct SysExResponseIterator<
 > {
     config: &'a mut Config<P, B, A, E, L>,
     index: usize,
-    request: Result<OpenDeckRequest, OpenDeckParseError>,
+    request: OpenDeckRequest,
 }
 
 impl<'a, const P: usize, const B: usize, const A: usize, const E: usize, const L: usize>
-    SysExResponseIterator<'a, P, B, A, E, L>
+    ConfigResponseIterator<'a, P, B, A, E, L>
 {
-    pub fn new(
-        config: &'a mut Config<P, B, A, E, L>,
-        request: Result<OpenDeckRequest, OpenDeckParseError>,
-    ) -> Self {
-        SysExResponseIterator {
+    pub fn new(config: &'a mut Config<P, B, A, E, L>, request: OpenDeckRequest) -> Self {
+        ConfigResponseIterator {
             config,
             index: 0,
             request,
         }
     }
-    pub fn next<'buf>(
-        &mut self,
-        buffer: &'buf mut [u8],
-    ) -> Result<Option<Sysex7<&'buf mut [u8]>>, BufferOverflow> {
-        let renderer = OpenDeckRenderer::new(ValueSize::TwoBytes, buffer);
-        match self.request {
-            Ok(req) => {
-                if req == OpenDeckRequest::Special(SpecialRequest::Backup) {
-                    /*
-                                        match self.config.next() {
-                                            None => {
-                                                return Ok(None);
-                                            }
-                                            Some(res) => {
-                                                #[cfg(feature = "defmt")]
-                                                defmt::info!("opendeck-backup: {}", res);
-                                                return renderer.render(res, MessageStatus::Response);
-                                            }
-                                        }
-                    */
-                }
-                if self.index == 0 {
-                    if let Some(odr) = self.config.process_req(req) {
-                        #[cfg(feature = "defmt")]
-                        defmt::info!("opendeck-res: {}", odr);
-
-                        self.index += 1;
-                        return renderer.render(odr, MessageStatus::Response);
-                    }
-                }
-                if self.index == 1 {
-                    // The assumption is that the maximum amount of values is < 32 and therefore we
-                    // can fit all values in the first message. The 2nd message below is the final ACK
-                    // response to mark the ALL values reponse as completed..
-                    if let OpenDeckRequest::Configuration(wish, Amount::All(0x7E), block) = req {
-                        let ack = OpenDeckResponse::Configuration(
-                            wish,
-                            Amount::All(0x7E),
-                            block,
-                            Vec::new(),
-                        );
-                        #[cfg(feature = "defmt")]
-                        defmt::info!("opendeck-ack: {}", ack);
-
-                        self.index += 1;
-                        return renderer.render(ack, MessageStatus::Response);
-                    }
-                }
-                Ok(None)
-            }
-            Err(OpenDeckParseError::StatusError(s)) => {
+}
+impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize> Iterator
+    for ConfigResponseIterator<'_, P, B, A, E, L>
+{
+    type Item = OpenDeckResponse;
+    fn next(&mut self) -> Option<OpenDeckResponse> {
+        if self.index == 0 {
+            if let Some(odr) = self.config.process_req(self.request) {
                 self.index += 1;
-                renderer.render(OpenDeckResponse::Special(SpecialResponse::Handshake), s)
-            }
-            Err(_err) => {
-                #[cfg(feature = "defmt")]
-                defmt::error!("error parsing sysex message: {}", _err);
-                Ok(None)
+                return Some(odr);
             }
         }
+        if self.index == 1 {
+            // FIXME The assumption is that the maximum amount of values is < 32 and therefore we
+            // can fit all values in the first message. The 2nd message below is the final ACK
+            // response to mark the ALL values reponse as completed..
+            if let OpenDeckRequest::Configuration(wish, Amount::All(0x7E), block) = self.request {
+                let ack =
+                    OpenDeckResponse::Configuration(wish, Amount::All(0x7E), block, Vec::new());
+
+                self.index += 1;
+                return Some(ack);
+            }
+        }
+        None
     }
 }
 
@@ -219,8 +225,24 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
     /// Processes a SysEx request and returns an optional responses.
     pub fn process_sysex(&mut self, request: &[u8]) -> SysExResponseIterator<'_, P, B, A, E, L> {
         let request = self.parser.parse(request);
-
-        SysExResponseIterator::new(self, request)
+        match request {
+            Ok(OpenDeckRequest::Special(SpecialRequest::Backup)) => {
+                SysExResponseIterator::Backup(ConfigBackupIterator::new(self))
+            }
+            Ok(request) => {
+                SysExResponseIterator::Config(ConfigResponseIterator::new(self, request))
+            }
+            Err(OpenDeckParseError::StatusError(s)) => {
+                //  renderer.render(OpenDeckResponse::Special(SpecialResponse::Handshake), s)
+                // FIXME create single response
+                SysExResponseIterator::None
+            }
+            Err(_err) => {
+                #[cfg(feature = "defmt")]
+                defmt::error!("error parsing sysex message: {}", _err);
+                SysExResponseIterator::None
+            }
+        }
     }
 
     pub fn process_req(&mut self, req: OpenDeckRequest) -> Option<OpenDeckResponse> {
