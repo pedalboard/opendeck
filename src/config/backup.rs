@@ -1,6 +1,7 @@
 use crate::{
     button::backup::ButtonBackupIterator,
     config::{Config, Preset},
+    encoder::backup::EncoderBackupIterator,
     global::{GlobalSection, PresetIndex},
     Amount, Block, NewValues, OpenDeckResponse, SpecialResponse, Wish,
 };
@@ -88,6 +89,8 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
 pub struct PresetBackupIterator<const B: usize, const A: usize, const E: usize, const L: usize> {
     button_index: usize,
     button_iter: ButtonBackupIterator,
+    encoder_index: usize,
+    encoder_iter: EncoderBackupIterator,
 }
 
 impl<const B: usize, const A: usize, const E: usize, const L: usize>
@@ -98,6 +101,8 @@ impl<const B: usize, const A: usize, const E: usize, const L: usize>
         PresetBackupIterator {
             button_index: 0,
             button_iter: ButtonBackupIterator::new(0),
+            encoder_index: 0,
+            encoder_iter: EncoderBackupIterator::new(0),
         }
     }
     fn next(&mut self, preset: &Preset<B, A, E, L>) -> Option<OpenDeckResponse> {
@@ -112,6 +117,17 @@ impl<const B: usize, const A: usize, const E: usize, const L: usize>
                 return self.button_iter.next(&preset.buttons[self.button_index]);
             }
         }
+        if self.encoder_index < E {
+            let res = self.encoder_iter.next(&preset.encoders[self.encoder_index]);
+            if res.is_some() {
+                return res;
+            }
+            self.encoder_index += 1;
+            if self.encoder_index < E {
+                self.encoder_iter = EncoderBackupIterator::new(self.encoder_index);
+                return self.encoder_iter.next(&preset.encoders[self.encoder_index]);
+            }
+        }
         None
     }
 }
@@ -123,6 +139,7 @@ mod tests {
     use crate::{
         button::{ButtonMessageType, ButtonSection, ButtonType},
         config::{Config, FirmwareVersion},
+        encoder::{Accelleration, EncoderMessageType, EncoderSection},
         Amount, Block, ChannelOrAll, NewValues, Wish,
     };
 
@@ -242,6 +259,119 @@ mod tests {
                 NewValues::new(),
             ))
         );
+
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Encoder(0, EncoderSection::Enabled(false)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Encoder(0, EncoderSection::Inverted(false)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Encoder(
+                    0,
+                    EncoderSection::MessageType(EncoderMessageType::default())
+                ),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Encoder(0, EncoderSection::MidiIdLSB(0)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Encoder(0, EncoderSection::Channel(ChannelOrAll::default())),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Encoder(0, EncoderSection::PulsesPerStep(4)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Encoder(0, EncoderSection::Accelleration(Accelleration::None)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Encoder(0, EncoderSection::RemoteSync(false)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Encoder(0, EncoderSection::LowerLimit(0)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Encoder(0, EncoderSection::UpperLimit(127)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Encoder(0, EncoderSection::RepeatedValue(0)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Encoder(0, EncoderSection::SecondMidiId(0)),
+                NewValues::new(),
+            ))
+        );
+
         assert_eq!(
             iterator.next(config),
             Some(OpenDeckResponse::Special(SpecialResponse::Backup))
