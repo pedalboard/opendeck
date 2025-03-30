@@ -1,8 +1,14 @@
 use crate::{
     button::backup::ButtonBackupIterator,
     config::{Config, Preset},
-    OpenDeckResponse,
+    OpenDeckResponse, SpecialResponse,
 };
+
+enum BackupStatus {
+    Init,
+    Running,
+    Done,
+}
 
 pub struct ConfigBackupIterator<
     'a,
@@ -15,6 +21,7 @@ pub struct ConfigBackupIterator<
     config: &'a Config<P, B, A, E, L>,
     preset: usize,
     presets: PresetBackupIterator<'a, B, A, E, L>,
+    status: BackupStatus,
 }
 
 impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize> Iterator
@@ -23,17 +30,26 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
     type Item = OpenDeckResponse;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // Implementation of the iterator logic goes here
-        let res = self.presets.next();
-        if res.is_none() {
-            self.preset += 1;
-            if self.preset >= P {
-                return None;
+        match self.status {
+            BackupStatus::Init => {
+                self.status = BackupStatus::Running;
+                Some(OpenDeckResponse::Special(SpecialResponse::Backup))
             }
-            self.presets = PresetBackupIterator::new(&self.config.presets[self.preset]);
-            return self.presets.next();
+            BackupStatus::Running => {
+                let res = self.presets.next();
+                if res.is_none() {
+                    self.preset += 1;
+                    if self.preset >= P {
+                        self.status = BackupStatus::Done;
+                        return Some(OpenDeckResponse::Special(SpecialResponse::Backup));
+                    }
+                    self.presets = PresetBackupIterator::new(&self.config.presets[self.preset]);
+                    return self.presets.next();
+                }
+                res
+            }
+            BackupStatus::Done => None,
         }
-        res
     }
 }
 
@@ -45,6 +61,7 @@ impl<'a, const P: usize, const B: usize, const A: usize, const E: usize, const L
             config,
             preset: 0,
             presets: PresetBackupIterator::new(&config.presets[0]),
+            status: BackupStatus::Init,
         }
     }
 }
@@ -118,6 +135,10 @@ mod tests {
         let mut iterator = ConfigBackupIterator::new(config);
         assert_eq!(
             iterator.next(),
+            Some(OpenDeckResponse::Special(SpecialResponse::Backup))
+        );
+        assert_eq!(
+            iterator.next(),
             Some(OpenDeckResponse::Configuration(
                 Wish::Set,
                 Amount::Single,
@@ -161,5 +182,10 @@ mod tests {
                 NewValues::new(),
             ))
         );
+        assert_eq!(
+            iterator.next(),
+            Some(OpenDeckResponse::Special(SpecialResponse::Backup))
+        );
+        assert_eq!(iterator.next(), None);
     }
 }
