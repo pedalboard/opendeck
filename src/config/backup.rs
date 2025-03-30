@@ -11,40 +11,43 @@ enum BackupStatus {
 }
 
 pub struct ConfigBackupIterator<
-    'a,
     const P: usize,
     const B: usize,
     const A: usize,
     const E: usize,
     const L: usize,
 > {
-    config: &'a Config<P, B, A, E, L>,
     preset: usize,
-    presets: PresetBackupIterator<'a, B, A, E, L>,
+    presets: PresetBackupIterator<B, A, E, L>,
     status: BackupStatus,
 }
 
-impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize> Iterator
-    for ConfigBackupIterator<'_, P, B, A, E, L>
+impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize>
+    ConfigBackupIterator<P, B, A, E, L>
 {
-    type Item = OpenDeckResponse;
-
-    fn next(&mut self) -> Option<Self::Item> {
+    pub fn new() -> Self {
+        ConfigBackupIterator {
+            preset: 0,
+            presets: PresetBackupIterator::new(),
+            status: BackupStatus::Init,
+        }
+    }
+    pub fn next(&mut self, config: &mut Config<P, B, A, E, L>) -> Option<OpenDeckResponse> {
         match self.status {
             BackupStatus::Init => {
                 self.status = BackupStatus::Running;
                 Some(OpenDeckResponse::Special(SpecialResponse::Backup))
             }
             BackupStatus::Running => {
-                let res = self.presets.next();
+                let res = self.presets.next(&config.presets[self.preset]);
                 if res.is_none() {
                     self.preset += 1;
                     if self.preset >= P {
                         self.status = BackupStatus::Done;
                         return Some(OpenDeckResponse::Special(SpecialResponse::Backup));
                     }
-                    self.presets = PresetBackupIterator::new(&self.config.presets[self.preset]);
-                    return self.presets.next();
+                    self.presets = PresetBackupIterator::new();
+                    return self.presets.next(&config.presets[self.preset]);
                 }
                 res
             }
@@ -52,61 +55,42 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
         }
     }
 }
-
-impl<'a, const P: usize, const B: usize, const A: usize, const E: usize, const L: usize>
-    ConfigBackupIterator<'a, P, B, A, E, L>
+impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize> Default
+    for ConfigBackupIterator<P, B, A, E, L>
 {
-    pub fn new(config: &'a Config<P, B, A, E, L>) -> Self {
-        ConfigBackupIterator {
-            config,
-            preset: 0,
-            presets: PresetBackupIterator::new(&config.presets[0]),
-            status: BackupStatus::Init,
-        }
+    fn default() -> Self {
+        ConfigBackupIterator::new()
     }
 }
 
-pub struct PresetBackupIterator<'a, const B: usize, const A: usize, const E: usize, const L: usize>
-{
-    preset: &'a Preset<B, A, E, L>,
+pub struct PresetBackupIterator<const B: usize, const A: usize, const E: usize, const L: usize> {
     button_index: usize,
-    button_iter: ButtonBackupIterator<'a>,
+    button_iter: ButtonBackupIterator,
 }
 
-impl<const B: usize, const A: usize, const E: usize, const L: usize> Iterator
-    for PresetBackupIterator<'_, B, A, E, L>
+impl<const B: usize, const A: usize, const E: usize, const L: usize>
+    PresetBackupIterator<B, A, E, L>
 {
-    type Item = OpenDeckResponse;
-
-    fn next(&mut self) -> Option<Self::Item> {
+    fn new() -> Self {
+        // Implementation of the iterator logic goes here
+        PresetBackupIterator {
+            button_index: 0,
+            button_iter: ButtonBackupIterator::new(0),
+        }
+    }
+    fn next(&mut self, preset: &Preset<B, A, E, L>) -> Option<OpenDeckResponse> {
         if self.button_index < B {
-            let res = self.button_iter.next();
+            let res = self.button_iter.next(&preset.buttons[self.button_index]);
             if res.is_some() {
                 return res;
             }
             self.button_index += 1;
             if self.button_index < B {
-                self.button_iter = ButtonBackupIterator::new(
-                    &self.preset.buttons[self.button_index],
-                    self.button_index,
-                );
+                self.button_iter = ButtonBackupIterator::new(self.button_index);
             }
         }
         // Implementation of the iterator logic goes here
         None
-    }
-}
-
-impl<'a, const B: usize, const A: usize, const E: usize, const L: usize>
-    PresetBackupIterator<'a, B, A, E, L>
-{
-    fn new(preset: &'a Preset<B, A, E, L>) -> Self {
-        // Implementation of the iterator logic goes here
-        PresetBackupIterator {
-            preset,
-            button_index: 0,
-            button_iter: ButtonBackupIterator::new(&preset.buttons[0], 0),
-        }
     }
 }
 
@@ -132,13 +116,13 @@ mod tests {
         let bootloader = || {};
         let config = &mut Config::<1, 1, 1, 1, 1>::new(version, uid, reboot, bootloader);
 
-        let mut iterator = ConfigBackupIterator::new(config);
+        let mut iterator = ConfigBackupIterator::new();
         assert_eq!(
-            iterator.next(),
+            iterator.next(config),
             Some(OpenDeckResponse::Special(SpecialResponse::Backup))
         );
         assert_eq!(
-            iterator.next(),
+            iterator.next(config),
             Some(OpenDeckResponse::Configuration(
                 Wish::Set,
                 Amount::Single,
@@ -147,7 +131,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            iterator.next(),
+            iterator.next(config),
             Some(OpenDeckResponse::Configuration(
                 Wish::Set,
                 Amount::Single,
@@ -156,7 +140,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            iterator.next(),
+            iterator.next(config),
             Some(OpenDeckResponse::Configuration(
                 Wish::Set,
                 Amount::Single,
@@ -165,7 +149,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            iterator.next(),
+            iterator.next(config),
             Some(OpenDeckResponse::Configuration(
                 Wish::Set,
                 Amount::Single,
@@ -174,7 +158,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            iterator.next(),
+            iterator.next(config),
             Some(OpenDeckResponse::Configuration(
                 Wish::Set,
                 Amount::Single,
@@ -183,9 +167,9 @@ mod tests {
             ))
         );
         assert_eq!(
-            iterator.next(),
+            iterator.next(config),
             Some(OpenDeckResponse::Special(SpecialResponse::Backup))
         );
-        assert_eq!(iterator.next(), None);
+        assert_eq!(iterator.next(config), None);
     }
 }

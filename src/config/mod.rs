@@ -109,30 +109,30 @@ pub struct Config<const P: usize, const B: usize, const A: usize, const E: usize
 }
 
 pub enum SysexResponseIterator<
-    'a,
     const P: usize,
     const B: usize,
     const A: usize,
     const E: usize,
     const L: usize,
 > {
-    Config(ConfigResponseIterator<'a, P, B, A, E, L>),
-    Backup(ConfigBackupIterator<'a, P, B, A, E, L>),
+    Config(ConfigResponseIterator<P, B, A, E, L>),
+    Backup(ConfigBackupIterator<P, B, A, E, L>),
     Error(SingleResponseIterator),
     None,
 }
 
 impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize>
-    SysexResponseIterator<'_, P, B, A, E, L>
+    SysexResponseIterator<P, B, A, E, L>
 {
-    pub fn next<'buf>(
+    pub fn next<'c>(
         &mut self,
-        buffer: &'buf mut [u8],
-    ) -> Result<Option<Sysex7<&'buf mut [u8]>>, BufferOverflow> {
+        buffer: &'c mut [u8],
+        config: &mut Config<P, B, A, E, L>,
+    ) -> Result<Option<Sysex7<&'c mut [u8]>>, BufferOverflow> {
         let renderer = OpenDeckRenderer::new(ValueSize::TwoBytes, buffer);
         match self {
             SysexResponseIterator::Config(i) => {
-                if let Some(res) = i.next() {
+                if let Some(res) = i.next(config) {
                     #[cfg(feature = "defmt")]
                     defmt::info!("opendeck-res: {}", res);
                     return renderer.render(res, MessageStatus::Response);
@@ -140,7 +140,7 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
                 Ok(None)
             }
             SysexResponseIterator::Backup(i) => {
-                if let Some(res) = i.next() {
+                if let Some(res) = i.next(config) {
                     #[cfg(feature = "defmt")]
                     defmt::info!("opendeck-bak: {}", res);
                     return renderer.render(res, MessageStatus::Response);
@@ -190,36 +190,25 @@ impl Iterator for SingleResponseIterator {
 }
 
 pub struct ConfigResponseIterator<
-    'a,
     const P: usize,
     const B: usize,
     const A: usize,
     const E: usize,
     const L: usize,
 > {
-    config: &'a mut Config<P, B, A, E, L>,
     index: usize,
     request: OpenDeckRequest,
 }
 
-impl<'a, const P: usize, const B: usize, const A: usize, const E: usize, const L: usize>
-    ConfigResponseIterator<'a, P, B, A, E, L>
+impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize>
+    ConfigResponseIterator<P, B, A, E, L>
 {
-    pub fn new(config: &'a mut Config<P, B, A, E, L>, request: OpenDeckRequest) -> Self {
-        ConfigResponseIterator {
-            config,
-            index: 0,
-            request,
-        }
+    pub fn new(request: OpenDeckRequest) -> Self {
+        ConfigResponseIterator { index: 0, request }
     }
-}
-impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize> Iterator
-    for ConfigResponseIterator<'_, P, B, A, E, L>
-{
-    type Item = OpenDeckResponse;
-    fn next(&mut self) -> Option<OpenDeckResponse> {
+    fn next(&mut self, config: &mut Config<P, B, A, E, L>) -> Option<OpenDeckResponse> {
         if self.index == 0 {
-            if let Some(odr) = self.config.process_req(self.request) {
+            if let Some(odr) = config.process_req(self.request) {
                 self.index += 1;
                 return Some(odr);
             }
@@ -260,16 +249,14 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
             global: GlobalConfig::default(),
         }
     }
-    /// Processes a SysEx request and returns an optional responses.
-    pub fn process_sysex(&mut self, request: &[u8]) -> SysexResponseIterator<'_, P, B, A, E, L> {
+    /// Processes a SysEx request and returns an optional response.
+    pub fn process_sysex(&mut self, request: &[u8]) -> SysexResponseIterator<P, B, A, E, L> {
         let request = self.parser.parse(request);
         match request {
             Ok(OpenDeckRequest::Special(SpecialRequest::Backup)) => {
-                SysexResponseIterator::Backup(ConfigBackupIterator::new(self))
+                SysexResponseIterator::Backup(ConfigBackupIterator::new())
             }
-            Ok(request) => {
-                SysexResponseIterator::Config(ConfigResponseIterator::new(self, request))
-            }
+            Ok(request) => SysexResponseIterator::Config(ConfigResponseIterator::new(request)),
             Err(OpenDeckParseError::StatusError(message_status)) => {
                 let response = OpenDeckResponse::Special(SpecialResponse::Handshake);
                 SysexResponseIterator::Error(SingleResponseIterator::new(response, message_status))
@@ -505,7 +492,10 @@ mod tests {
 
         let exp = &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x01, 0xF7][..];
         let buf = &mut [0; MAX_MESSAGE_SIZE];
-        assert_eq!(responses.next(buf).unwrap().unwrap().data(), exp);
+        assert_eq!(
+            responses.next(buf, &mut config).unwrap().unwrap().data(),
+            exp
+        );
     }
 
     #[test]
@@ -531,7 +521,10 @@ mod tests {
             0x00, 0x00, 0xF7,
         ];
         let buf = &mut [0; MAX_MESSAGE_SIZE];
-        assert_eq!(responses.next(buf).unwrap().unwrap().data(), exp);
+        assert_eq!(
+            responses.next(buf, &mut config).unwrap().unwrap().data(),
+            exp
+        );
     }
     #[test]
     fn test_get_all_with_ack() {
@@ -557,12 +550,18 @@ mod tests {
             0x00, 0x07, 0x00, 0x08, 0x00, 0x09, 0x00, 0x0A, 0x00, 0x0B, 0x00, 0x0C, 0x00, 0x0D,
             0x00, 0x0E, 0x00, 0x0F, 0x00, 0x10, 0x00, 0x11, 0x00, 0x12, 0x00, 0x13, 0xF7,
         ];
-        assert_eq!(responses.next(buf).unwrap().unwrap().data(), resp1);
+        assert_eq!(
+            responses.next(buf, &mut config).unwrap().unwrap().data(),
+            resp1
+        );
         let resp2 = &[
             0xF0, 0x00, 0x53, 0x43, 0x01, 0x7E, 0x00, 0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00,
             0xF7,
         ];
-        assert_eq!(responses.next(buf).unwrap().unwrap().data(), resp2);
-        assert_eq!(responses.next(&mut []).unwrap(), None);
+        assert_eq!(
+            responses.next(buf, &mut config).unwrap().unwrap().data(),
+            resp2
+        );
+        assert_eq!(responses.next(&mut [], &mut config).unwrap(), None);
     }
 }
