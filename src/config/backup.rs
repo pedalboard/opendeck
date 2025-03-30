@@ -1,11 +1,13 @@
 use crate::{
     button::backup::ButtonBackupIterator,
     config::{Config, Preset},
-    OpenDeckResponse, SpecialResponse,
+    global::{GlobalSection, PresetIndex},
+    Amount, Block, NewValues, OpenDeckResponse, SpecialResponse, Wish,
 };
 
 enum BackupStatus {
     Init,
+    PresetChange,
     Running,
     Done,
 }
@@ -35,8 +37,20 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
     pub fn next(&mut self, config: &mut Config<P, B, A, E, L>) -> Option<OpenDeckResponse> {
         match self.status {
             BackupStatus::Init => {
-                self.status = BackupStatus::Running;
+                self.status = BackupStatus::PresetChange;
                 Some(OpenDeckResponse::Special(SpecialResponse::Backup))
+            }
+            BackupStatus::PresetChange => {
+                self.status = BackupStatus::Running;
+                Some(OpenDeckResponse::Configuration(
+                    Wish::Set,
+                    Amount::Single,
+                    Block::Global(GlobalSection::Presets(
+                        PresetIndex::Active,
+                        self.preset as u16,
+                    )),
+                    NewValues::new(),
+                ))
             }
             BackupStatus::Running => {
                 let res = self.presets.next(&config.presets[self.preset]);
@@ -47,7 +61,15 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
                         return Some(OpenDeckResponse::Special(SpecialResponse::Backup));
                     }
                     self.presets = PresetBackupIterator::new();
-                    return self.presets.next(&config.presets[self.preset]);
+                    return Some(OpenDeckResponse::Configuration(
+                        Wish::Set,
+                        Amount::Single,
+                        Block::Global(GlobalSection::Presets(
+                            PresetIndex::Active,
+                            self.preset as u16,
+                        )),
+                        NewValues::new(),
+                    ));
                 }
                 res
             }
@@ -120,6 +142,15 @@ mod tests {
         assert_eq!(
             iterator.next(config),
             Some(OpenDeckResponse::Special(SpecialResponse::Backup))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Global(GlobalSection::Presets(PresetIndex::Active, 0)),
+                NewValues::new(),
+            ))
         );
         assert_eq!(
             iterator.next(config),
