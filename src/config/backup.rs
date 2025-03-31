@@ -3,7 +3,10 @@ use crate::{
     button::backup::ButtonBackupIterator,
     config::{Config, Preset},
     encoder::backup::EncoderBackupIterator,
-    global::{backup::GlobalPresetBackupIterator, GlobalSection, PresetIndex},
+    global::{
+        backup::{GlobalMidiBackupIterator, GlobalPresetBackupIterator},
+        GlobalSection, PresetIndex,
+    },
     led::backup::LedBackupIterator,
     Amount, Block, NewValues, OpenDeckResponse, SpecialResponse, Wish,
 };
@@ -13,6 +16,7 @@ enum BackupStatus {
     PresetInit,
     Presets,
     GlobalPresets,
+    GlobalMidi,
     Done,
 }
 
@@ -26,6 +30,7 @@ pub struct ConfigBackupIterator<
     preset: usize,
     presets: PresetBackupIterator<B, A, E, L>,
     global_presets: GlobalPresetBackupIterator,
+    global_midi: GlobalMidiBackupIterator,
     status: BackupStatus,
 }
 
@@ -37,6 +42,7 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
             preset: 0,
             presets: PresetBackupIterator::new(),
             global_presets: GlobalPresetBackupIterator::new(),
+            global_midi: GlobalMidiBackupIterator::new(),
             status: BackupStatus::Init,
         }
     }
@@ -82,11 +88,20 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
             BackupStatus::GlobalPresets => {
                 let res = self.global_presets.next(&config.global.preset);
                 if res.is_none() {
+                    self.status = BackupStatus::GlobalMidi;
+                    return self.global_midi.next(&config.global.midi);
+                }
+                res
+            }
+            BackupStatus::GlobalMidi => {
+                let res = self.global_midi.next(&config.global.midi);
+                if res.is_none() {
                     self.status = BackupStatus::Done;
                     return Some(OpenDeckResponse::Special(SpecialResponse::Backup));
                 }
                 res
             }
+
             BackupStatus::Done => None,
         }
     }
@@ -185,7 +200,7 @@ mod tests {
         button::{ButtonMessageType, ButtonSection, ButtonType},
         config::{Config, FirmwareVersion},
         encoder::{Accelleration, EncoderMessageType, EncoderSection},
-        global::{GlobalSection, PresetIndex},
+        global::{GlobalSection, MidiIndex, PresetIndex},
         led::{Color, LedSection},
         Amount, Block, ChannelOrAll, NewValues, Wish,
     };
@@ -604,6 +619,151 @@ mod tests {
                 Wish::Set,
                 Amount::Single,
                 Block::Global(GlobalSection::Presets(PresetIndex::EnableMidiChange, 0)),
+                NewValues::new(),
+            ))
+        );
+
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Global(GlobalSection::Midi(MidiIndex::StandardNoteOff, 0)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Global(GlobalSection::Midi(MidiIndex::RunningStatus, 0)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Global(GlobalSection::Midi(MidiIndex::DINtoUSBthru, 0)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Global(GlobalSection::Midi(MidiIndex::DINMIDIstate, 0)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Global(GlobalSection::Midi(MidiIndex::USBtoDINthru, 0)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Global(GlobalSection::Midi(MidiIndex::USBtoUSBthru, 0)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Global(GlobalSection::Midi(MidiIndex::USBtoBLEthru, 0)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Global(GlobalSection::Midi(MidiIndex::DINtoDINthru, 0)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Global(GlobalSection::Midi(MidiIndex::DINtoBLEthru, 0)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Global(GlobalSection::Midi(MidiIndex::BLEMIDIstate, 0)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Global(GlobalSection::Midi(MidiIndex::BLEtoDINthru, 0)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Global(GlobalSection::Midi(MidiIndex::BLEtoUSBthru, 0)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Global(GlobalSection::Midi(MidiIndex::BLEtoBLEthru, 0)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Global(GlobalSection::Midi(MidiIndex::UseGlobalMIDIchannel, 0)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Global(GlobalSection::Midi(MidiIndex::GlobalMIDIchannel, 1)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Global(GlobalSection::Midi(MidiIndex::SendMIDIclock, 0)),
                 NewValues::new(),
             ))
         );
