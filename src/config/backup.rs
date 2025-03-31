@@ -3,15 +3,16 @@ use crate::{
     button::backup::ButtonBackupIterator,
     config::{Config, Preset},
     encoder::backup::EncoderBackupIterator,
-    global::{GlobalSection, PresetIndex},
+    global::{backup::GlobalPresetBackupIterator, GlobalSection, PresetIndex},
     led::backup::LedBackupIterator,
     Amount, Block, NewValues, OpenDeckResponse, SpecialResponse, Wish,
 };
 
 enum BackupStatus {
     Init,
-    PresetChange,
-    Running,
+    PresetInit,
+    Presets,
+    GlobalPresets,
     Done,
 }
 
@@ -24,6 +25,7 @@ pub struct ConfigBackupIterator<
 > {
     preset: usize,
     presets: PresetBackupIterator<B, A, E, L>,
+    global_presets: GlobalPresetBackupIterator,
     status: BackupStatus,
 }
 
@@ -34,17 +36,18 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
         ConfigBackupIterator {
             preset: 0,
             presets: PresetBackupIterator::new(),
+            global_presets: GlobalPresetBackupIterator::new(),
             status: BackupStatus::Init,
         }
     }
     pub fn next(&mut self, config: &mut Config<P, B, A, E, L>) -> Option<OpenDeckResponse> {
         match self.status {
             BackupStatus::Init => {
-                self.status = BackupStatus::PresetChange;
+                self.status = BackupStatus::PresetInit;
                 Some(OpenDeckResponse::Special(SpecialResponse::Backup))
             }
-            BackupStatus::PresetChange => {
-                self.status = BackupStatus::Running;
+            BackupStatus::PresetInit => {
+                self.status = BackupStatus::Presets;
                 Some(OpenDeckResponse::Configuration(
                     Wish::Set,
                     Amount::Single,
@@ -55,13 +58,13 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
                     NewValues::new(),
                 ))
             }
-            BackupStatus::Running => {
+            BackupStatus::Presets => {
                 let res = self.presets.next(&config.presets[self.preset]);
                 if res.is_none() {
                     self.preset += 1;
                     if self.preset >= P {
-                        self.status = BackupStatus::Done;
-                        return Some(OpenDeckResponse::Special(SpecialResponse::Backup));
+                        self.status = BackupStatus::GlobalPresets;
+                        return self.global_presets.next(&config.global.preset);
                     }
                     self.presets = PresetBackupIterator::new();
                     return Some(OpenDeckResponse::Configuration(
@@ -73,6 +76,14 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
                         )),
                         NewValues::new(),
                     ));
+                }
+                res
+            }
+            BackupStatus::GlobalPresets => {
+                let res = self.global_presets.next(&config.global.preset);
+                if res.is_none() {
+                    self.status = BackupStatus::Done;
+                    return Some(OpenDeckResponse::Special(SpecialResponse::Backup));
                 }
                 res
             }
@@ -174,6 +185,7 @@ mod tests {
         button::{ButtonMessageType, ButtonSection, ButtonType},
         config::{Config, FirmwareVersion},
         encoder::{Accelleration, EncoderMessageType, EncoderSection},
+        global::{GlobalSection, PresetIndex},
         led::{Color, LedSection},
         Amount, Block, ChannelOrAll, NewValues, Wish,
     };
@@ -555,6 +567,43 @@ mod tests {
                 Wish::Set,
                 Amount::Single,
                 Block::Led(0, LedSection::Channel(ChannelOrAll::default())),
+                NewValues::new(),
+            ))
+        );
+
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Global(GlobalSection::Presets(PresetIndex::Active, 0)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Global(GlobalSection::Presets(PresetIndex::Preservation, 0)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Global(GlobalSection::Presets(PresetIndex::ForceValueRefresh, 0)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Global(GlobalSection::Presets(PresetIndex::EnableMidiChange, 0)),
                 NewValues::new(),
             ))
         );

@@ -2,6 +2,7 @@ use int_enum::IntEnum;
 
 use crate::ChannelOrAll;
 
+pub mod backup;
 pub mod parser;
 pub mod renderer;
 
