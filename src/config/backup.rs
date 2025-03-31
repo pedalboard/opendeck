@@ -4,6 +4,7 @@ use crate::{
     config::{Config, Preset},
     encoder::backup::EncoderBackupIterator,
     global::{GlobalSection, PresetIndex},
+    led::backup::LedBackupIterator,
     Amount, Block, NewValues, OpenDeckResponse, SpecialResponse, Wish,
 };
 
@@ -94,6 +95,8 @@ pub struct PresetBackupIterator<const B: usize, const A: usize, const E: usize, 
     encoder_iter: EncoderBackupIterator,
     analog_index: usize,
     analog_iter: AnalogBackupIterator,
+    led_index: usize,
+    led_iter: LedBackupIterator,
 }
 
 impl<const B: usize, const A: usize, const E: usize, const L: usize>
@@ -108,6 +111,8 @@ impl<const B: usize, const A: usize, const E: usize, const L: usize>
             encoder_iter: EncoderBackupIterator::new(0),
             analog_index: 0,
             analog_iter: AnalogBackupIterator::new(0),
+            led_index: 0,
+            led_iter: LedBackupIterator::new(0),
         }
     }
     fn next(&mut self, preset: &Preset<B, A, E, L>) -> Option<OpenDeckResponse> {
@@ -144,6 +149,17 @@ impl<const B: usize, const A: usize, const E: usize, const L: usize>
                 return self.analog_iter.next(&preset.analogs[self.analog_index]);
             }
         }
+        if self.led_index < L {
+            let res = self.led_iter.next(&preset.leds[self.led_index]);
+            if res.is_some() {
+                return res;
+            }
+            self.led_index += 1;
+            if self.led_index < L {
+                self.led_iter = LedBackupIterator::new(self.led_index);
+                return self.led_iter.next(&preset.leds[self.led_index]);
+            }
+        }
 
         None
     }
@@ -158,6 +174,7 @@ mod tests {
         button::{ButtonMessageType, ButtonSection, ButtonType},
         config::{Config, FirmwareVersion},
         encoder::{Accelleration, EncoderMessageType, EncoderSection},
+        led::{Color, LedSection},
         Amount, Block, ChannelOrAll, NewValues, Wish,
     };
 
@@ -471,6 +488,73 @@ mod tests {
                 Wish::Set,
                 Amount::Single,
                 Block::Analog(0, AnalogSection::UpperADCOffset(0)),
+                NewValues::new(),
+            ))
+        );
+
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Led(0, LedSection::ColorTesting(Color::Off)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Led(0, LedSection::BlinkTesting(false)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Led(0, LedSection::ActivationId(0)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Led(0, LedSection::RGBEnabled(true)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Led(
+                    0,
+                    LedSection::ControlType(crate::led::ControlType::MidiInNoteSingleValue)
+                ),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Led(0, LedSection::ActivationValue(0)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Led(0, LedSection::Channel(ChannelOrAll::default())),
                 NewValues::new(),
             ))
         );
