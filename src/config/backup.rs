@@ -1,4 +1,5 @@
 use crate::{
+    analog::backup::AnalogBackupIterator,
     button::backup::ButtonBackupIterator,
     config::{Config, Preset},
     encoder::backup::EncoderBackupIterator,
@@ -91,6 +92,8 @@ pub struct PresetBackupIterator<const B: usize, const A: usize, const E: usize, 
     button_iter: ButtonBackupIterator,
     encoder_index: usize,
     encoder_iter: EncoderBackupIterator,
+    analog_index: usize,
+    analog_iter: AnalogBackupIterator,
 }
 
 impl<const B: usize, const A: usize, const E: usize, const L: usize>
@@ -103,6 +106,8 @@ impl<const B: usize, const A: usize, const E: usize, const L: usize>
             button_iter: ButtonBackupIterator::new(0),
             encoder_index: 0,
             encoder_iter: EncoderBackupIterator::new(0),
+            analog_index: 0,
+            analog_iter: AnalogBackupIterator::new(0),
         }
     }
     fn next(&mut self, preset: &Preset<B, A, E, L>) -> Option<OpenDeckResponse> {
@@ -128,6 +133,18 @@ impl<const B: usize, const A: usize, const E: usize, const L: usize>
                 return self.encoder_iter.next(&preset.encoders[self.encoder_index]);
             }
         }
+        if self.analog_index < A {
+            let res = self.analog_iter.next(&preset.analogs[self.analog_index]);
+            if res.is_some() {
+                return res;
+            }
+            self.analog_index += 1;
+            if self.analog_index < A {
+                self.analog_iter = AnalogBackupIterator::new(self.analog_index);
+                return self.analog_iter.next(&preset.analogs[self.analog_index]);
+            }
+        }
+
         None
     }
 }
@@ -137,6 +154,7 @@ mod tests {
 
     use super::*;
     use crate::{
+        analog::{AnalogMessageType, AnalogSection},
         button::{ButtonMessageType, ButtonSection, ButtonType},
         config::{Config, FirmwareVersion},
         encoder::{Accelleration, EncoderMessageType, EncoderSection},
@@ -368,6 +386,91 @@ mod tests {
                 Wish::Set,
                 Amount::Single,
                 Block::Encoder(0, EncoderSection::SecondMidiId(0)),
+                NewValues::new(),
+            ))
+        );
+
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Analog(0, AnalogSection::Enabled(false)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Analog(0, AnalogSection::Inverted(false)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Analog(
+                    0,
+                    AnalogSection::MessageType(AnalogMessageType::PotentiometerWithCCMessage7Bit)
+                ),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Analog(0, AnalogSection::MidiId(0)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Analog(0, AnalogSection::LowerCCLimit(0)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Analog(0, AnalogSection::UpperCCLimit(127)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Analog(0, AnalogSection::Channel(ChannelOrAll::default())),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Analog(0, AnalogSection::LowerADCOffset(0)),
+                NewValues::new(),
+            ))
+        );
+        assert_eq!(
+            iterator.next(config),
+            Some(OpenDeckResponse::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Analog(0, AnalogSection::UpperADCOffset(0)),
                 NewValues::new(),
             ))
         );
