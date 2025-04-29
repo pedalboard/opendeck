@@ -9,7 +9,7 @@ The implementation is not yet complete. The following features are missing:
 ## Missing handler functions
 
 * LED support
-* global settings
+* global settings currently have no influence
 * handlers with effect on global settings
   * BPM
   * Preset Change
@@ -18,9 +18,8 @@ The implementation is not yet complete. The following features are missing:
 
 ## configuration improvements
 
-* use midi2 sysex messages for input messages
+* use midi2::sysex messages for input messages
 * support factory reset
 * support component info
 * value_size feature for configuration protocol
-* support backup
 * support controller amount > 32
