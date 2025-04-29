@@ -1,6 +1,6 @@
 use crate::led::Led;
-use midi2::{error::BufferOverflow, BytesMessage};
+use midi2::BytesMessage;
 
 impl Led {
-    fn process(m: BytesMessage<&[u8]>) {}
+    pub fn process(_m: BytesMessage<&[u8]>) {}
 }
