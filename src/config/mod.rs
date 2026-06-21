@@ -104,6 +104,7 @@ pub struct Config<const P: usize, const B: usize, const A: usize, const E: usize
     presets: Vec<Preset<B, A, E, L>, P>,
     version: FirmwareVersion,
     uid: u32,
+    serial_number: Vec<u8, 32>,
     reboot: fn(),
     bootloader: fn(),
 }
@@ -252,9 +253,17 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
             presets,
             version,
             uid,
+            serial_number: Vec::new(),
             reboot,
             bootloader,
             global: GlobalConfig::default(),
+        }
+    }
+
+    pub fn set_serial_number(&mut self, serial: &[u8]) {
+        self.serial_number.clear();
+        for &b in serial.iter().take(32) {
+            self.serial_number.push(b).ok();
         }
     }
     /// Processes a SysEx request and returns an optional response.
@@ -337,7 +346,13 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
             ),
             SpecialRequest::FactoryReset => None,
             SpecialRequest::Backup => None,
-            SpecialRequest::SerialNumber => None,
+            SpecialRequest::SerialNumber => {
+                if self.serial_number.is_empty() {
+                    None
+                } else {
+                    Some(SpecialResponse::SerialNumber(self.serial_number.clone()))
+                }
+            }
             SpecialRequest::RestoreStart => Some(SpecialResponse::RestoreStart),
             SpecialRequest::RestoreEnd => Some(SpecialResponse::RestoreEnd),
         }
@@ -889,5 +904,27 @@ mod tests {
         let mut messages = config.handle_button(0, Action::Pressed);
         let msg = messages.next(&mut buf).unwrap().unwrap();
         assert_eq!(msg.data()[0] & 0x0F, 3); // back to component channel
+    }
+
+    /// Wiki: Special requests > Serial number
+    /// Request: F0 00 53 43 00 00 53 F7
+    /// Response contains serial number bytes encoded as two-byte values
+    #[test]
+    fn test_serial_number_request() {
+        let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
+        let mut config = Config::<1, 1, 1, 1, 1>::new(version, 0, || {}, || {});
+        config.set_serial_number(&[0xAB, 0xCD, 0xEF, 0x12]);
+
+        let request = [0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x53, 0xF7];
+        let mut responses = config.process_sysex(&request);
+        let buf = &mut [0; MAX_MESSAGE_SIZE];
+        let resp = responses.next(buf, &mut config).unwrap().unwrap();
+        let data = resp.data();
+        assert_eq!(data[0], 0xF0);
+        assert_eq!(data[6], 0x53); // serial number special ID
+        // First byte 0xAB encoded as two bytes: high=0x01, low=0x2B
+        assert_eq!(data[7], 0x01);
+        assert_eq!(data[8], 0x2B);
+        assert_eq!(*data.last().unwrap(), 0xF7);
     }
 }
