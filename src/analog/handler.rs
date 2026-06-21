@@ -37,6 +37,14 @@ impl<'a> AnalogMessages<'a> {
             channel_messages,
         }
     }
+    pub fn suppressed(analog: &'a mut Analog) -> Self {
+        let ch = analog.channel;
+        Self {
+            analog,
+            value: 0,
+            channel_messages: ChannelMessages::new_with_multiple_messages(ch, 0),
+        }
+    }
     pub fn next<'buf>(
         &mut self,
         buffer: &'buf mut [u8],
@@ -94,7 +102,12 @@ impl<'a> AnalogMessages<'a> {
 
 impl Analog {
     pub fn handle(&mut self, value: u16) -> AnalogMessages<'_> {
-        AnalogMessages::new(self, self.scale_value(value))
+        let scaled = self.scale_value(value);
+        if scaled == self.last_value {
+            return AnalogMessages::suppressed(self);
+        }
+        self.last_value = scaled;
+        AnalogMessages::new(self, scaled)
     }
     fn scale_value(&self, value: u16) -> u16 {
         let input = if self.inverted {
@@ -136,6 +149,7 @@ mod tests {
             message_type: AnalogMessageType::PotentiometerWithCCMessage7Bit,
             midi_id: 0x03,
             channel: ChannelOrAll::default(),
+            last_value: u16::MAX,
         };
         let mut it = analog.handle(100);
 
@@ -154,6 +168,7 @@ mod tests {
             message_type: AnalogMessageType::PotentiometerWithCCMessage7Bit,
             midi_id: 0x03,
             channel: ChannelOrAll::Channel(1),
+            last_value: u16::MAX,
         };
         let mut it = analog.handle(100);
 
@@ -174,6 +189,7 @@ mod tests {
             message_type: AnalogMessageType::PotentiometerWithCCMessage7Bit,
             midi_id: 0x03,
             channel: ChannelOrAll::All,
+            last_value: u16::MAX,
         };
         let mut it = analog.handle(100);
 
@@ -225,6 +241,7 @@ mod tests {
             message_type: AnalogMessageType::PotentiometerWithCCMessage14Bit,
             midi_id: 0x03,
             channel: ChannelOrAll::default(),
+            last_value: u16::MAX,
         };
         let mut it = analog.handle(MAX_ADC_VALUE);
 
@@ -247,6 +264,7 @@ mod tests {
             message_type: AnalogMessageType::PitchBend,
             midi_id: 0x03,
             channel: ChannelOrAll::default(),
+            last_value: u16::MAX,
         };
         let mut it = analog.handle(MAX_ADC_VALUE);
 
@@ -269,6 +287,7 @@ mod tests {
             message_type: AnalogMessageType::PotentiometerWithNoteMessage,
             midi_id: 0x03,
             channel: ChannelOrAll::default(),
+            last_value: u16::MAX,
         };
         let mut it = analog.handle(MAX_ADC_VALUE);
 
@@ -291,6 +310,7 @@ mod tests {
             message_type: AnalogMessageType::NRPN7,
             midi_id: 1624,
             channel: ChannelOrAll::default(),
+            last_value: u16::MAX,
         };
         let mut it = analog.handle(MAX_ADC_VALUE);
 
@@ -323,6 +343,7 @@ mod tests {
             message_type: AnalogMessageType::NRPN14,
             midi_id: 1624,
             channel: ChannelOrAll::default(),
+            last_value: u16::MAX,
         };
         let mut it = analog.handle(MAX_ADC_VALUE);
 
@@ -360,6 +381,7 @@ mod tests {
             message_type: AnalogMessageType::PotentiometerWithCCMessage7Bit,
             midi_id: 0x03,
             channel: ChannelOrAll::default(),
+            last_value: u16::MAX,
         };
         let mut it = analog.handle(10);
 
@@ -379,6 +401,7 @@ mod tests {
             message_type: AnalogMessageType::PotentiometerWithCCMessage7Bit,
             midi_id: 0x03,
             channel: ChannelOrAll::default(),
+            last_value: u16::MAX,
         };
         assert_eq!(0, analog.scale_value(0));
         assert_eq!(127, analog.scale_value(MAX_ADC_VALUE));
@@ -396,6 +419,7 @@ mod tests {
             message_type: AnalogMessageType::PotentiometerWithCCMessage7Bit,
             midi_id: 0x03,
             channel: ChannelOrAll::default(),
+            last_value: u16::MAX,
         };
         assert_eq!(0, analog.scale_value(0));
         assert_eq!(0, analog.scale_value(409));
@@ -415,9 +439,38 @@ mod tests {
             message_type: AnalogMessageType::PotentiometerWithCCMessage7Bit,
             midi_id: 0x03,
             channel: ChannelOrAll::default(),
+            last_value: u16::MAX,
         };
         assert_eq!(127, analog.scale_value(0));
         assert_eq!(0, analog.scale_value(MAX_ADC_VALUE));
         assert_eq!(63, analog.scale_value(2047));
+    }
+
+    #[test]
+    fn test_suppresses_duplicate_values() {
+        let mut buf = [0x00u8; 8];
+        let mut analog = Analog {
+            enabled: true,
+            inverted: false,
+            upper_limit: 127,
+            lower_limit: 0,
+            lower_adc_offset: 0,
+            upper_adc_offset: 0,
+            message_type: AnalogMessageType::PotentiometerWithCCMessage7Bit,
+            midi_id: 0x03,
+            channel: ChannelOrAll::default(),
+            last_value: u16::MAX,
+        };
+        // First call produces a message
+        let mut it = analog.handle(2048);
+        assert!(it.next(&mut buf).unwrap().is_some());
+
+        // Same value again produces nothing
+        let mut it = analog.handle(2048);
+        assert_eq!(Ok(None), it.next(&mut buf));
+
+        // Different value produces a message
+        let mut it = analog.handle(4095);
+        assert!(it.next(&mut buf).unwrap().is_some());
     }
 }

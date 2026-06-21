@@ -18,6 +18,7 @@ pub struct Analog {
     channel: ChannelOrAll,
     lower_adc_offset: u8,
     upper_adc_offset: u8,
+    last_value: u16,
 }
 
 impl Analog {
@@ -32,6 +33,7 @@ impl Analog {
             upper_limit: 0x7F,
             lower_adc_offset: 0,
             upper_adc_offset: 0,
+            last_value: u16::MAX,
         }
     }
     pub fn set(&mut self, section: AnalogSection) {
