@@ -65,6 +65,9 @@ impl Encoder {
             EncoderSection::MidiIdMSB(_) => {}
         }
     }
+    pub fn override_channel(&mut self, ch: ChannelOrAll) {
+        self.channel = ch;
+    }
     pub fn get(&self, section: EncoderSection) -> u16 {
         match section {
             EncoderSection::MessageType(_) => self.message_type.into(),

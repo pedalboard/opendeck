@@ -1,5 +1,6 @@
 use crate::analog::{Analog, AnalogMessageType};
 use crate::handler::{ChannelMessages, HiRes};
+use crate::ChannelOrAll;
 
 const MAX_ADC_VALUE: u16 = 4095; // (2 ^ 12) - 1
 
@@ -16,7 +17,7 @@ pub struct AnalogMessages<'a> {
     channel_messages: ChannelMessages,
 }
 impl<'a> AnalogMessages<'a> {
-    pub fn new(analog: &'a mut Analog, value: u16) -> Self {
+    pub fn new_with_channel(analog: &'a mut Analog, value: u16, channel_override: Option<ChannelOrAll>) -> Self {
         let mt = &analog.message_type;
         let nr_of_messages = match mt {
             AnalogMessageType::Button => 0,
@@ -29,7 +30,7 @@ impl<'a> AnalogMessages<'a> {
             AnalogMessageType::NRPN14 => 4,
             AnalogMessageType::Reserved => 0,
         };
-        let ch = analog.channel;
+        let ch = channel_override.unwrap_or(analog.channel);
         let channel_messages = ChannelMessages::new_with_multiple_messages(ch, nr_of_messages);
         Self {
             analog,
@@ -102,12 +103,15 @@ impl<'a> AnalogMessages<'a> {
 
 impl Analog {
     pub fn handle(&mut self, value: u16) -> AnalogMessages<'_> {
+        self.handle_with_channel(value, None)
+    }
+    pub fn handle_with_channel(&mut self, value: u16, channel_override: Option<ChannelOrAll>) -> AnalogMessages<'_> {
         let scaled = self.scale_value(value);
         if scaled == self.last_value {
             return AnalogMessages::suppressed(self);
         }
         self.last_value = scaled;
-        AnalogMessages::new(self, scaled)
+        AnalogMessages::new_with_channel(self, scaled, channel_override)
     }
     fn scale_value(&self, value: u16) -> u16 {
         let input = if self.inverted {

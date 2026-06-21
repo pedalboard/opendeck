@@ -450,25 +450,41 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
     }
 
     pub fn handle_button(&mut self, index: usize, action: Action) -> Messages<'_> {
+        let channel_override = if self.global.midi.use_global_channel() {
+            Some(self.global.midi.global_channel())
+        } else {
+            None
+        };
+        let standard_note_off = self.global.midi.standard_note_off();
         if let Some(preset) = self.current_preset_mut() {
             if let Some(button) = preset.button_mut(index as u16) {
-                return Messages::Button(button.handle(action));
+                return Messages::Button(button.handle_with_options(action, standard_note_off, channel_override));
             }
         }
         Messages::None
     }
     pub fn handle_analog(&mut self, index: usize, value: u16) -> Messages<'_> {
+        let channel_override = if self.global.midi.use_global_channel() {
+            Some(self.global.midi.global_channel())
+        } else {
+            None
+        };
         if let Some(preset) = self.current_preset_mut() {
             if let Some(analog) = preset.analog_mut(index as u16) {
-                return Messages::Analog(analog.handle(value));
+                return Messages::Analog(analog.handle_with_channel(value, channel_override));
             }
         }
         Messages::None
     }
     pub fn handle_encoder(&mut self, index: usize, pulse: EncoderPulse) -> Messages<'_> {
+        let channel_override = if self.global.midi.use_global_channel() {
+            Some(self.global.midi.global_channel())
+        } else {
+            None
+        };
         if let Some(preset) = self.current_preset_mut() {
             if let Some(encoder) = preset.encoder_mut(index as u16) {
-                return Messages::Encoder(encoder.handle(pulse));
+                return Messages::Encoder(encoder.handle_with_channel(pulse, channel_override));
             }
         }
         Messages::None
@@ -561,6 +577,11 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
             .get(self.global.preset.current)
             .map(|p| p.leds.len())
             .unwrap_or(0)
+    }
+
+    /// Access global MIDI settings (routing, standard note off, etc.)
+    pub fn global_midi(&self) -> &GlobalMidi {
+        &self.global.midi
     }
 }
 #[cfg(test)]
@@ -700,5 +721,165 @@ mod tests {
         assert_eq!(preset.analogs.len(), 2);
         assert_eq!(preset.encoders.len(), 4);
         assert_eq!(preset.leds.len(), 8);
+    }
+
+    /// Wiki: Global > MIDI settings > "Use global MIDI channel"
+    /// When enabled, specified global MIDI channel will be used for all components.
+    /// Individual channel settings for components will be ignored.
+    #[test]
+    fn test_global_midi_channel_overrides_button_channel() {
+        use crate::button::{ButtonMessageType, ButtonSection};
+        use crate::global::MidiIndex;
+        use crate::ChannelOrAll;
+
+        let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
+        let mut config: Config<1, 2, 1, 1, 1> = Config::new(version, 0, || {}, || {});
+
+        // Configure button 0 on channel 1 (0-based) with Note message
+        let preset = config.current_preset_mut().unwrap();
+        let b = preset.button_mut(0).unwrap();
+        b.set(ButtonSection::MessageType(ButtonMessageType::Notes));
+        b.set(ButtonSection::Channel(ChannelOrAll::Channel(0))); // channel 1 (0-based)
+        b.set(ButtonSection::Value(127));
+
+        // Enable global MIDI channel and set it to channel 5 (wire format 1-based)
+        config.global.midi.set(MidiIndex::UseGlobalMIDIchannel, 1);
+        config.global.midi.set(MidiIndex::GlobalMIDIchannel, 5); // wire 5 → Channel(5) → MIDI ch 5
+
+        // Button press should use global channel (5) not per-component channel (0)
+        let mut buf = [0u8; 8];
+        let mut messages = config.handle_button(0, Action::Pressed);
+        let msg = messages.next(&mut buf).unwrap().unwrap();
+        // Note On on channel 5 = status 0x95
+        assert_eq!(msg.data()[0] & 0xF0, 0x90); // Note On
+        assert_eq!(msg.data()[0] & 0x0F, 5);    // channel 5
+    }
+
+    /// Wiki: Global > MIDI settings > "Standard note off"
+    /// When enabled, standard MIDI note off will be sent.
+    /// If disabled, note off is sent as note on event with velocity 0.
+    #[test]
+    fn test_standard_note_off_enabled_sends_real_note_off() {
+        use crate::button::{ButtonMessageType, ButtonSection, ButtonType};
+        use crate::global::MidiIndex;
+        use crate::ChannelOrAll;
+
+        let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
+        let mut config: Config<1, 2, 1, 1, 1> = Config::new(version, 0, || {}, || {});
+
+        // Configure button 0 as momentary Note
+        let preset = config.current_preset_mut().unwrap();
+        let b = preset.button_mut(0).unwrap();
+        b.set(ButtonSection::Type(ButtonType::Momentary));
+        b.set(ButtonSection::MessageType(ButtonMessageType::Notes));
+        b.set(ButtonSection::Channel(ChannelOrAll::Channel(0)));
+        b.set(ButtonSection::MidiId(60));
+        b.set(ButtonSection::Value(100));
+
+        // Enable standard note off
+        config.global.midi.set(MidiIndex::StandardNoteOff, 1);
+
+        // Press → Note On
+        let mut buf = [0u8; 8];
+        let mut messages = config.handle_button(0, Action::Pressed);
+        let msg = messages.next(&mut buf).unwrap().unwrap();
+        assert_eq!(msg.data(), &[0x90, 60, 100]);
+
+        // Release → should send real Note Off (0x80) not Note On vel=0 (0x90 vel=0)
+        let mut messages = config.handle_button(0, Action::Released);
+        let msg = messages.next(&mut buf).unwrap().unwrap();
+        assert_eq!(msg.data()[0], 0x80); // Note Off status
+        assert_eq!(msg.data()[1], 60);   // same note
+    }
+
+    /// Verify that the global channel override also works for encoders
+    #[test]
+    fn test_global_midi_channel_overrides_encoder_channel() {
+        use crate::encoder::{handler::EncoderPulse, EncoderSection, EncoderMessageType};
+        use crate::global::MidiIndex;
+        use crate::ChannelOrAll;
+
+        let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
+        let mut config: Config<1, 1, 1, 2, 1> = Config::new(version, 0, || {}, || {});
+
+        // Configure encoder 0: enabled, CC 7-bit, channel 2 (0-based = 1)
+        let preset = config.current_preset_mut().unwrap();
+        let e = preset.encoder_mut(0).unwrap();
+        e.set(EncoderSection::Enabled(true));
+        e.set(EncoderSection::MessageType(EncoderMessageType::ControlChange));
+        e.set(EncoderSection::Channel(ChannelOrAll::Channel(1))); // ch 2
+        e.set(EncoderSection::PulsesPerStep(1));
+
+        // Enable global channel = 10 (wire format)
+        config.global.midi.set(MidiIndex::UseGlobalMIDIchannel, 1);
+        config.global.midi.set(MidiIndex::GlobalMIDIchannel, 10); // wire 10 → Channel(10) → MIDI ch 10
+
+        let mut buf = [0u8; 8];
+        let mut messages = config.handle_encoder(0, EncoderPulse::Clockwise);
+        let msg = messages.next(&mut buf).unwrap().unwrap();
+        // CC on channel 10 = status 0xBA
+        assert_eq!(msg.data()[0], 0xBA);
+    }
+
+    /// Verify that the global channel override also works for analog
+    #[test]
+    fn test_global_midi_channel_overrides_analog_channel() {
+        use crate::analog::{AnalogSection, AnalogMessageType};
+        use crate::global::MidiIndex;
+        use crate::ChannelOrAll;
+
+        let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
+        let mut config: Config<1, 1, 2, 1, 1> = Config::new(version, 0, || {}, || {});
+
+        // Configure analog 0: enabled, CC 7-bit, channel 3 (0-based = 2)
+        let preset = config.current_preset_mut().unwrap();
+        let a = preset.analog_mut(0).unwrap();
+        a.set(AnalogSection::Enabled(true));
+        a.set(AnalogSection::MessageType(AnalogMessageType::PotentiometerWithCCMessage7Bit));
+        a.set(AnalogSection::Channel(ChannelOrAll::Channel(2)));
+
+        // Enable global channel = 7 (wire format)
+        config.global.midi.set(MidiIndex::UseGlobalMIDIchannel, 1);
+        config.global.midi.set(MidiIndex::GlobalMIDIchannel, 7); // wire 7 → Channel(7) → MIDI ch 7
+
+        let mut buf = [0u8; 8];
+        let mut messages = config.handle_analog(0, 2048); // mid-range ADC value
+        let msg = messages.next(&mut buf).unwrap().unwrap();
+        // CC on channel 7 = status 0xB7
+        assert_eq!(msg.data()[0], 0xB7);
+    }
+
+    /// Verify that disabling global channel reverts to per-component channel
+    #[test]
+    fn test_global_channel_disabled_uses_component_channel() {
+        use crate::button::{ButtonMessageType, ButtonSection};
+        use crate::global::MidiIndex;
+        use crate::ChannelOrAll;
+
+        let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
+        let mut config: Config<1, 2, 1, 1, 1> = Config::new(version, 0, || {}, || {});
+
+        // Configure button 0 on channel 3
+        let preset = config.current_preset_mut().unwrap();
+        let b = preset.button_mut(0).unwrap();
+        b.set(ButtonSection::MessageType(ButtonMessageType::Notes));
+        b.set(ButtonSection::Channel(ChannelOrAll::Channel(3)));
+        b.set(ButtonSection::Value(127));
+
+        // Enable global channel, use it, then disable it
+        config.global.midi.set(MidiIndex::UseGlobalMIDIchannel, 1);
+        config.global.midi.set(MidiIndex::GlobalMIDIchannel, 10);
+
+        let mut buf = [0u8; 8];
+        let mut messages = config.handle_button(0, Action::Pressed);
+        let msg = messages.next(&mut buf).unwrap().unwrap();
+        assert_eq!(msg.data()[0] & 0x0F, 10); // global channel
+
+        // Now disable global channel
+        config.global.midi.set(MidiIndex::UseGlobalMIDIchannel, 0);
+
+        let mut messages = config.handle_button(0, Action::Pressed);
+        let msg = messages.next(&mut buf).unwrap().unwrap();
+        assert_eq!(msg.data()[0] & 0x0F, 3); // back to component channel
     }
 }
