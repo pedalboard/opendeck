@@ -75,6 +75,9 @@ impl Led {
             LedSection::Global(_) => {}
         }
     }
+    pub fn channel_direct(&self) -> ChannelOrAll {
+        self.channel
+    }
     pub fn get(&self, section: LedSection) -> u16 {
         match section {
             LedSection::ColorTesting(_) => self.color_testing.into(),
