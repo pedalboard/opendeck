@@ -30,12 +30,12 @@ impl LedBackupIterator {
                 LedSection::BlinkTesting(led.blink_testing)
             }
             LedSectionId::ActivationId => {
-                self.section_id = LedSectionId::RGBEnabled;
+                self.section_id = LedSectionId::Reserved;
                 LedSection::ActivationId(led.activation_id)
             }
-            LedSectionId::RGBEnabled => {
+            LedSectionId::Reserved => {
                 self.section_id = LedSectionId::ControlType;
-                LedSection::RGBEnabled(led.rgb_enabled)
+                LedSection::Reserved(0)
             }
             LedSectionId::ControlType => {
                 self.section_id = LedSectionId::ActivationValue;

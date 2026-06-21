@@ -551,7 +551,7 @@ mod tests {
             Some(OpenDeckResponse::Configuration(
                 Wish::Set,
                 Amount::Single,
-                Block::Led(0, LedSection::RGBEnabled(true)),
+                Block::Led(0, LedSection::Reserved(0)),
                 NewValues::new(),
             ))
         );

@@ -1,0 +1,21 @@
+{
+  "name": "tdd",
+  "description": "Test-driven development agent for the OpenDeck protocol Rust port",
+  "prompt": "file://tdd-prompt.md",
+  "tools": ["read", "write", "shell", "grep", "glob", "code", "web_fetch"],
+  "allowedTools": ["read", "grep", "glob", "code"],
+  "toolsSettings": {
+    "write": {
+      "allowedPaths": ["src/**", "tests/**"]
+    },
+    "shell": {
+      "allowedCommands": ["cargo test", "cargo build", "cargo check", "cargo clippy"],
+      "autoAllowReadonly": true
+    }
+  },
+  "resources": [
+    "file://Cargo.toml",
+    "file://src/lib.rs",
+    "file://README.md"
+  ]
+}

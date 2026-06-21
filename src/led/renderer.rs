@@ -18,9 +18,9 @@ impl From<LedSection> for Section {
                 id: LedSectionId::ControlType.into(),
                 value: v.into(),
             },
-            LedSection::RGBEnabled(v) => Section {
-                id: LedSectionId::RGBEnabled.into(),
-                value: v.into(),
+            LedSection::Reserved(v) => Section {
+                id: LedSectionId::Reserved.into(),
+                value: v,
             },
             LedSection::Global(v) => Section {
                 id: LedSectionId::Global.into(),

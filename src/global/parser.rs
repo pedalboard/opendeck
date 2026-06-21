@@ -23,6 +23,11 @@ impl TryFrom<(u16, Section)> for GlobalSection {
                         Err(OpenDeckParseError::StatusError(MessageStatus::IndexError))
                     }
                 }
+                GlobalSectionId::OSC => Ok(GlobalSection::OSC(v.0, v.1.value)),
+                GlobalSectionId::MDNS => Ok(GlobalSection::MDNS(v.0, v.1.value)),
+                GlobalSectionId::ConfigurationUnlock => {
+                    Ok(GlobalSection::ConfigurationUnlock(v.0, v.1.value))
+                }
             }
         } else {
             Err(OpenDeckParseError::StatusError(MessageStatus::SectionError))

@@ -329,6 +329,9 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
             ),
             SpecialRequest::FactoryReset => None,
             SpecialRequest::Backup => None,
+            SpecialRequest::SerialNumber => None,
+            SpecialRequest::RestoreStart => Some(SpecialResponse::RestoreStart),
+            SpecialRequest::RestoreEnd => Some(SpecialResponse::RestoreEnd),
         }
     }
 
@@ -350,6 +353,9 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
                         res_values.push(self.global.preset.get(pi)).unwrap();
                     }
                 },
+                Block::Global(GlobalSection::OSC(_, _)) => {}
+                Block::Global(GlobalSection::MDNS(_, _)) => {}
+                Block::Global(GlobalSection::ConfigurationUnlock(_, _)) => {}
                 Block::Button(index, section) => match wish {
                     Wish::Set => {
                         if let Some(b) = preset.button_mut(index) {

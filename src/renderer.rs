@@ -74,6 +74,14 @@ impl<'buf> OpenDeckRenderer<'buf> {
                     buf = self.value_size.push(v as u16, buf);
                     SpecialRequest::BootloaderSupport as u8
                 }
+                SpecialResponse::SerialNumber(bytes) => {
+                    for byte in bytes.iter() {
+                        buf = self.value_size.push(*byte as u16, buf);
+                    }
+                    SpecialRequest::SerialNumber as u8
+                }
+                SpecialResponse::RestoreStart => SpecialRequest::RestoreStart as u8,
+                SpecialResponse::RestoreEnd => SpecialRequest::RestoreEnd as u8,
             },
             OpenDeckResponse::Configuration(wish, amount, block, new_values) => {
                 buf = amount.push(buf);
@@ -612,5 +620,80 @@ mod tests {
     fn should_render_u16() {
         let buf = Vec::new();
         assert_eq!(ValueSize::TwoBytes.push(10000, buf), &[0x4E, 0x10]);
+    }
+
+    #[test]
+    fn should_render_restore_start() {
+        let renderer = OpenDeckRenderer {
+            value_size: ValueSize::TwoBytes,
+            buffer: &mut [0; MAX_MESSAGE_SIZE],
+        };
+        assert_sysex(
+            renderer.render(
+                OpenDeckResponse::Special(SpecialResponse::RestoreStart),
+                MessageStatus::Response,
+            ),
+            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x1C, 0xF7],
+        );
+    }
+
+    #[test]
+    fn should_render_restore_end() {
+        let renderer = OpenDeckRenderer {
+            value_size: ValueSize::TwoBytes,
+            buffer: &mut [0; MAX_MESSAGE_SIZE],
+        };
+        assert_sysex(
+            renderer.render(
+                OpenDeckResponse::Special(SpecialResponse::RestoreEnd),
+                MessageStatus::Response,
+            ),
+            &[0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x1D, 0xF7],
+        );
+    }
+
+    #[test]
+    fn should_render_serial_number() {
+        let renderer = OpenDeckRenderer {
+            value_size: ValueSize::TwoBytes,
+            buffer: &mut [0; MAX_MESSAGE_SIZE],
+        };
+        let mut serial = heapless::Vec::<u8, 32>::new();
+        serial.push(0x11).unwrap();
+        serial.push(0x22).unwrap();
+        serial.push(0x33).unwrap();
+        assert_sysex(
+            renderer.render(
+                OpenDeckResponse::Special(SpecialResponse::SerialNumber(serial)),
+                MessageStatus::Response,
+            ),
+            &[
+                0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x53, 0x00, 0x11, 0x00, 0x22, 0x00, 0x33,
+                0xF7,
+            ],
+        );
+    }
+
+    #[test]
+    fn should_render_global_osc_section() {
+        let renderer = OpenDeckRenderer {
+            value_size: ValueSize::TwoBytes,
+            buffer: &mut [0; MAX_MESSAGE_SIZE],
+        };
+        assert_sysex(
+            renderer.render(
+                OpenDeckResponse::Configuration(
+                    Wish::Get,
+                    Amount::Single,
+                    Block::Global(GlobalSection::OSC(4, 0)),
+                    Vec::from_slice(&[9000]).unwrap(),
+                ),
+                MessageStatus::Response,
+            ),
+            &[
+                0xF0, 0x00, 0x53, 0x43, 0x01, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x04, 0x00,
+                0x00, 0x46, 0x28, 0xF7,
+            ],
+        );
     }
 }

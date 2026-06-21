@@ -32,6 +32,9 @@ impl TryFrom<u8> for SpecialRequest {
             x if x == SpecialRequest::BootloaderSupport as u8 => {
                 Ok(SpecialRequest::BootloaderSupport)
             }
+            x if x == SpecialRequest::SerialNumber as u8 => Ok(SpecialRequest::SerialNumber),
+            x if x == SpecialRequest::RestoreStart as u8 => Ok(SpecialRequest::RestoreStart),
+            x if x == SpecialRequest::RestoreEnd as u8 => Ok(SpecialRequest::RestoreEnd),
             _ => Err(OpenDeckParseError::StatusError(MessageStatus::WishError)),
         }
     }
@@ -307,5 +310,73 @@ mod tests {
         ];
         assert_eq!(10000, ValueSize::TwoBytes.parse(buf, 0));
         assert_eq!(5, ValueSize::TwoBytes.parse(buf, 1));
+    }
+
+    #[test]
+    fn should_parse_new_special_requests() {
+        let p = OpenDeckParser::new(ValueSize::TwoBytes);
+        assert_eq!(
+            p.parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x53, 0xF7]),
+            Ok(OpenDeckRequest::Special(SpecialRequest::SerialNumber))
+        );
+        assert_eq!(
+            p.parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x1C, 0xF7]),
+            Ok(OpenDeckRequest::Special(SpecialRequest::RestoreStart))
+        );
+        assert_eq!(
+            p.parse(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x1D, 0xF7]),
+            Ok(OpenDeckRequest::Special(SpecialRequest::RestoreEnd))
+        );
+    }
+
+    #[test]
+    fn should_parse_global_osc_section() {
+        let p = OpenDeckParser::new(ValueSize::TwoBytes);
+        // SET SINGLE Global OSC, index 4 (dest 1 port), value 0x2328 (9000)
+        assert_eq!(
+            p.parse(&[
+                0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00, 0x04, 0x46,
+                0x28, 0xF7
+            ]),
+            Ok(OpenDeckRequest::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Global(GlobalSection::OSC(4, 9000)),
+            ))
+        );
+    }
+
+    #[test]
+    fn should_parse_global_mdns_section() {
+        let p = OpenDeckParser::new(ValueSize::TwoBytes);
+        // SET SINGLE Global mDNS, index 0, value 0x6F ('o')
+        assert_eq!(
+            p.parse(&[
+                0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x01, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00,
+                0x6F, 0xF7
+            ]),
+            Ok(OpenDeckRequest::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Global(GlobalSection::MDNS(0, 0x6F)),
+            ))
+        );
+    }
+
+    #[test]
+    fn should_parse_global_configuration_unlock_section() {
+        let p = OpenDeckParser::new(ValueSize::TwoBytes);
+        // SET SINGLE Global ConfigurationUnlock, index 0, value 0x1234
+        assert_eq!(
+            p.parse(&[
+                0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x01, 0x00, 0x00, 0x05, 0x00, 0x00, 0x24,
+                0x34, 0xF7
+            ]),
+            Ok(OpenDeckRequest::Configuration(
+                Wish::Set,
+                Amount::Single,
+                Block::Global(GlobalSection::ConfigurationUnlock(0, 0x1234)),
+            ))
+        );
     }
 }

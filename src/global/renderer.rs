@@ -20,6 +20,27 @@ impl From<GlobalSection> for (u16, Section) {
                     value,
                 },
             ),
+            GlobalSection::OSC(index, value) => (
+                index,
+                Section {
+                    id: GlobalSectionId::OSC.into(),
+                    value,
+                },
+            ),
+            GlobalSection::MDNS(index, value) => (
+                index,
+                Section {
+                    id: GlobalSectionId::MDNS.into(),
+                    value,
+                },
+            ),
+            GlobalSection::ConfigurationUnlock(index, value) => (
+                index,
+                Section {
+                    id: GlobalSectionId::ConfigurationUnlock.into(),
+                    value,
+                },
+            ),
         }
     }
 }

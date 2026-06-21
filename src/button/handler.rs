@@ -261,6 +261,7 @@ impl<'a> ButtonMessages<'a> {
 
             ButtonMessageType::NoMessage => Ok(None),
             ButtonMessageType::Reserved => Ok(None),
+            ButtonMessageType::MMCPlayStop => Ok(None),
         }
     }
 }
