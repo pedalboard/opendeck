@@ -35,7 +35,7 @@ pub struct Preset<const B: usize, const A: usize, const E: usize, const L: usize
 }
 
 impl<const B: usize, const A: usize, const E: usize, const L: usize> Default
-    for Preset<B, E, A, L>
+    for Preset<B, A, E, L>
 {
     fn default() -> Self {
         let mut buttons = Vec::new();
@@ -658,5 +658,17 @@ mod tests {
         // Simulate local Note Off
         config.notify_local_midi(1, 0, 0, false);
         assert!(!config.output_state(0));
+    }
+
+    #[test]
+    fn test_preset_default_with_different_analog_and_encoder_counts() {
+        // Config<P=1, B=6, A=2, E=4, L=8> — A != E exposes the generic param swap
+        let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
+        let config: Config<1, 6, 2, 4, 8> = Config::new(version, 0, || {}, || {});
+        let preset = config.presets.get(0).unwrap();
+        assert_eq!(preset.buttons.len(), 6);
+        assert_eq!(preset.analogs.len(), 2);
+        assert_eq!(preset.encoders.len(), 4);
+        assert_eq!(preset.leds.len(), 8);
     }
 }
