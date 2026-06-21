@@ -347,11 +347,7 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
             SpecialRequest::FactoryReset => None,
             SpecialRequest::Backup => None,
             SpecialRequest::SerialNumber => {
-                if self.serial_number.is_empty() {
-                    None
-                } else {
-                    Some(SpecialResponse::SerialNumber(self.serial_number.clone()))
-                }
+                Some(SpecialResponse::SerialNumber(self.serial_number.clone()))
             }
             SpecialRequest::RestoreStart => Some(SpecialResponse::RestoreStart),
             SpecialRequest::RestoreEnd => Some(SpecialResponse::RestoreEnd),
