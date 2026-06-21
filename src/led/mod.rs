@@ -15,6 +15,7 @@ pub struct Led {
     activation_value: u8,
     control_type: ControlType,
     channel: ChannelOrAll,
+    state: bool,
 }
 
 #[derive(Default)]
@@ -61,7 +62,14 @@ impl Led {
             activation_value: 0,
             control_type: ControlType::default(),
             channel: ChannelOrAll::default(),
+            state: false,
         }
+    }
+    pub fn set_state(&mut self, on: bool) {
+        self.state = on;
+    }
+    pub fn is_on(&self) -> bool {
+        self.state
     }
     pub fn set(&mut self, section: LedSection) {
         match section {
