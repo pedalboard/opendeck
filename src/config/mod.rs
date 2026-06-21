@@ -602,6 +602,11 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
     pub fn global_midi(&self) -> &GlobalMidi {
         &self.global.midi
     }
+
+    /// Whether a SysEx configuration session is active (handshake received).
+    pub fn sysex_enabled(&self) -> bool {
+        self.enabled
+    }
 }
 #[cfg(test)]
 mod tests {

@@ -98,6 +98,28 @@ impl<'buf> OpenDeckRenderer<'buf> {
         m.try_set_payload(buf.into_iter().map(u7::new))?;
         Ok(Some(m))
     }
+
+    /// Render a Component Info message (sent from board to host).
+    /// https://github.com/shanteacontrols/OpenDeck/wiki/Sysex-Configuration#component-info-messages
+    pub fn render_component_info(
+        self,
+        block: BlockId,
+        index: u16,
+    ) -> Result<Option<Sysex7<&'buf mut [u8]>>, BufferOverflow> {
+        let mut buf: Buffer = Vec::new();
+        buf.push(M_ID_0).unwrap();
+        buf.push(M_ID_1).unwrap();
+        buf.push(M_ID_2).unwrap();
+        buf.push(MessageStatus::Response as u8).unwrap();
+        buf.push(0x00).unwrap(); // MESSAGE_PART
+        buf.push(0x49).unwrap(); // SPECIAL_MESSAGE_ID for component info
+        buf.push(block as u8).unwrap();
+        buf = self.value_size.push(index, buf);
+
+        let mut m = Sysex7::try_new_with_buffer(self.buffer)?;
+        m.try_set_payload(buf.into_iter().map(u7::new))?;
+        Ok(Some(m))
+    }
 }
 
 impl ValueSize {

@@ -17,6 +17,9 @@ pub mod led;
 pub mod parser;
 pub mod renderer;
 
+#[cfg(test)]
+mod wiki_examples_test;
+
 const SYSEX_START: u8 = 0xF0;
 const SYSEX_END: u8 = 0xF7;
 const M_ID_0: u8 = 0x00;
