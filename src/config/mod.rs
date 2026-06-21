@@ -498,8 +498,8 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
         for led in preset.leds.iter_mut() {
             let ct = led.get_control_type();
             let check = match (is_local, ct) {
-                (true, ControlType::LocalNoteSingleValue | ControlType::LocalCcSingleValue) => true,
-                (false, ControlType::MidiInNoteSingleValue | ControlType::MidiInCcSingleValue) => true,
+                (true, ControlType::LocalNoteSingleValue | ControlType::LocalCcSingleValue | ControlType::LocalNoteMultiValue | ControlType::LocalCcMultiValue) => true,
+                (false, ControlType::MidiInNoteSingleValue | ControlType::MidiInCcSingleValue | ControlType::MidiInNoteMultiValue | ControlType::MidiInCcMultiValue) => true,
                 (_, ControlType::Static) => true,
                 _ => false,
             };
@@ -510,6 +510,7 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
             match led.process_midi(channel, id, value, is_note_on) {
                 OutputState::On => { led.set_state(true); count += 1; }
                 OutputState::Off => { led.set_state(false); count += 1; }
+                OutputState::Level(l) => { led.set_level(l); led.set_state(l > 0); count += 1; }
                 OutputState::NoChange => {}
             }
         }
@@ -523,6 +524,15 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
             .and_then(|p| p.leds.get(index))
             .map(|led| led.is_on())
             .unwrap_or(false)
+    }
+
+    /// Get the current level of an output (0-127, for multi-value modes).
+    pub fn output_level(&self, index: usize) -> u8 {
+        self.presets
+            .get(self.global.preset.current)
+            .and_then(|p| p.leds.get(index))
+            .map(|led| led.get_level())
+            .unwrap_or(0)
     }
 
     /// Number of configured outputs.

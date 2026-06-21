@@ -16,6 +16,7 @@ pub struct Led {
     control_type: ControlType,
     channel: ChannelOrAll,
     state: bool,
+    level: u8,
 }
 
 #[derive(Default)]
@@ -63,6 +64,7 @@ impl Led {
             control_type: ControlType::default(),
             channel: ChannelOrAll::default(),
             state: false,
+            level: 0,
         }
     }
     pub fn set_state(&mut self, on: bool) {
@@ -70,6 +72,12 @@ impl Led {
     }
     pub fn is_on(&self) -> bool {
         self.state
+    }
+    pub fn set_level(&mut self, level: u8) {
+        self.level = level;
+    }
+    pub fn get_level(&self) -> u8 {
+        self.level
     }
     pub fn set(&mut self, section: LedSection) {
         match section {

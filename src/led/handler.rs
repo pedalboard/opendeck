@@ -7,6 +7,7 @@ pub enum OutputState {
     NoChange,
     On,
     Off,
+    Level(u8),
 }
 
 impl Led {
@@ -41,6 +42,12 @@ impl Led {
                 } else {
                     OutputState::Off
                 }
+            }
+            ControlType::MidiInNoteMultiValue | ControlType::LocalNoteMultiValue => {
+                OutputState::Level(value)
+            }
+            ControlType::MidiInCcMultiValue | ControlType::LocalCcMultiValue => {
+                OutputState::Level(value)
             }
             _ => OutputState::NoChange,
         }
@@ -174,6 +181,36 @@ mod tests {
     fn test_local_cc_single_value_off() {
         let led = make_led(7, 127, 1, ControlType::LocalCcSingleValue);
         assert_eq!(led.process_midi(1, 7, 0, true), OutputState::Off);
+    }
+
+    #[test]
+    fn test_local_cc_multi_value_returns_level() {
+        let led = make_led(2, 0, 1, ControlType::LocalCcMultiValue);
+        assert_eq!(led.process_midi(1, 2, 100, true), OutputState::Level(100));
+    }
+
+    #[test]
+    fn test_local_cc_multi_value_zero_returns_level_zero() {
+        let led = make_led(2, 0, 1, ControlType::LocalCcMultiValue);
+        assert_eq!(led.process_midi(1, 2, 0, true), OutputState::Level(0));
+    }
+
+    #[test]
+    fn test_local_cc_multi_value_wrong_id_no_change() {
+        let led = make_led(2, 0, 1, ControlType::LocalCcMultiValue);
+        assert_eq!(led.process_midi(1, 3, 100, true), OutputState::NoChange);
+    }
+
+    #[test]
+    fn test_midi_in_note_multi_value_returns_level() {
+        let led = make_led(60, 0, 1, ControlType::MidiInNoteMultiValue);
+        assert_eq!(led.process_midi(1, 60, 80, true), OutputState::Level(80));
+    }
+
+    #[test]
+    fn test_local_note_multi_value_off_on_note_off() {
+        let led = make_led(60, 0, 1, ControlType::LocalNoteMultiValue);
+        assert_eq!(led.process_midi(1, 60, 0, false), OutputState::Level(0));
     }
 }
 
