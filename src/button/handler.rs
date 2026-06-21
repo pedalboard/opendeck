@@ -1,6 +1,7 @@
 use crate::{
     button::{Button, ButtonMessageType, ButtonType},
     handler::ChannelMessages,
+    ChannelOrAll,
 };
 
 use midi2::{
@@ -30,6 +31,7 @@ pub struct ButtonMessages<'a> {
     button: &'a mut Button,
     action: Action,
     channel_messages: ChannelMessages,
+    standard_note_off: bool,
 }
 
 impl<'a> ButtonMessages<'a> {
@@ -39,6 +41,16 @@ impl<'a> ButtonMessages<'a> {
             button,
             action,
             channel_messages: ChannelMessages::new(ch),
+            standard_note_off: false,
+        }
+    }
+    pub fn new_with_options(button: &'a mut Button, action: Action, standard_note_off: bool, channel_override: Option<ChannelOrAll>) -> Self {
+        let ch = channel_override.unwrap_or(button.channel);
+        Self {
+            button,
+            action,
+            channel_messages: ChannelMessages::new(ch),
+            standard_note_off,
         }
     }
     pub fn next<'buf>(
@@ -60,11 +72,19 @@ impl<'a> ButtonMessages<'a> {
                     Ok(Some(m.into()))
                 }
                 ButtonStatus::Off => {
-                    let mut m = NoteOn::try_new_with_buffer(buffer)?;
-                    m.set_velocity(u7::MIN);
-                    m.set_channel(channel);
-                    m.set_note_number(u7::new(self.button.midi_id));
-                    Ok(Some(m.into()))
+                    if self.standard_note_off {
+                        let mut m = NoteOff::try_new_with_buffer(buffer)?;
+                        m.set_velocity(u7::MIN);
+                        m.set_channel(channel);
+                        m.set_note_number(u7::new(self.button.midi_id));
+                        Ok(Some(m.into()))
+                    } else {
+                        let mut m = NoteOn::try_new_with_buffer(buffer)?;
+                        m.set_velocity(u7::MIN);
+                        m.set_channel(channel);
+                        m.set_note_number(u7::new(self.button.midi_id));
+                        Ok(Some(m.into()))
+                    }
                 }
                 ButtonStatus::None => Ok(None),
             },
@@ -269,6 +289,9 @@ impl<'a> ButtonMessages<'a> {
 impl Button {
     pub fn handle(&mut self, action: Action) -> ButtonMessages<'_> {
         ButtonMessages::new(self, action)
+    }
+    pub fn handle_with_options(&mut self, action: Action, standard_note_off: bool, channel_override: Option<ChannelOrAll>) -> ButtonMessages<'_> {
+        ButtonMessages::new_with_options(self, action, standard_note_off, channel_override)
     }
     fn latch(&mut self, action: &Action) -> ButtonStatus {
         match self.button_type {

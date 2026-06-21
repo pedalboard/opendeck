@@ -1,5 +1,6 @@
 use crate::encoder::{Encoder, EncoderMessageType};
 use crate::handler::{ChannelMessages, HiRes};
+use crate::ChannelOrAll;
 
 use channel_voice1::ProgramChange;
 use midi2::{
@@ -27,7 +28,7 @@ impl<'a> EncoderMessages<'a> {
             pulse: EncoderPulse::Clockwise,
         }
     }
-    fn new(encoder: &'a mut Encoder, pulse: EncoderPulse) -> Self {
+    fn new_with_channel(encoder: &'a mut Encoder, pulse: EncoderPulse, channel_override: Option<ChannelOrAll>) -> Self {
         let mt = &encoder.message_type;
         let nr_of_messages = match mt {
             EncoderMessageType::ControlChange => 1,
@@ -46,7 +47,7 @@ impl<'a> EncoderMessages<'a> {
             EncoderMessageType::PresetChange => 0,
             EncoderMessageType::BPM => 0,
         };
-        let ch = encoder.channel;
+        let ch = channel_override.unwrap_or(encoder.channel);
         let channel_messages = ChannelMessages::new_with_multiple_messages(ch, nr_of_messages);
         Self {
             encoder,
@@ -187,14 +188,14 @@ impl<'a> EncoderMessages<'a> {
 
 impl Encoder {
     pub fn handle(&mut self, p: EncoderPulse) -> EncoderMessages<'_> {
+        self.handle_with_channel(p, None)
+    }
+    pub fn handle_with_channel(&mut self, p: EncoderPulse, channel_override: Option<ChannelOrAll>) -> EncoderMessages<'_> {
         if !self.pulse_count_reached() {
             return EncoderMessages::none(self);
         }
-        if self.inverted {
-            EncoderMessages::new(self, p.invert())
-        } else {
-            EncoderMessages::new(self, p)
-        }
+        let pulse = if self.inverted { p.invert() } else { p };
+        EncoderMessages::new_with_channel(self, pulse, channel_override)
     }
     fn increment(&mut self, p: &EncoderPulse, incr: bool) {
         if !incr {

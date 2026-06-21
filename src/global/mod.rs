@@ -54,6 +54,27 @@ pub struct GlobalMidi {
 }
 
 impl GlobalMidi {
+    pub fn standard_note_off(&self) -> bool {
+        self.standard_note_off
+    }
+    pub fn use_global_channel(&self) -> bool {
+        self.use_global_midi_channel
+    }
+    pub fn global_channel(&self) -> ChannelOrAll {
+        self.global_midi_channel
+    }
+    pub fn din_midi_enabled(&self) -> bool {
+        self.din_midi_state
+    }
+    pub fn din_to_usb_thru(&self) -> bool {
+        self.din_to_usb_thru
+    }
+    pub fn usb_to_din_thru(&self) -> bool {
+        self.usb_to_din_thru
+    }
+    pub fn usb_to_usb_thru(&self) -> bool {
+        self.usb_to_usb_thru
+    }
     pub fn set(&mut self, index: MidiIndex, value: u16) {
         match index {
             MidiIndex::StandardNoteOff => self.standard_note_off = value > 0,
