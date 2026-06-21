@@ -449,7 +449,7 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
         self.presets.get_mut(self.global.preset.current)
     }
 
-    pub fn handle_button(&mut self, index: usize, action: Action) -> Messages {
+    pub fn handle_button(&mut self, index: usize, action: Action) -> Messages<'_> {
         if let Some(preset) = self.current_preset_mut() {
             if let Some(button) = preset.button_mut(index as u16) {
                 return Messages::Button(button.handle(action));
@@ -457,7 +457,7 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
         }
         Messages::None
     }
-    pub fn handle_analog(&mut self, index: usize, value: u16) -> Messages {
+    pub fn handle_analog(&mut self, index: usize, value: u16) -> Messages<'_> {
         if let Some(preset) = self.current_preset_mut() {
             if let Some(analog) = preset.analog_mut(index as u16) {
                 return Messages::Analog(analog.handle(value));
@@ -465,7 +465,7 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
         }
         Messages::None
     }
-    pub fn handle_encoder(&mut self, index: usize, pulse: EncoderPulse) -> Messages {
+    pub fn handle_encoder(&mut self, index: usize, pulse: EncoderPulse) -> Messages<'_> {
         if let Some(preset) = self.current_preset_mut() {
             if let Some(encoder) = preset.encoder_mut(index as u16) {
                 return Messages::Encoder(encoder.handle(pulse));
