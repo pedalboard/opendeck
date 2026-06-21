@@ -18,11 +18,15 @@ pub struct Analog {
     channel: ChannelOrAll,
     lower_adc_offset: u8,
     upper_adc_offset: u8,
+    adc_max: u16,
     last_value: u16,
 }
 
 impl Analog {
     pub fn new(midi_id: u16) -> Self {
+        Self::with_adc_max(midi_id, 4095)
+    }
+    pub fn with_adc_max(midi_id: u16, adc_max: u16) -> Self {
         Analog {
             enabled: false,
             inverted: false,
@@ -33,8 +37,12 @@ impl Analog {
             upper_limit: 0x7F,
             lower_adc_offset: 0,
             upper_adc_offset: 0,
+            adc_max,
             last_value: u16::MAX,
         }
+    }
+    pub fn set_adc_max(&mut self, adc_max: u16) {
+        self.adc_max = adc_max;
     }
     pub fn set(&mut self, section: AnalogSection) {
         match section {

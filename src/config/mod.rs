@@ -233,9 +233,17 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
     Config<P, B, A, E, L>
 {
     pub fn new(version: FirmwareVersion, uid: u32, reboot: fn(), bootloader: fn()) -> Self {
+        Self::new_with_adc_max(version, uid, reboot, bootloader, 4095)
+    }
+
+    pub fn new_with_adc_max(version: FirmwareVersion, uid: u32, reboot: fn(), bootloader: fn(), adc_max: u16) -> Self {
         let mut presets = Vec::new();
         for _ in 0..P {
-            presets.push(Preset::default()).unwrap();
+            let mut preset = Preset::default();
+            for analog in preset.analogs.iter_mut() {
+                analog.set_adc_max(adc_max);
+            }
+            presets.push(preset).unwrap();
         }
 
         Config {
