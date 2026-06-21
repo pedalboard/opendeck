@@ -26,7 +26,7 @@ impl Led {
         }
 
         match self.get_control_type() {
-            ControlType::MidiInNoteSingleValue => {
+            ControlType::MidiInNoteSingleValue | ControlType::LocalNoteSingleValue => {
                 if is_note_on && value == self.get_activation_value() {
                     OutputState::On
                 } else if !is_note_on {
@@ -35,7 +35,7 @@ impl Led {
                     OutputState::NoChange
                 }
             }
-            ControlType::MidiInCcSingleValue => {
+            ControlType::MidiInCcSingleValue | ControlType::LocalCcSingleValue => {
                 if value == self.get_activation_value() {
                     OutputState::On
                 } else {
@@ -150,5 +150,43 @@ mod tests {
         let mut led = Led::new(0);
         led.set(LedSection::ControlType(ControlType::Static));
         assert_eq!(led.process_midi(1, 99, 99, true), OutputState::On);
+    }
+
+    #[test]
+    fn test_local_note_single_value_on() {
+        let led = make_led(60, 127, 1, ControlType::LocalNoteSingleValue);
+        assert_eq!(led.process_midi(1, 60, 127, true), OutputState::On);
+    }
+
+    #[test]
+    fn test_local_note_single_value_off() {
+        let led = make_led(60, 127, 1, ControlType::LocalNoteSingleValue);
+        assert_eq!(led.process_midi(1, 60, 0, false), OutputState::Off);
+    }
+
+    #[test]
+    fn test_local_cc_single_value_on() {
+        let led = make_led(7, 127, 1, ControlType::LocalCcSingleValue);
+        assert_eq!(led.process_midi(1, 7, 127, true), OutputState::On);
+    }
+
+    #[test]
+    fn test_local_cc_single_value_off() {
+        let led = make_led(7, 127, 1, ControlType::LocalCcSingleValue);
+        assert_eq!(led.process_midi(1, 7, 0, true), OutputState::Off);
+    }
+}
+
+#[cfg(test)]
+mod control_type_test {
+    use super::*;
+
+    #[test]
+    fn test_control_type_roundtrip() {
+        let ct = ControlType::LocalNoteSingleValue;
+        let v: u16 = ct.into();
+        assert_eq!(v, 1);
+        let back = ControlType::try_from(v).unwrap();
+        assert_eq!(back, ControlType::LocalNoteSingleValue);
     }
 }
