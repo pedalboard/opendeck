@@ -476,17 +476,17 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
 
     /// Notify the config that a local MIDI message was generated.
     /// This updates output states for outputs configured in Local control mode.
-    pub fn notify_local_midi(&mut self, channel: u8, id: u8, value: u8, is_note_on: bool) -> usize {
-        self.update_outputs(channel, id, value, is_note_on, true)
+    pub fn notify_local_midi(&mut self, channel: u8, id: u8, value: u8, is_note_on: bool, is_cc: bool) -> usize {
+        self.update_outputs(channel, id, value, is_note_on, true, is_cc)
     }
 
     /// Notify the config that an external MIDI message was received.
     /// This updates output states for outputs configured in MIDI In control mode.
-    pub fn notify_external_midi(&mut self, channel: u8, id: u8, value: u8, is_note_on: bool) -> usize {
-        self.update_outputs(channel, id, value, is_note_on, false)
+    pub fn notify_external_midi(&mut self, channel: u8, id: u8, value: u8, is_note_on: bool, is_cc: bool) -> usize {
+        self.update_outputs(channel, id, value, is_note_on, false, is_cc)
     }
 
-    fn update_outputs(&mut self, channel: u8, id: u8, value: u8, is_note_on: bool, is_local: bool) -> usize {
+    fn update_outputs(&mut self, channel: u8, id: u8, value: u8, is_note_on: bool, is_local: bool, is_cc: bool) -> usize {
         use crate::led::handler::OutputState;
         use crate::led::ControlType;
 
@@ -497,10 +497,12 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
         let mut count = 0;
         for led in preset.leds.iter_mut() {
             let ct = led.get_control_type();
-            let check = match (is_local, ct) {
-                (true, ControlType::LocalNoteSingleValue | ControlType::LocalCcSingleValue | ControlType::LocalNoteMultiValue | ControlType::LocalCcMultiValue) => true,
-                (false, ControlType::MidiInNoteSingleValue | ControlType::MidiInCcSingleValue | ControlType::MidiInNoteMultiValue | ControlType::MidiInCcMultiValue) => true,
-                (_, ControlType::Static) => true,
+            let check = match (is_local, is_cc, ct) {
+                (true, false, ControlType::LocalNoteSingleValue | ControlType::LocalNoteMultiValue) => true,
+                (true, true, ControlType::LocalCcSingleValue | ControlType::LocalCcMultiValue) => true,
+                (false, false, ControlType::MidiInNoteSingleValue | ControlType::MidiInNoteMultiValue) => true,
+                (false, true, ControlType::MidiInCcSingleValue | ControlType::MidiInCcMultiValue) => true,
+                (_, _, ControlType::Static) => true,
                 _ => false,
             };
             if !check {
@@ -670,12 +672,12 @@ mod tests {
         assert_eq!(config.output_count(), 2);
 
         // Simulate local Note On (note 0, velocity 127, channel 1)
-        let changed = config.notify_local_midi(1, 0, 127, true);
+        let changed = config.notify_local_midi(1, 0, 127, true, false);
         assert_eq!(changed, 1, "expected 1 output to change");
         assert!(config.output_state(0));
 
         // Simulate local Note Off
-        config.notify_local_midi(1, 0, 0, false);
+        config.notify_local_midi(1, 0, 0, false, false);
         assert!(!config.output_state(0));
     }
 
