@@ -5,7 +5,7 @@ use crate::{
     encoder::{handler::EncoderPulse, Encoder},
     global::{GlobalMidi, GlobalPreset, GlobalSection},
     handler::Messages,
-    led::Led,
+    led::{ControlType, Led},
     parser::{OpenDeckParseError, OpenDeckParser},
     renderer::OpenDeckRenderer,
     Amount, Block, HardwareUid, MessageStatus, NewValues, NrOfSupportedComponents, OpenDeckRequest,
@@ -533,6 +533,15 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
             .and_then(|p| p.leds.get(index))
             .map(|led| led.get_level())
             .unwrap_or(0)
+    }
+
+    /// Get the control type of an output.
+    pub fn output_control_type(&self, index: usize) -> ControlType {
+        self.presets
+            .get(self.global.preset.current)
+            .and_then(|p| p.leds.get(index))
+            .map(|led| led.get_control_type())
+            .unwrap_or_default()
     }
 
     /// Number of configured outputs.
