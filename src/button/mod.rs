@@ -126,4 +126,5 @@ pub enum ButtonMessageType {
     ProgramChangeOffsetDecr = 0x1A,
     BPMIncr = 0x1B,
     BPMDecr = 0x1C,
+    MMCPlayStop = 0x1D,
 }

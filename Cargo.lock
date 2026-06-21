@@ -147,8 +147,7 @@ dependencies = [
 [[package]]
 name = "midi2"
 version = "0.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d20fb87e947169ef96e413b0b5f1629b70b4e3fc14fa9b09d052714bb60014aa"
+source = "git+https://github.com/BenLeadbetter/bl-midi2-rs.git?branch=feature%2Fextended-sysex-api#40c6ad0312232805c93cf24af32e57e4b3b0d57f"
 dependencies = [
  "derive_more",
  "fixed",
@@ -159,8 +158,7 @@ dependencies = [
 [[package]]
 name = "midi2_proc"
 version = "0.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f610e79c947f6f8775d1513632143cc1beed591684b848a97634d75e946989e1"
+source = "git+https://github.com/BenLeadbetter/bl-midi2-rs.git?branch=feature%2Fextended-sysex-api#40c6ad0312232805c93cf24af32e57e4b3b0d57f"
 dependencies = [
  "proc-macro2",
  "quote",

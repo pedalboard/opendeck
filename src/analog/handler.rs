@@ -27,6 +27,7 @@ impl<'a> AnalogMessages<'a> {
             AnalogMessageType::FSR => 1,
             AnalogMessageType::NRPN7 => 3,
             AnalogMessageType::NRPN14 => 4,
+            AnalogMessageType::Reserved => 0,
         };
         let ch = analog.channel;
         let channel_messages = ChannelMessages::new_with_multiple_messages(ch, nr_of_messages);
@@ -86,6 +87,7 @@ impl<'a> AnalogMessages<'a> {
                 m.set_control_data(data);
                 Ok(Some(m.into()))
             }
+            AnalogMessageType::Reserved => Ok(None),
         }
     }
 }

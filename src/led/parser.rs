@@ -19,8 +19,8 @@ impl TryFrom<Section> for LedSection {
                 LedSectionId::ControlType => ControlType::try_from(v.value)
                     .map(LedSection::ControlType)
                     .map_err(OpenDeckParseError::new_value_err),
-                LedSectionId::RGBEnabled => Ok(LedSection::RGBEnabled(v.value > 0)),
-                LedSectionId::BlinkTesting => Ok(LedSection::RGBEnabled(v.value > 0)),
+                LedSectionId::Reserved => Ok(LedSection::Reserved(v.value)),
+                LedSectionId::BlinkTesting => Ok(LedSection::BlinkTesting(v.value > 0)),
                 LedSectionId::Channel => Ok(LedSection::Channel(ChannelOrAll::from(v.value))),
                 LedSectionId::Global => Ok(LedSection::Global(v.value)),
             }
@@ -39,7 +39,7 @@ mod tests {
     fn test_midi_id() {
         let section = Section { id: 4, value: 1 };
         let result = LedSection::try_from(section);
-        assert_eq!(result, Ok(LedSection::RGBEnabled(true)));
+        assert_eq!(result, Ok(LedSection::Reserved(1)));
     }
 
     #[test]

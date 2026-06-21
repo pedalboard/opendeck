@@ -17,3 +17,6 @@ int-enum = "1.2.0"
 [features]
 default = []
 defmt = ["dep:defmt"]
+
+[patch.crates-io]
+midi2 = { git = "https://github.com/BenLeadbetter/bl-midi2-rs.git", branch = "feature/extended-sysex-api" }

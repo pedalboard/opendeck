@@ -104,6 +104,9 @@ pub enum GlobalSectionId {
     Midi = 0,
     // Reserved = 1,
     Presets = 2,
+    OSC = 3,
+    MDNS = 4,
+    ConfigurationUnlock = 5,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, IntEnum, Eq)]
@@ -143,4 +146,7 @@ pub enum MidiIndex {
 pub enum GlobalSection {
     Midi(MidiIndex, u16),
     Presets(PresetIndex, u16),
+    OSC(u16, u16),
+    MDNS(u16, u16),
+    ConfigurationUnlock(u16, u16),
 }

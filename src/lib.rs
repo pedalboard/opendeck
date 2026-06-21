@@ -115,6 +115,9 @@ pub enum SpecialRequest {
     NrOfSupportedPresets = 0x50,
     BootloaderSupport = 0x51,
     Backup = 0x1B,
+    SerialNumber = 0x53,
+    RestoreStart = 0x1C,
+    RestoreEnd = 0x1D,
 }
 
 #[derive(Copy, Debug, Clone, PartialEq, Eq)]
@@ -138,7 +141,7 @@ pub struct NrOfSupportedComponents {
     pub touchscreen_buttons: usize,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum SpecialResponse {
     Handshake,
@@ -151,6 +154,9 @@ pub enum SpecialResponse {
     NrOfSupportedPresets(usize),
     BootloaderSupport(bool),
     Backup,
+    SerialNumber(Vec<u8, 32>),
+    RestoreStart,
+    RestoreEnd,
 }
 
 pub type NewValues = Vec<u16, PARAMS_PER_MESSAGE>;

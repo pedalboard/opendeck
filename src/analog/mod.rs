@@ -75,6 +75,7 @@ pub enum AnalogMessageType {
     NRPN14 = 5,
     PitchBend = 6,
     PotentiometerWithCCMessage14Bit = 7,
+    Reserved = 8,
 }
 
 #[derive(IntEnum)]
