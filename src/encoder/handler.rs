@@ -202,10 +202,10 @@ impl Encoder {
         }
         match p {
             EncoderPulse::Clockwise => {
-                self.value += 1;
+                self.value = self.value.saturating_add(1);
             }
             EncoderPulse::CounterClockwise => {
-                self.value -= 1;
+                self.value = self.value.saturating_sub(1);
             }
         }
         if self.value > self.upper_limit {
@@ -661,5 +661,43 @@ mod tests {
         let m = it.next(&mut buf).unwrap().unwrap();
         assert_eq!(m.data(), [0x91, 61, 100]);
         assert_eq!(Ok(None), it.next(&mut buf));
+    }
+
+    #[test]
+    fn test_value_clamps_at_lower_limit() {
+        let mut buf = [0x00u8; 8];
+        let mut encoder = Encoder {
+            enabled: true,
+            message_type: EncoderMessageType::ControlChange,
+            value: 0,
+            lower_limit: 0,
+            upper_limit: 12,
+            pulses_per_step: 1,
+            midi_id: 0x01,
+            ..Encoder::default()
+        };
+        // Decrement at 0 should stay at 0, not wrap to 65535
+        let mut it = encoder.handle(EncoderPulse::CounterClockwise);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data()[2], 0); // value stays at 0
+    }
+
+    #[test]
+    fn test_value_clamps_at_upper_limit() {
+        let mut buf = [0x00u8; 8];
+        let mut encoder = Encoder {
+            enabled: true,
+            message_type: EncoderMessageType::ControlChange,
+            value: 12,
+            lower_limit: 0,
+            upper_limit: 12,
+            pulses_per_step: 1,
+            midi_id: 0x01,
+            ..Encoder::default()
+        };
+        // Increment at upper_limit should stay at 12
+        let mut it = encoder.handle(EncoderPulse::Clockwise);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data()[2], 12);
     }
 }
