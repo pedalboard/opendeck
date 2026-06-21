@@ -546,6 +546,15 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
             .unwrap_or_default()
     }
 
+    /// Get the configured color of an output.
+    pub fn output_color(&self, index: usize) -> crate::led::Color {
+        self.presets
+            .get(self.global.preset.current)
+            .and_then(|p| p.leds.get(index))
+            .map(|led| led.get_color())
+            .unwrap_or_default()
+    }
+
     /// Number of configured outputs.
     pub fn output_count(&self) -> usize {
         self.presets

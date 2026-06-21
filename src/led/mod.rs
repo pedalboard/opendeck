@@ -79,6 +79,9 @@ impl Led {
     pub fn get_level(&self) -> u8 {
         self.level
     }
+    pub fn get_color(&self) -> Color {
+        self.color_testing
+    }
     pub fn set(&mut self, section: LedSection) {
         match section {
             LedSection::ColorTesting(v) => self.color_testing = v,
