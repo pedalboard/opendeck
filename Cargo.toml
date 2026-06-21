@@ -5,7 +5,7 @@ edition = "2021"
 categories = ["no-std", "embedded"]
 
 [dependencies]
-midi2 = { version = "0.8.2", default-features = false, features = [
+midi2 = { version = "0.11", default-features = false, features = [
   "channel-voice1",
   "sysex7",
   "system-common",
@@ -17,6 +17,3 @@ int-enum = "1.2.0"
 [features]
 default = []
 defmt = ["dep:defmt"]
-
-[patch.crates-io]
-midi2 = { git = "https://github.com/BenLeadbetter/bl-midi2-rs.git", rev = "40c6ad03" }
