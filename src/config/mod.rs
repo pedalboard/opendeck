@@ -482,8 +482,8 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
 
     /// Notify the config that an external MIDI message was received.
     /// This updates output states for outputs configured in MIDI In control mode.
-    pub fn notify_external_midi(&mut self, channel: u8, id: u8, value: u8, is_note_on: bool) {
-        self.update_outputs(channel, id, value, is_note_on, false);
+    pub fn notify_external_midi(&mut self, channel: u8, id: u8, value: u8, is_note_on: bool) -> usize {
+        self.update_outputs(channel, id, value, is_note_on, false)
     }
 
     fn update_outputs(&mut self, channel: u8, id: u8, value: u8, is_note_on: bool, is_local: bool) -> usize {
