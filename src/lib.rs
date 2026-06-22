@@ -112,6 +112,7 @@ impl ByteOrder {
 #[derive(Copy, Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum SpecialRequest {
+    ConnectionClose = 0x00,
     Handshake = 0x01,
     ValueSize = 0x02,
     ValuesPerMessage = 0x03,

@@ -316,6 +316,10 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
                 self.handler.reboot();
                 None
             }
+            SpecialRequest::ConnectionClose => {
+                self.enabled = false;
+                Some(SpecialResponse::Handshake)
+            }
             SpecialRequest::Handshake => {
                 self.enabled = true;
                 Some(SpecialResponse::Handshake)

@@ -9,6 +9,9 @@ impl TryFrom<u8> for SpecialRequest {
     type Error = OpenDeckParseError;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
+            x if x == SpecialRequest::ConnectionClose as u8 => {
+                Ok(SpecialRequest::ConnectionClose)
+            }
             x if x == SpecialRequest::Handshake as u8 => Ok(SpecialRequest::Handshake),
             x if x == SpecialRequest::ValueSize as u8 => Ok(SpecialRequest::ValueSize),
             x if x == SpecialRequest::ValuesPerMessage as u8 => {
