@@ -97,7 +97,7 @@ pub struct GlobalConfig {
     preset: GlobalPreset,
 }
 
-pub struct Config<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize> {
+pub struct Config<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize, H: crate::SystemHandler> {
     parser: OpenDeckParser,
     global: GlobalConfig,
     enabled: bool,
@@ -105,8 +105,7 @@ pub struct Config<const P: usize, const B: usize, const A: usize, const E: usize
     version: FirmwareVersion,
     uid: u32,
     serial_number: Vec<u8, 32>,
-    reboot: fn(),
-    bootloader: fn(),
+    handler: H,
 }
 
 pub enum SysexResponseIterator<
@@ -125,10 +124,10 @@ pub enum SysexResponseIterator<
 impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize>
     SysexResponseIterator<P, B, A, E, L>
 {
-    pub fn next<'c>(
+    pub fn next<'c, H: crate::SystemHandler>(
         &mut self,
         buffer: &'c mut [u8],
-        config: &mut Config<P, B, A, E, L>,
+        config: &mut Config<P, B, A, E, L, H>,
     ) -> Result<Option<Sysex7<&'c mut [u8]>>, RenderError> {
         let renderer = OpenDeckRenderer::new(ValueSize::TwoBytes, buffer);
         match self {
@@ -207,7 +206,7 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
     pub fn new(request: OpenDeckRequest) -> Self {
         ConfigResponseIterator { index: 0, request }
     }
-    fn next(&mut self, config: &mut Config<P, B, A, E, L>) -> Option<OpenDeckResponse> {
+    fn next<H: crate::SystemHandler>(&mut self, config: &mut Config<P, B, A, E, L, H>) -> Option<OpenDeckResponse> {
         if self.index == 0 {
             if let Some(odr) = config.process_req(self.request) {
                 self.index += 1;
@@ -230,14 +229,14 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
     }
 }
 
-impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize>
-    Config<P, B, A, E, L>
+impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize, H: crate::SystemHandler>
+    Config<P, B, A, E, L, H>
 {
-    pub fn new(version: FirmwareVersion, uid: u32, reboot: fn(), bootloader: fn()) -> Self {
-        Self::new_with_adc_max(version, uid, reboot, bootloader, 4095)
+    pub fn new(version: FirmwareVersion, uid: u32, handler: H) -> Self {
+        Self::new_with_adc_max(version, uid, handler, 4095)
     }
 
-    pub fn new_with_adc_max(version: FirmwareVersion, uid: u32, reboot: fn(), bootloader: fn(), adc_max: u16) -> Self {
+    pub fn new_with_adc_max(version: FirmwareVersion, uid: u32, handler: H, adc_max: u16) -> Self {
         let mut presets = Vec::new();
         for _ in 0..P {
             let mut preset = Preset::default();
@@ -254,8 +253,7 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
             version,
             uid,
             serial_number: Vec::new(),
-            reboot,
-            bootloader,
+            handler,
             global: GlobalConfig::default(),
         }
     }
@@ -310,11 +308,11 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
     fn process_special_req(&mut self, special: SpecialRequest) -> Option<SpecialResponse> {
         match special {
             SpecialRequest::BootloaderMode => {
-                (self.bootloader)();
+                self.handler.bootloader();
                 None
             }
             SpecialRequest::Reboot => {
-                (self.reboot)();
+                self.handler.reboot();
                 None
             }
             SpecialRequest::Handshake => {
@@ -344,7 +342,10 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
                     touchscreen_buttons: 0,
                 }),
             ),
-            SpecialRequest::FactoryReset => None,
+            SpecialRequest::FactoryReset => {
+                self.handler.factory_reset();
+                None
+            }
             SpecialRequest::Backup => None,
             SpecialRequest::SerialNumber => {
                 Some(SpecialResponse::SerialNumber(self.serial_number.clone()))
@@ -615,6 +616,13 @@ mod tests {
     use super::*;
     use midi2::Data;
 
+    struct NoopHandler;
+    impl crate::SystemHandler for NoopHandler {
+        fn reboot(&self) {}
+        fn bootloader(&self) {}
+        fn factory_reset(&self) {}
+    }
+
     #[test]
     fn test_process_sysex_handshake() {
         let version = FirmwareVersion {
@@ -623,9 +631,7 @@ mod tests {
             revision: 0,
         };
         let uid = 12345;
-        let reboot = || {};
-        let bootloader = || {};
-        let mut config = Config::<1, 1, 1, 1, 1>::new(version, uid, reboot, bootloader);
+        let mut config = Config::<1, 1, 1, 1, 1, _>::new(version, uid, NoopHandler);
 
         let request = [0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x01, 0xF7]; // Example SysEx request for handshake
         let mut responses = config.process_sysex(&request);
@@ -646,9 +652,7 @@ mod tests {
             revision: 0,
         };
         let uid = 12345;
-        let reboot = || {};
-        let bootloader = || {};
-        let mut config = Config::<1, 1, 1, 1, 1>::new(version, uid, reboot, bootloader);
+        let mut config = Config::<1, 1, 1, 1, 1, _>::new(version, uid, NoopHandler);
 
         let request = [
             0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x00, 0x00, 0x03, 0x03, 0x00, 0x00, 0x00, 0x00,
@@ -674,9 +678,7 @@ mod tests {
             revision: 0,
         };
         let uid = 12345;
-        let reboot = || {};
-        let bootloader = || {};
-        let mut config = Config::<1, 20, 1, 1, 1>::new(version, uid, reboot, bootloader);
+        let mut config = Config::<1, 20, 1, 1, 1, _>::new(version, uid, NoopHandler);
 
         let request = [
             0xF0, 0x00, 0x53, 0x43, 0x00, 0x7E, 0x00, 0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00,
@@ -711,7 +713,7 @@ mod tests {
         use crate::ChannelOrAll;
 
         let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
-        let mut config: Config<1, 2, 2, 2, 2> = Config::new(version, 0, || {}, || {});
+        let mut config: Config<1, 2, 2, 2, 2, _> = Config::new(version, 0, NoopHandler);
 
         // Directly configure output 0 on the preset
         let preset = config.current_preset_mut().unwrap();
@@ -739,7 +741,7 @@ mod tests {
     fn test_preset_default_with_different_analog_and_encoder_counts() {
         // Config<P=1, B=6, A=2, E=4, L=8> — A != E exposes the generic param swap
         let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
-        let config: Config<1, 6, 2, 4, 8> = Config::new(version, 0, || {}, || {});
+        let config: Config<1, 6, 2, 4, 8, _> = Config::new(version, 0, NoopHandler);
         let preset = config.presets.get(0).unwrap();
         assert_eq!(preset.buttons.len(), 6);
         assert_eq!(preset.analogs.len(), 2);
@@ -757,7 +759,7 @@ mod tests {
         use crate::ChannelOrAll;
 
         let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
-        let mut config: Config<1, 2, 1, 1, 1> = Config::new(version, 0, || {}, || {});
+        let mut config: Config<1, 2, 1, 1, 1, _> = Config::new(version, 0, NoopHandler);
 
         // Configure button 0 on channel 1 (0-based) with Note message
         let preset = config.current_preset_mut().unwrap();
@@ -789,7 +791,7 @@ mod tests {
         use crate::ChannelOrAll;
 
         let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
-        let mut config: Config<1, 2, 1, 1, 1> = Config::new(version, 0, || {}, || {});
+        let mut config: Config<1, 2, 1, 1, 1, _> = Config::new(version, 0, NoopHandler);
 
         // Configure button 0 as momentary Note
         let preset = config.current_preset_mut().unwrap();
@@ -824,7 +826,7 @@ mod tests {
         use crate::ChannelOrAll;
 
         let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
-        let mut config: Config<1, 1, 1, 2, 1> = Config::new(version, 0, || {}, || {});
+        let mut config: Config<1, 1, 1, 2, 1, _> = Config::new(version, 0, NoopHandler);
 
         // Configure encoder 0: enabled, CC 7-bit, channel 2 (0-based = 1)
         let preset = config.current_preset_mut().unwrap();
@@ -853,7 +855,7 @@ mod tests {
         use crate::ChannelOrAll;
 
         let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
-        let mut config: Config<1, 1, 2, 1, 1> = Config::new(version, 0, || {}, || {});
+        let mut config: Config<1, 1, 2, 1, 1, _> = Config::new(version, 0, NoopHandler);
 
         // Configure analog 0: enabled, CC 7-bit, channel 3 (0-based = 2)
         let preset = config.current_preset_mut().unwrap();
@@ -881,7 +883,7 @@ mod tests {
         use crate::ChannelOrAll;
 
         let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
-        let mut config: Config<1, 2, 1, 1, 1> = Config::new(version, 0, || {}, || {});
+        let mut config: Config<1, 2, 1, 1, 1, _> = Config::new(version, 0, NoopHandler);
 
         // Configure button 0 on channel 3
         let preset = config.current_preset_mut().unwrap();
@@ -913,7 +915,7 @@ mod tests {
     #[test]
     fn test_serial_number_request() {
         let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
-        let mut config = Config::<1, 1, 1, 1, 1>::new(version, 0, || {}, || {});
+        let mut config = Config::<1, 1, 1, 1, 1, _>::new(version, 0, NoopHandler);
         config.set_serial_number(&[0xAB, 0xCD, 0xEF, 0x12]);
 
         let request = [0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x53, 0xF7];
@@ -927,5 +929,38 @@ mod tests {
         assert_eq!(data[7], 0x01);
         assert_eq!(data[8], 0x2B);
         assert_eq!(*data.last().unwrap(), 0xF7);
+    }
+
+    /// Factory reset (wiki: Special requests > Factory reset)
+    /// Request:  F0 00 53 43 00 00 44 F7
+    /// Response: F0 00 53 43 01 00 44 F7
+    #[test]
+    fn test_factory_reset_calls_handler() {
+        use core::sync::atomic::{AtomicBool, Ordering};
+
+        static CALLED: AtomicBool = AtomicBool::new(false);
+
+        struct TrackingHandler;
+        impl crate::SystemHandler for TrackingHandler {
+            fn reboot(&self) {}
+            fn bootloader(&self) {}
+            fn factory_reset(&self) {
+                CALLED.store(true, Ordering::Relaxed);
+            }
+        }
+
+        let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
+        let mut config = Config::<1, 1, 1, 1, 1, _>::new(version, 0, TrackingHandler);
+
+        // Handshake first (required to enable SysEx)
+        config.process_sysex(&[0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x01, 0xF7]);
+
+        CALLED.store(false, Ordering::Relaxed);
+        let request = [0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x44, 0xF7];
+        let mut responses = config.process_sysex(&request);
+        let buf = &mut [0; MAX_MESSAGE_SIZE];
+        let _ = responses.next(buf, &mut config);
+
+        assert!(CALLED.load(Ordering::Relaxed), "factory_reset() should have been called");
     }
 }

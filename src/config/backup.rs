@@ -46,7 +46,7 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
             status: BackupStatus::Init,
         }
     }
-    pub fn next(&mut self, config: &mut Config<P, B, A, E, L>) -> Option<OpenDeckResponse> {
+    pub fn next<H: crate::SystemHandler>(&mut self, config: &mut Config<P, B, A, E, L, H>) -> Option<OpenDeckResponse> {
         match self.status {
             BackupStatus::Init => {
                 self.status = BackupStatus::PresetInit;
@@ -207,15 +207,19 @@ mod tests {
 
     #[test]
     fn test_config_backup_iterator() {
+        struct NoopHandler;
+        impl crate::SystemHandler for NoopHandler {
+            fn reboot(&self) {}
+            fn bootloader(&self) {}
+            fn factory_reset(&self) {}
+        }
         let version = FirmwareVersion {
             major: 1,
             minor: 0,
             revision: 0,
         };
         let uid = 12345;
-        let reboot = || {};
-        let bootloader = || {};
-        let config = &mut Config::<1, 2, 1, 1, 1>::new(version, uid, reboot, bootloader);
+        let config = &mut Config::<1, 2, 1, 1, 1, _>::new(version, uid, NoopHandler);
 
         let mut iterator = ConfigBackupIterator::new();
         assert_eq!(
