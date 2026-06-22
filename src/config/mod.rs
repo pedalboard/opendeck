@@ -528,6 +528,30 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
         Messages::None
     }
     pub fn handle_encoder(&mut self, index: usize, pulse: EncoderPulse) -> Messages<'_> {
+        use crate::encoder::EncoderMessageType;
+
+        // Check for internal preset change
+        if let Some(preset) = self.presets.get(self.global.preset.current) {
+            if let Some(encoder) = preset.encoders.get(index) {
+                let msg_type = EncoderMessageType::try_from(
+                    encoder.get(crate::encoder::EncoderSection::MessageType(EncoderMessageType::default()))
+                );
+                if matches!(msg_type, Ok(EncoderMessageType::PresetChange)) {
+                    match pulse {
+                        EncoderPulse::Clockwise => {
+                            if self.global.preset.current + 1 < P {
+                                self.global.preset.current += 1;
+                            }
+                        }
+                        EncoderPulse::CounterClockwise => {
+                            self.global.preset.current = self.global.preset.current.saturating_sub(1);
+                        }
+                    }
+                    return Messages::None;
+                }
+            }
+        }
+
         let channel_override = if self.global.midi.use_global_channel() {
             Some(self.global.midi.global_channel())
         } else {
@@ -1062,5 +1086,50 @@ mod tests {
         config.handle_button(0, Action::Pressed);
 
         assert_eq!(config.active_preset(), 1);
+    }
+
+    /// Encoder message type PresetChange (0x4) should inc/dec active preset
+    #[test]
+    fn test_encoder_preset_change() {
+        use crate::encoder::{EncoderMessageType, EncoderSection, handler::EncoderPulse};
+
+        let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
+        let mut config: Config<3, 1, 1, 1, 1, _> = Config::new(version, 0, NoopHandler);
+
+        // Configure encoder 0 as preset change on all presets
+        for preset in 0..3usize {
+            config.global.preset.current = preset;
+            config.process_req(OpenDeckRequest::Configuration(
+                Wish::Set, Amount::Single,
+                Block::Encoder(0, EncoderSection::Enabled(true)),
+            ));
+            config.process_req(OpenDeckRequest::Configuration(
+                Wish::Set, Amount::Single,
+                Block::Encoder(0, EncoderSection::MessageType(EncoderMessageType::PresetChange)),
+            ));
+        }
+        config.global.preset.current = 0;
+
+        assert_eq!(config.active_preset(), 0);
+
+        // Clockwise → increment
+        config.handle_encoder(0, EncoderPulse::Clockwise);
+        assert_eq!(config.active_preset(), 1);
+
+        config.handle_encoder(0, EncoderPulse::Clockwise);
+        assert_eq!(config.active_preset(), 2);
+
+        // Clamp at max (P-1 = 2)
+        config.handle_encoder(0, EncoderPulse::Clockwise);
+        assert_eq!(config.active_preset(), 2);
+
+        // Counter-clockwise → decrement
+        config.handle_encoder(0, EncoderPulse::CounterClockwise);
+        assert_eq!(config.active_preset(), 1);
+
+        // Clamp at 0
+        config.handle_encoder(0, EncoderPulse::CounterClockwise);
+        config.handle_encoder(0, EncoderPulse::CounterClockwise);
+        assert_eq!(config.active_preset(), 0);
     }
 }
