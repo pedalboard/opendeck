@@ -483,6 +483,24 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
     }
 
     pub fn handle_button(&mut self, index: usize, action: Action) -> Messages<'_> {
+        use crate::button::ButtonMessageType;
+
+        // Check for internal preset change before borrowing for MIDI handling
+        if matches!(action, Action::Pressed) {
+            if let Some(preset) = self.presets.get(self.global.preset.current) {
+                if let Some(button) = preset.buttons.get(index) {
+                    let msg_type = ButtonMessageType::try_from(
+                        button.get(crate::button::ButtonSection::MessageType(ButtonMessageType::default()))
+                    );
+                    if matches!(msg_type, Ok(ButtonMessageType::OpenDeckPresetChange)) {
+                        let target = button.get(crate::button::ButtonSection::MidiId(0)) as usize;
+                        self.global.preset.current = target;
+                        return Messages::None;
+                    }
+                }
+            }
+        }
+
         let channel_override = if self.global.midi.use_global_channel() {
             Some(self.global.midi.global_channel())
         } else {
@@ -625,6 +643,11 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
     /// Whether a SysEx configuration session is active (handshake received).
     pub fn sysex_enabled(&self) -> bool {
         self.enabled
+    }
+
+    /// Current active preset index.
+    pub fn active_preset(&self) -> usize {
+        self.global.preset.current
     }
 }
 #[cfg(test)]
@@ -1012,5 +1035,32 @@ mod tests {
                 Vec::from_slice(&[1]).unwrap(),
             ))
         );
+    }
+
+    /// Button message type OpenDeckPresetChange (0x11) should switch active preset
+    #[test]
+    fn test_button_preset_change() {
+        use crate::button::{ButtonMessageType, ButtonSection};
+        use crate::button::handler::Action;
+
+        let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
+        let mut config: Config<3, 2, 1, 1, 1, _> = Config::new(version, 0, NoopHandler);
+
+        // Configure button 0 as preset change to preset 1
+        config.process_req(OpenDeckRequest::Configuration(
+            Wish::Set, Amount::Single,
+            Block::Button(0, ButtonSection::MessageType(ButtonMessageType::OpenDeckPresetChange)),
+        ));
+        config.process_req(OpenDeckRequest::Configuration(
+            Wish::Set, Amount::Single,
+            Block::Button(0, ButtonSection::MidiId(1)),
+        ));
+
+        assert_eq!(config.active_preset(), 0);
+
+        // Press the button
+        config.handle_button(0, Action::Pressed);
+
+        assert_eq!(config.active_preset(), 1);
     }
 }
