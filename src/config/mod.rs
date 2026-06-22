@@ -7,13 +7,13 @@ use crate::{
     handler::Messages,
     led::{ControlType, Led},
     parser::{OpenDeckParseError, OpenDeckParser},
-    renderer::OpenDeckRenderer,
+    renderer::{OpenDeckRenderer, RenderError},
     Amount, Block, HardwareUid, MessageStatus, NewValues, NrOfSupportedComponents, OpenDeckRequest,
     OpenDeckResponse, SpecialRequest, SpecialResponse, ValueSize, Wish,
 };
 
 use heapless::Vec;
-use midi2::{error::BufferOverflow, sysex7::Sysex7};
+use midi2::sysex7::Sysex7;
 
 mod backup;
 
@@ -129,7 +129,7 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
         &mut self,
         buffer: &'c mut [u8],
         config: &mut Config<P, B, A, E, L>,
-    ) -> Result<Option<Sysex7<&'c mut [u8]>>, BufferOverflow> {
+    ) -> Result<Option<Sysex7<&'c mut [u8]>>, RenderError> {
         let renderer = OpenDeckRenderer::new(ValueSize::TwoBytes, buffer);
         match self {
             SysexResponseIterator::Config(i) => {
