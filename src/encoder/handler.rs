@@ -201,12 +201,18 @@ impl Encoder {
         if !incr {
             return;
         }
+        let step = match self.accelleration {
+            crate::encoder::Accelleration::None => 1u16,
+            crate::encoder::Accelleration::Slow => 2,
+            crate::encoder::Accelleration::Medium => 4,
+            crate::encoder::Accelleration::Fast => 8,
+        };
         match p {
             EncoderPulse::Clockwise => {
-                self.value = self.value.saturating_add(1);
+                self.value = self.value.saturating_add(step);
             }
             EncoderPulse::CounterClockwise => {
-                self.value = self.value.saturating_sub(1);
+                self.value = self.value.saturating_sub(step);
             }
         }
         if self.value > self.upper_limit {
@@ -276,6 +282,60 @@ mod tests {
         assert!(!encoder.pulse_count_reached());
         assert!(!encoder.pulse_count_reached());
         assert!(encoder.pulse_count_reached());
+    }
+
+    #[test]
+    fn test_acceleration_slow_steps_by_2() {
+        let mut buf = [0x00u8; 8];
+        let mut encoder = Encoder {
+            enabled: true,
+            message_type: EncoderMessageType::ControlChange,
+            value: 10,
+            pulses_per_step: 1,
+            midi_id: 0x01,
+            accelleration: crate::encoder::Accelleration::Slow,
+            channel: ChannelOrAll::Channel(0),
+            ..Encoder::default()
+        };
+        let mut it = encoder.handle(EncoderPulse::Clockwise);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data()[2], 12); // stepped by 2
+    }
+
+    #[test]
+    fn test_acceleration_medium_steps_by_4() {
+        let mut buf = [0x00u8; 8];
+        let mut encoder = Encoder {
+            enabled: true,
+            message_type: EncoderMessageType::ControlChange,
+            value: 10,
+            pulses_per_step: 1,
+            midi_id: 0x01,
+            accelleration: crate::encoder::Accelleration::Medium,
+            channel: ChannelOrAll::Channel(0),
+            ..Encoder::default()
+        };
+        let mut it = encoder.handle(EncoderPulse::Clockwise);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data()[2], 14); // stepped by 4
+    }
+
+    #[test]
+    fn test_acceleration_fast_steps_by_8() {
+        let mut buf = [0x00u8; 8];
+        let mut encoder = Encoder {
+            enabled: true,
+            message_type: EncoderMessageType::ControlChange,
+            value: 10,
+            pulses_per_step: 1,
+            midi_id: 0x01,
+            accelleration: crate::encoder::Accelleration::Fast,
+            channel: ChannelOrAll::Channel(0),
+            ..Encoder::default()
+        };
+        let mut it = encoder.handle(EncoderPulse::Clockwise);
+        let m = it.next(&mut buf).unwrap().unwrap();
+        assert_eq!(m.data()[2], 18); // stepped by 8
     }
 
     #[test]
