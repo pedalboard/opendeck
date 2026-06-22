@@ -90,9 +90,12 @@ impl Led {
     pub fn get_color(&self) -> Color {
         self.color_testing
     }
+    pub fn set_color(&mut self, color: Color) {
+        self.color_testing = color;
+    }
     pub fn set(&mut self, section: LedSection) {
         match section {
-            LedSection::ColorTesting(v) => self.color_testing = v,
+            LedSection::State(v) => self.state = v,
             LedSection::BlinkTesting(v) => self.blink_testing = v,
             LedSection::Reserved(_) => {}
             LedSection::ControlType(v) => self.control_type = v,
@@ -107,7 +110,7 @@ impl Led {
     }
     pub fn get(&self, section: LedSection) -> u16 {
         match section {
-            LedSection::ColorTesting(_) => self.color_testing.into(),
+            LedSection::State(_) => self.state.into(),
             LedSection::BlinkTesting(_) => self.blink_testing.into(),
             LedSection::Reserved(_) => 0,
             LedSection::ControlType(_) => self.control_type.into(),
@@ -161,7 +164,7 @@ pub enum ControlType {
 #[derive(IntEnum)]
 #[repr(u8)]
 enum LedSectionId {
-    ColorTesting = 0,
+    State = 0,
     BlinkTesting = 1,
     Global = 2,
     ActivationId = 3,
@@ -174,7 +177,7 @@ enum LedSectionId {
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum LedSection {
-    ColorTesting(Color),
+    State(bool),
     BlinkTesting(bool),
     Global(u16),
     ActivationId(u8),

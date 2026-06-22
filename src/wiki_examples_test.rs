@@ -485,4 +485,34 @@ mod tests {
             panic!("Unexpected parse result: {:?}", result);
         }
     }
+
+    /// Output configuration block > Output state (section 0)
+    /// Wiki: Section 0, NEW_VALUE range 0-1 (Off/On)
+    /// https://github.com/shanteacontrols/OpenDeck/wiki/Sysex-Configuration#output-state
+    #[test]
+    fn test_parse_output_state_section() {
+        // SET output 0, section 0 (state), value 1 (on)
+        let request = [
+            0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x01, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x01,
+            0xF7,
+        ];
+        let result = parser().parse(&request).unwrap();
+        if let OpenDeckRequest::Configuration(Wish::Set, _, Block::Led(0, LedSection::State(v))) =
+            result
+        {
+            assert_eq!(v, true);
+        } else {
+            panic!("Expected LedSection::State, got: {:?}", result);
+        }
+    }
+
+    /// Output section 0 get() must return 0 or 1 (not a Color enum value)
+    #[test]
+    fn test_led_get_state_returns_bool() {
+        use crate::led::Led;
+        let mut led = Led::new(0);
+        assert_eq!(led.get(LedSection::State(false)), 0);
+        led.set(LedSection::State(true));
+        assert_eq!(led.get(LedSection::State(false)), 1);
+    }
 }

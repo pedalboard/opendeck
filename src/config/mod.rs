@@ -646,6 +646,14 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
             .unwrap_or_default()
     }
 
+    pub fn set_output_color(&mut self, index: usize, color: crate::led::Color) {
+        if let Some(preset) = self.presets.get_mut(self.global.preset.current) {
+            if let Some(led) = preset.leds.get_mut(index) {
+                led.set_color(color);
+            }
+        }
+    }
+
     /// Number of configured outputs.
     pub fn output_count(&self) -> usize {
         self.presets

@@ -11,7 +11,7 @@ impl LedBackupIterator {
     pub fn new(index: usize) -> Self {
         LedBackupIterator {
             index: index as u16,
-            section_id: LedSectionId::ColorTesting,
+            section_id: LedSectionId::State,
             done: false,
         }
     }
@@ -21,9 +21,9 @@ impl LedBackupIterator {
         }
         let new_values = NewValues::new();
         let led_section = match self.section_id {
-            LedSectionId::ColorTesting => {
+            LedSectionId::State => {
                 self.section_id = LedSectionId::BlinkTesting;
-                LedSection::ColorTesting(led.color_testing)
+                LedSection::State(led.state)
             }
             LedSectionId::BlinkTesting => {
                 self.section_id = LedSectionId::ActivationId;

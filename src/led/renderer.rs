@@ -10,8 +10,8 @@ impl From<LedSection> for Section {
                 id: LedSectionId::BlinkTesting.into(),
                 value: v.into(),
             },
-            LedSection::ColorTesting(v) => Section {
-                id: LedSectionId::ColorTesting.into(),
+            LedSection::State(v) => Section {
+                id: LedSectionId::State.into(),
                 value: v.into(),
             },
             LedSection::ControlType(v) => Section {
