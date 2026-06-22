@@ -201,12 +201,34 @@ impl Encoder {
         if !incr {
             return;
         }
+
+        // Track consecutive same-direction pulses for acceleration
+        let is_cw = matches!(p, EncoderPulse::Clockwise);
+        if is_cw == self.state.last_direction_cw {
+            self.state.consecutive = self.state.consecutive.saturating_add(1);
+        } else {
+            self.state.consecutive = 1;
+            self.state.last_direction_cw = is_cw;
+        }
+
+        // Determine step based on acceleration level and consecutive count
         let step = match self.accelleration {
             crate::encoder::Accelleration::None => 1u16,
-            crate::encoder::Accelleration::Slow => 2,
-            crate::encoder::Accelleration::Medium => 4,
-            crate::encoder::Accelleration::Fast => 8,
+            crate::encoder::Accelleration::Slow => {
+                if self.state.consecutive >= 4 { 2 } else { 1 }
+            }
+            crate::encoder::Accelleration::Medium => {
+                if self.state.consecutive >= 6 { 4 }
+                else if self.state.consecutive >= 3 { 2 }
+                else { 1 }
+            }
+            crate::encoder::Accelleration::Fast => {
+                if self.state.consecutive >= 5 { 4 }
+                else if self.state.consecutive >= 2 { 2 }
+                else { 1 }
+            }
         };
+
         match p {
             EncoderPulse::Clockwise => {
                 self.value = self.value.saturating_add(step);
@@ -285,7 +307,7 @@ mod tests {
     }
 
     #[test]
-    fn test_acceleration_slow_steps_by_2() {
+    fn test_acceleration_first_pulse_steps_by_1() {
         let mut buf = [0x00u8; 8];
         let mut encoder = Encoder {
             enabled: true,
@@ -299,43 +321,82 @@ mod tests {
         };
         let mut it = encoder.handle(EncoderPulse::Clockwise);
         let m = it.next(&mut buf).unwrap().unwrap();
-        assert_eq!(m.data()[2], 12); // stepped by 2
+        assert_eq!(m.data()[2], 11); // first pulse always steps by 1
     }
 
     #[test]
-    fn test_acceleration_medium_steps_by_4() {
+    fn test_acceleration_slow_ramps_up() {
         let mut buf = [0x00u8; 8];
         let mut encoder = Encoder {
             enabled: true,
             message_type: EncoderMessageType::ControlChange,
-            value: 10,
+            value: 0,
+            upper_limit: 127,
             pulses_per_step: 1,
             midi_id: 0x01,
-            accelleration: crate::encoder::Accelleration::Medium,
+            accelleration: crate::encoder::Accelleration::Slow,
             channel: ChannelOrAll::Channel(0),
             ..Encoder::default()
         };
+        // Consecutive CW pulses should accelerate
+        // Slow: threshold 4 → step 2
+        for _ in 0..3 {
+            let mut it = encoder.handle(EncoderPulse::Clockwise);
+            it.next(&mut buf).unwrap();
+        }
+        assert_eq!(encoder.value, 3); // 3 pulses at step 1
+        // 4th pulse should step by 2
         let mut it = encoder.handle(EncoderPulse::Clockwise);
-        let m = it.next(&mut buf).unwrap().unwrap();
-        assert_eq!(m.data()[2], 14); // stepped by 4
+        it.next(&mut buf).unwrap();
+        assert_eq!(encoder.value, 5);
     }
 
     #[test]
-    fn test_acceleration_fast_steps_by_8() {
+    fn test_acceleration_resets_on_direction_change() {
         let mut buf = [0x00u8; 8];
         let mut encoder = Encoder {
             enabled: true,
             message_type: EncoderMessageType::ControlChange,
-            value: 10,
+            value: 50,
+            upper_limit: 127,
             pulses_per_step: 1,
             midi_id: 0x01,
             accelleration: crate::encoder::Accelleration::Fast,
             channel: ChannelOrAll::Channel(0),
             ..Encoder::default()
         };
-        let mut it = encoder.handle(EncoderPulse::Clockwise);
-        let m = it.next(&mut buf).unwrap().unwrap();
-        assert_eq!(m.data()[2], 18); // stepped by 8
+        // Build up consecutive pulses
+        for _ in 0..5 {
+            let mut it = encoder.handle(EncoderPulse::Clockwise);
+            it.next(&mut buf).unwrap();
+        }
+        // Change direction → reset counter, step by 1
+        let prev = encoder.value;
+        let mut it = encoder.handle(EncoderPulse::CounterClockwise);
+        it.next(&mut buf).unwrap();
+        assert_eq!(encoder.value, prev - 1);
+    }
+
+    #[test]
+    fn test_acceleration_none_always_steps_by_1() {
+        let mut buf = [0x00u8; 8];
+        let mut encoder = Encoder {
+            enabled: true,
+            message_type: EncoderMessageType::ControlChange,
+            value: 0,
+            upper_limit: 127,
+            pulses_per_step: 1,
+            midi_id: 0x01,
+            accelleration: crate::encoder::Accelleration::None,
+            channel: ChannelOrAll::Channel(0),
+            ..Encoder::default()
+        };
+        // Many consecutive pulses should all step by 1
+        for _ in 0..10 {
+            let mut it = encoder.handle(EncoderPulse::Clockwise);
+            it.next(&mut buf).unwrap();
+        }
+        assert_eq!(encoder.value, 10);
     }
 
     #[test]

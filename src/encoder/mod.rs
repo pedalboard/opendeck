@@ -28,6 +28,8 @@ pub struct Encoder {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 struct EncoderState {
     pulse_count: u8,
+    consecutive: u8,
+    last_direction_cw: bool,
 }
 
 impl Encoder {
