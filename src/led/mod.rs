@@ -36,8 +36,16 @@ pub enum LedIndex {
     UseMidiProgramChangeOffset = 3,
 }
 
-// FIXME call global led settings
 impl GlobalLed {
+    pub fn blink_with_midi_clock(&self) -> bool {
+        self.blink_with_midi_clock
+    }
+    pub fn startup_animation(&self) -> bool {
+        self.startup_animtation
+    }
+    pub fn midi_program_change_offset(&self) -> bool {
+        self.midi_program_change_offset
+    }
     pub fn set(&mut self, index: LedIndex, value: &u16) {
         match index {
             LedIndex::BlinkWithMIDIClock => self.blink_with_midi_clock = *value > 0,

@@ -5,7 +5,7 @@ use crate::{
     encoder::{handler::EncoderPulse, Encoder},
     global::{GlobalMidi, GlobalPreset, GlobalSection},
     handler::Messages,
-    led::{ControlType, Led},
+    led::{ControlType, Led, LedSection},
     parser::{OpenDeckParseError, OpenDeckParser},
     renderer::{OpenDeckRenderer, RenderError},
     Amount, Block, HardwareUid, MessageStatus, NewValues, NrOfSupportedComponents, OpenDeckRequest,
@@ -95,6 +95,7 @@ impl<const B: usize, const A: usize, const E: usize, const L: usize> Preset<B, E
 pub struct GlobalConfig {
     midi: GlobalMidi,
     preset: GlobalPreset,
+    led: crate::led::GlobalLed,
 }
 
 pub struct Config<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize, H: crate::SystemHandler> {
@@ -436,24 +437,36 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
                         }
                     },
                 },
-                Block::Led(index, section) => match wish {
-                    Wish::Set => {
-                        if let Some(b) = preset.led_mut(index) {
-                            b.set(section)
+                Block::Led(index, section) => match section {
+                    LedSection::Global(value) => {
+                        if let Ok(led_index) = crate::led::LedIndex::try_from(index) {
+                            match wish {
+                                Wish::Set => self.global.led.set(led_index, &value),
+                                Wish::Get | Wish::Backup => {
+                                    res_values.push(self.global.led.get(&led_index)).unwrap();
+                                }
+                            }
                         }
                     }
-                    Wish::Get | Wish::Backup => match amount {
-                        Amount::Single => {
-                            if let Some(b) = preset.led(index) {
-                                res_values.push(b.get(section)).unwrap();
+                    _ => match wish {
+                        Wish::Set => {
+                            if let Some(b) = preset.led_mut(index) {
+                                b.set(section)
                             }
                         }
-                        Amount::All(_) => {
-                            for b in preset.leds.iter() {
-                                res_values.push(b.get(section)).unwrap();
+                        Wish::Get | Wish::Backup => match amount {
+                            Amount::Single => {
+                                if let Some(b) = preset.led(index) {
+                                    res_values.push(b.get(section)).unwrap();
+                                }
                             }
-                            for_amount = Amount::All(0)
-                        }
+                            Amount::All(_) => {
+                                for b in preset.leds.iter() {
+                                    res_values.push(b.get(section)).unwrap();
+                                }
+                                for_amount = Amount::All(0)
+                            }
+                        },
                     },
                 },
 
@@ -602,6 +615,11 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
     /// Access global MIDI settings (routing, standard note off, etc.)
     pub fn global_midi(&self) -> &GlobalMidi {
         &self.global.midi
+    }
+
+    /// Access global LED settings (blink with clock, startup animation, etc.)
+    pub fn global_led(&self) -> &crate::led::GlobalLed {
+        &self.global.led
     }
 
     /// Whether a SysEx configuration session is active (handshake received).
@@ -962,5 +980,37 @@ mod tests {
         let _ = responses.next(buf, &mut config);
 
         assert!(CALLED.load(Ordering::Relaxed), "factory_reset() should have been called");
+    }
+
+    /// Output configuration block > Global settings (wiki)
+    /// SET Block::Led(0, LedSection::Global(1)) should store blink_with_midi_clock = true
+    #[test]
+    fn test_global_led_settings_stored_and_retrievable() {
+        use crate::led::LedSection;
+        let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
+        let mut config: Config<1, 1, 1, 1, 1, _> = Config::new(version, 0, NoopHandler);
+
+        // SET global LED setting: BlinkWithMIDIClock (index 0) = 1
+        config.process_req(OpenDeckRequest::Configuration(
+            Wish::Set,
+            Amount::Single,
+            Block::Led(0, LedSection::Global(1)),
+        ));
+
+        // GET should return 1
+        let res = config.process_req(OpenDeckRequest::Configuration(
+            Wish::Get,
+            Amount::Single,
+            Block::Led(0, LedSection::Global(0)),
+        ));
+        assert_eq!(
+            res,
+            Some(OpenDeckResponse::Configuration(
+                Wish::Get,
+                Amount::Single,
+                Block::Led(0, LedSection::Global(0)),
+                Vec::from_slice(&[1]).unwrap(),
+            ))
+        );
     }
 }
