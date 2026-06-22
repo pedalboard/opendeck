@@ -17,6 +17,13 @@ pub mod led;
 pub mod parser;
 pub mod renderer;
 
+/// Hardware-specific operations that the library delegates to the firmware.
+pub trait SystemHandler {
+    fn reboot(&self);
+    fn bootloader(&self);
+    fn factory_reset(&self);
+}
+
 #[cfg(test)]
 mod wiki_examples_test;
 
