@@ -9,7 +9,7 @@ use crate::{
     parser::{OpenDeckParseError, OpenDeckParser},
     renderer::{OpenDeckRenderer, RenderError},
     Amount, Block, HardwareUid, MessageStatus, NewValues, NrOfSupportedComponents, OpenDeckRequest,
-    OpenDeckResponse, SpecialRequest, SpecialResponse, ValueSize, Wish,
+    OpenDeckResponse, SpecialRequest, SpecialResponse, ValueSize, Wish, PARAMS_PER_MESSAGE,
 };
 
 use heapless::Vec;
@@ -204,39 +204,84 @@ pub struct ConfigResponseIterator<
     const E: usize,
     const L: usize,
 > {
-    index: usize,
     request: OpenDeckRequest,
+    part: u8,
+    done: bool,
 }
 
 impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize>
     ConfigResponseIterator<P, B, A, E, L>
 {
     pub fn new(request: OpenDeckRequest) -> Self {
-        ConfigResponseIterator { index: 0, request }
+        ConfigResponseIterator {
+            request,
+            part: 0,
+            done: false,
+        }
     }
     fn next<H: crate::SystemHandler>(
         &mut self,
         config: &mut Config<P, B, A, E, L, H>,
     ) -> Option<OpenDeckResponse> {
-        if self.index == 0 {
-            if let Some(odr) = config.process_req(self.request) {
-                self.index += 1;
-                return Some(odr);
-            }
+        if self.done {
+            return None;
         }
-        if self.index == 1 {
-            // FIXME The assumption is that the maximum amount of values is < 32 and therefore we
-            // can fit all values in the first message. The 2nd message below is the final ACK
-            // response to mark the ALL values reponse as completed..
-            if let OpenDeckRequest::Configuration(wish, Amount::All(0x7E), block) = self.request {
-                let ack =
-                    OpenDeckResponse::Configuration(wish, Amount::All(0x7E), block, Vec::new());
 
-                self.index += 1;
-                return Some(ack);
+        match self.request {
+            OpenDeckRequest::Configuration(wish, Amount::All(orig_part), block)
+                if matches!(wish, Wish::Get | Wish::Backup) =>
+            {
+                let count = config.component_count(&block);
+                let total_parts = count.div_ceil(PARAMS_PER_MESSAGE) as u8;
+
+                match orig_part {
+                    // Stream all parts
+                    0x7F | 0x7E => {
+                        if self.part < total_parts {
+                            let values = config.get_all_part(wish, block, self.part);
+                            let response_part = self.part;
+                            self.part += 1;
+                            Some(OpenDeckResponse::Configuration(
+                                wish,
+                                Amount::All(response_part),
+                                block,
+                                values,
+                            ))
+                        } else if orig_part == 0x7E {
+                            self.done = true;
+                            Some(OpenDeckResponse::Configuration(
+                                wish,
+                                Amount::All(0x7E),
+                                block,
+                                Vec::new(),
+                            ))
+                        } else {
+                            self.done = true;
+                            None
+                        }
+                    }
+                    // Specific part requested
+                    part => {
+                        self.done = true;
+                        if part < total_parts {
+                            let values = config.get_all_part(wish, block, part);
+                            Some(OpenDeckResponse::Configuration(
+                                wish,
+                                Amount::All(part),
+                                block,
+                                values,
+                            ))
+                        } else {
+                            None
+                        }
+                    }
+                }
+            }
+            _ => {
+                self.done = true;
+                config.process_req(self.request)
             }
         }
-        None
     }
 }
 
@@ -376,6 +421,55 @@ impl<
         }
     }
 
+    fn component_count(&self, block: &Block) -> usize {
+        match block {
+            Block::Button(..) => B,
+            Block::Encoder(..) => E,
+            Block::Analog(..) => A,
+            Block::Led(_, section) => match section {
+                LedSection::Global(_) => 4, // global LED settings have fixed indices
+                _ => L,
+            },
+            _ => 0,
+        }
+    }
+
+    fn get_all_part(&self, _wish: Wish, block: Block, part: u8) -> NewValues {
+        let mut values = Vec::new();
+        let start = part as usize * PARAMS_PER_MESSAGE;
+        let count = self.component_count(&block);
+        let end = (start + PARAMS_PER_MESSAGE).min(count);
+
+        if let Some(preset) = self.current_preset() {
+            for i in start..end {
+                let v = match block {
+                    Block::Button(_, section) => {
+                        preset.buttons.get(i).map(|b| b.get(section)).unwrap_or(0)
+                    }
+                    Block::Encoder(_, section) => {
+                        preset.encoders.get(i).map(|b| b.get(section)).unwrap_or(0)
+                    }
+                    Block::Analog(_, section) => {
+                        preset.analogs.get(i).map(|b| b.get(section)).unwrap_or(0)
+                    }
+                    Block::Led(_, section) => match section {
+                        LedSection::Global(_) => {
+                            if let Ok(led_index) = crate::led::LedIndex::try_from(i as u16) {
+                                self.global.led.get(&led_index)
+                            } else {
+                                0
+                            }
+                        }
+                        _ => preset.leds.get(i).map(|b| b.get(section)).unwrap_or(0),
+                    },
+                    _ => 0,
+                };
+                values.push(v).unwrap();
+            }
+        }
+        values
+    }
+
     fn process_config(&mut self, wish: Wish, amount: Amount, block: Block) -> (NewValues, Amount) {
         let mut res_values = Vec::new();
         let mut for_amount = amount;
@@ -496,6 +590,10 @@ impl<
         };
 
         (res_values, for_amount)
+    }
+
+    fn current_preset(&self) -> Option<&Preset<B, A, E, L>> {
+        self.presets.get(self.global.preset.current)
     }
 
     fn current_preset_mut(&mut self) -> Option<&mut Preset<B, A, E, L>> {
@@ -847,6 +945,280 @@ mod tests {
             resp2
         );
         assert_eq!(responses.next(&mut [], &mut config).unwrap(), None);
+    }
+
+    /// Wiki: MESSAGE_PART > Multi-part responses for components > 32
+    /// https://github.com/shanteacontrols/OpenDeck/wiki/Sysex-Configuration#messagepart-byte
+    ///
+    /// With 64 buttons, GET ALL MIDI ID (part=0x7F) should produce 2 data messages
+    /// (part 0 with indices 0-31, part 1 with indices 32-63), then None.
+    #[test]
+    fn test_get_all_multipart_two_parts() {
+        let version = FirmwareVersion {
+            major: 1,
+            minor: 0,
+            revision: 0,
+        };
+        let mut config = Config::<1, 64, 1, 1, 1, _>::new(version, 0, NoopHandler);
+
+        // Handshake first
+        let handshake = [0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x01, 0xF7];
+        let buf = &mut [0; MAX_MESSAGE_SIZE];
+        let mut responses = config.process_sysex(&handshake);
+        responses.next(buf, &mut config).unwrap();
+
+        // GET ALL, MIDI IDs for buttons, part=0x7F (return all parts)
+        let request = [
+            0xF0, 0x00, 0x53, 0x43, 0x00, 0x7F, 0x00, 0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00,
+            0xF7,
+        ];
+        let mut responses = config.process_sysex(&request);
+
+        // Part 0: 32 values (default MIDI IDs = 0..31)
+        let r1 = responses.next(buf, &mut config).unwrap().unwrap();
+        let d1 = r1.data();
+        assert_eq!(d1[0], 0xF0);
+        assert_eq!(d1[5], 0x00); // MESSAGE_PART = 0
+                                 // 32 two-byte values = 64 bytes of payload
+                                 // Header: F0 00 53 43 01 <part> 00 01 01 02 00 00 00 00 = 14 bytes + payload + F7
+        let expected_len_part = 14 + 32 * 2 + 1; // 79
+        assert_eq!(d1.len(), expected_len_part);
+        assert_eq!(d1[14], 0x00); // first value high byte = 0
+        assert_eq!(d1[15], 0x00); // first value low byte = 0
+
+        // Part 1: 32 values (default MIDI IDs = 32..63)
+        let r2 = responses.next(buf, &mut config).unwrap().unwrap();
+        let d2 = r2.data();
+        assert_eq!(d2[5], 0x01); // MESSAGE_PART = 1
+        assert_eq!(d2.len(), expected_len_part);
+        // First value in part 1 should be MIDI ID 32 (encoded as two bytes)
+        assert_eq!(d2[14], 0x00); // high byte of 32
+        assert_eq!(d2[15], 0x20); // low byte of 32
+
+        // No more parts
+        assert!(responses.next(buf, &mut config).unwrap().is_none());
+    }
+
+    /// Same as above but with MESSAGE_PART=0x7E: should append a final ACK message.
+    #[test]
+    fn test_get_all_multipart_with_ack() {
+        let version = FirmwareVersion {
+            major: 1,
+            minor: 0,
+            revision: 0,
+        };
+        let mut config = Config::<1, 64, 1, 1, 1, _>::new(version, 0, NoopHandler);
+
+        // Handshake
+        let handshake = [0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x01, 0xF7];
+        let buf = &mut [0; MAX_MESSAGE_SIZE];
+        let mut responses = config.process_sysex(&handshake);
+        responses.next(buf, &mut config).unwrap();
+
+        // GET ALL, MIDI IDs for buttons, part=0x7E (return all parts + final ACK)
+        let request = [
+            0xF0, 0x00, 0x53, 0x43, 0x00, 0x7E, 0x00, 0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00,
+            0xF7,
+        ];
+        let mut responses = config.process_sysex(&request);
+
+        // Part 0
+        let r1 = responses.next(buf, &mut config).unwrap().unwrap();
+        assert_eq!(r1.data()[5], 0x00);
+
+        // Part 1
+        let r2 = responses.next(buf, &mut config).unwrap().unwrap();
+        assert_eq!(r2.data()[5], 0x01);
+
+        // Final ACK (empty data, part=0x7E)
+        let r3 = responses.next(buf, &mut config).unwrap().unwrap();
+        let d3 = r3.data();
+        assert_eq!(d3[5], 0x7E); // MESSAGE_PART = 0x7E
+        assert_eq!(d3[4], 0x01); // MESSAGE_STATUS = ACK
+                                 // No payload values — just header + F7
+        assert_eq!(*d3.last().unwrap(), 0xF7);
+
+        // Done
+        assert!(responses.next(buf, &mut config).unwrap().is_none());
+    }
+
+    /// With exactly 32 components, only one part should be produced (no multi-part needed).
+    #[test]
+    fn test_get_all_exactly_32_single_part() {
+        let version = FirmwareVersion {
+            major: 1,
+            minor: 0,
+            revision: 0,
+        };
+        let mut config = Config::<1, 32, 1, 1, 1, _>::new(version, 0, NoopHandler);
+
+        let handshake = [0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x01, 0xF7];
+        let buf = &mut [0; MAX_MESSAGE_SIZE];
+        let mut responses = config.process_sysex(&handshake);
+        responses.next(buf, &mut config).unwrap();
+
+        // GET ALL, part=0x7F
+        let request = [
+            0xF0, 0x00, 0x53, 0x43, 0x00, 0x7F, 0x00, 0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00,
+            0xF7,
+        ];
+        let mut responses = config.process_sysex(&request);
+
+        let r1 = responses.next(buf, &mut config).unwrap().unwrap();
+        assert_eq!(r1.data()[5], 0x00); // part 0
+        assert_eq!(r1.data().len(), 14 + 32 * 2 + 1);
+
+        // No more
+        assert!(responses.next(buf, &mut config).unwrap().is_none());
+    }
+
+    /// Requesting a specific part (MESSAGE_PART=1) should return only that part's values.
+    #[test]
+    fn test_get_all_specific_part() {
+        let version = FirmwareVersion {
+            major: 1,
+            minor: 0,
+            revision: 0,
+        };
+        let mut config = Config::<1, 64, 1, 1, 1, _>::new(version, 0, NoopHandler);
+
+        let handshake = [0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x01, 0xF7];
+        let buf = &mut [0; MAX_MESSAGE_SIZE];
+        let mut responses = config.process_sysex(&handshake);
+        responses.next(buf, &mut config).unwrap();
+
+        // GET ALL button MIDI IDs, part=1 (only parameters 32-63)
+        let request = [
+            0xF0, 0x00, 0x53, 0x43, 0x00, 0x01, 0x00, 0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00,
+            0xF7,
+        ];
+        let mut responses = config.process_sysex(&request);
+
+        let r1 = responses.next(buf, &mut config).unwrap().unwrap();
+        assert_eq!(r1.data()[5], 0x01); // part 1
+        assert_eq!(r1.data().len(), 14 + 32 * 2 + 1);
+        // First value = MIDI ID 32
+        assert_eq!(r1.data()[14], 0x00);
+        assert_eq!(r1.data()[15], 0x20);
+
+        // Only one message for a specific part
+        assert!(responses.next(buf, &mut config).unwrap().is_none());
+    }
+
+    /// Multi-part GET ALL for encoders (48 encoders = 2 parts)
+    #[test]
+    fn test_get_all_multipart_encoders() {
+        use crate::encoder::EncoderSection;
+        let version = FirmwareVersion {
+            major: 1,
+            minor: 0,
+            revision: 0,
+        };
+        let mut config = Config::<1, 1, 1, 48, 1, _>::new(version, 0, NoopHandler);
+
+        let handshake = [0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x01, 0xF7];
+        let buf = &mut [0; MAX_MESSAGE_SIZE];
+        let mut responses = config.process_sysex(&handshake);
+        responses.next(buf, &mut config).unwrap();
+
+        // GET ALL encoder MIDI IDs, part=0x7F
+        let request = [
+            0xF0, 0x00, 0x53, 0x43, 0x00, 0x7F, 0x00, 0x01, 0x02, 0x03, 0x00, 0x00, 0x00, 0x00,
+            0xF7,
+        ];
+        let mut responses = config.process_sysex(&request);
+
+        // Part 0: 32 values
+        let r1 = responses.next(buf, &mut config).unwrap().unwrap();
+        assert_eq!(r1.data()[5], 0x00);
+        assert_eq!(r1.data().len(), 14 + 32 * 2 + 1);
+
+        // Part 1: 16 values (48 - 32)
+        let r2 = responses.next(buf, &mut config).unwrap().unwrap();
+        assert_eq!(r2.data()[5], 0x01);
+        assert_eq!(r2.data().len(), 14 + 16 * 2 + 1);
+        // First value in part 1 = encoder index 32 (default MIDI ID = 32)
+        assert_eq!(r2.data()[14], 0x00);
+        assert_eq!(r2.data()[15], 0x20);
+
+        assert!(responses.next(buf, &mut config).unwrap().is_none());
+    }
+
+    /// Multi-part GET ALL for analog (40 analog = 2 parts)
+    #[test]
+    fn test_get_all_multipart_analog() {
+        use crate::analog::AnalogSection;
+        let version = FirmwareVersion {
+            major: 1,
+            minor: 0,
+            revision: 0,
+        };
+        let mut config = Config::<1, 1, 40, 1, 1, _>::new(version, 0, NoopHandler);
+
+        let handshake = [0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x01, 0xF7];
+        let buf = &mut [0; MAX_MESSAGE_SIZE];
+        let mut responses = config.process_sysex(&handshake);
+        responses.next(buf, &mut config).unwrap();
+
+        // GET ALL analog MIDI IDs, part=0x7F
+        let request = [
+            0xF0, 0x00, 0x53, 0x43, 0x00, 0x7F, 0x00, 0x01, 0x03, 0x03, 0x00, 0x00, 0x00, 0x00,
+            0xF7,
+        ];
+        let mut responses = config.process_sysex(&request);
+
+        // Part 0: 32 values
+        let r1 = responses.next(buf, &mut config).unwrap().unwrap();
+        assert_eq!(r1.data()[5], 0x00);
+        assert_eq!(r1.data().len(), 14 + 32 * 2 + 1);
+
+        // Part 1: 8 values (40 - 32)
+        let r2 = responses.next(buf, &mut config).unwrap().unwrap();
+        assert_eq!(r2.data()[5], 0x01);
+        assert_eq!(r2.data().len(), 14 + 8 * 2 + 1);
+
+        assert!(responses.next(buf, &mut config).unwrap().is_none());
+    }
+
+    /// Multi-part GET ALL for LEDs (96 LEDs = 3 parts)
+    #[test]
+    fn test_get_all_multipart_leds() {
+        use crate::led::LedSection;
+        let version = FirmwareVersion {
+            major: 1,
+            minor: 0,
+            revision: 0,
+        };
+        let mut config = Config::<1, 1, 1, 1, 96, _>::new(version, 0, NoopHandler);
+
+        let handshake = [0xF0, 0x00, 0x53, 0x43, 0x00, 0x00, 0x01, 0xF7];
+        let buf = &mut [0; MAX_MESSAGE_SIZE];
+        let mut responses = config.process_sysex(&handshake);
+        responses.next(buf, &mut config).unwrap();
+
+        // GET ALL LED activation IDs (section 3), part=0x7F
+        let request = [
+            0xF0, 0x00, 0x53, 0x43, 0x00, 0x7F, 0x00, 0x01, 0x04, 0x03, 0x00, 0x00, 0x00, 0x00,
+            0xF7,
+        ];
+        let mut responses = config.process_sysex(&request);
+
+        // Part 0: 32 values
+        let r1 = responses.next(buf, &mut config).unwrap().unwrap();
+        assert_eq!(r1.data()[5], 0x00);
+        assert_eq!(r1.data().len(), 14 + 32 * 2 + 1);
+
+        // Part 1: 32 values
+        let r2 = responses.next(buf, &mut config).unwrap().unwrap();
+        assert_eq!(r2.data()[5], 0x01);
+        assert_eq!(r2.data().len(), 14 + 32 * 2 + 1);
+
+        // Part 2: 32 values (96 - 64)
+        let r3 = responses.next(buf, &mut config).unwrap().unwrap();
+        assert_eq!(r3.data()[5], 0x02);
+        assert_eq!(r3.data().len(), 14 + 32 * 2 + 1);
+
+        assert!(responses.next(buf, &mut config).unwrap().is_none());
     }
 
     #[test]
