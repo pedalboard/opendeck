@@ -44,7 +44,12 @@ impl<'a> ButtonMessages<'a> {
             standard_note_off: false,
         }
     }
-    pub fn new_with_options(button: &'a mut Button, action: Action, standard_note_off: bool, channel_override: Option<ChannelOrAll>) -> Self {
+    pub fn new_with_options(
+        button: &'a mut Button,
+        action: Action,
+        standard_note_off: bool,
+        channel_override: Option<ChannelOrAll>,
+    ) -> Self {
         let ch = channel_override.unwrap_or(button.channel);
         Self {
             button,
@@ -290,7 +295,12 @@ impl Button {
     pub fn handle(&mut self, action: Action) -> ButtonMessages<'_> {
         ButtonMessages::new(self, action)
     }
-    pub fn handle_with_options(&mut self, action: Action, standard_note_off: bool, channel_override: Option<ChannelOrAll>) -> ButtonMessages<'_> {
+    pub fn handle_with_options(
+        &mut self,
+        action: Action,
+        standard_note_off: bool,
+        channel_override: Option<ChannelOrAll>,
+    ) -> ButtonMessages<'_> {
         ButtonMessages::new_with_options(self, action, standard_note_off, channel_override)
     }
     fn latch(&mut self, action: &Action) -> ButtonStatus {

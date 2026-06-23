@@ -46,7 +46,10 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
             status: BackupStatus::Init,
         }
     }
-    pub fn next<H: crate::SystemHandler>(&mut self, config: &mut Config<P, B, A, E, L, H>) -> Option<OpenDeckResponse> {
+    pub fn next<H: crate::SystemHandler>(
+        &mut self,
+        config: &mut Config<P, B, A, E, L, H>,
+    ) -> Option<OpenDeckResponse> {
         match self.status {
             BackupStatus::Init => {
                 self.status = BackupStatus::PresetInit;

@@ -98,7 +98,14 @@ pub struct GlobalConfig {
     led: crate::led::GlobalLed,
 }
 
-pub struct Config<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize, H: crate::SystemHandler> {
+pub struct Config<
+    const P: usize,
+    const B: usize,
+    const A: usize,
+    const E: usize,
+    const L: usize,
+    H: crate::SystemHandler,
+> {
     parser: OpenDeckParser,
     global: GlobalConfig,
     enabled: bool,
@@ -207,7 +214,10 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
     pub fn new(request: OpenDeckRequest) -> Self {
         ConfigResponseIterator { index: 0, request }
     }
-    fn next<H: crate::SystemHandler>(&mut self, config: &mut Config<P, B, A, E, L, H>) -> Option<OpenDeckResponse> {
+    fn next<H: crate::SystemHandler>(
+        &mut self,
+        config: &mut Config<P, B, A, E, L, H>,
+    ) -> Option<OpenDeckResponse> {
         if self.index == 0 {
             if let Some(odr) = config.process_req(self.request) {
                 self.index += 1;
@@ -230,8 +240,14 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
     }
 }
 
-impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: usize, H: crate::SystemHandler>
-    Config<P, B, A, E, L, H>
+impl<
+        const P: usize,
+        const B: usize,
+        const A: usize,
+        const E: usize,
+        const L: usize,
+        H: crate::SystemHandler,
+    > Config<P, B, A, E, L, H>
 {
     pub fn new(version: FirmwareVersion, uid: u32, handler: H) -> Self {
         Self::new_with_adc_max(version, uid, handler, 4095)
@@ -493,9 +509,9 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
         if matches!(action, Action::Pressed) {
             if let Some(preset) = self.presets.get(self.global.preset.current) {
                 if let Some(button) = preset.buttons.get(index) {
-                    let msg_type = ButtonMessageType::try_from(
-                        button.get(crate::button::ButtonSection::MessageType(ButtonMessageType::default()))
-                    );
+                    let msg_type = ButtonMessageType::try_from(button.get(
+                        crate::button::ButtonSection::MessageType(ButtonMessageType::default()),
+                    ));
                     if matches!(msg_type, Ok(ButtonMessageType::OpenDeckPresetChange)) {
                         let target = button.get(crate::button::ButtonSection::MidiId(0)) as usize;
                         self.global.preset.current = target;
@@ -513,7 +529,11 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
         let standard_note_off = self.global.midi.standard_note_off();
         if let Some(preset) = self.current_preset_mut() {
             if let Some(button) = preset.button_mut(index as u16) {
-                return Messages::Button(button.handle_with_options(action, standard_note_off, channel_override));
+                return Messages::Button(button.handle_with_options(
+                    action,
+                    standard_note_off,
+                    channel_override,
+                ));
             }
         }
         Messages::None
@@ -537,9 +557,9 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
         // Check for internal preset change
         if let Some(preset) = self.presets.get(self.global.preset.current) {
             if let Some(encoder) = preset.encoders.get(index) {
-                let msg_type = EncoderMessageType::try_from(
-                    encoder.get(crate::encoder::EncoderSection::MessageType(EncoderMessageType::default()))
-                );
+                let msg_type = EncoderMessageType::try_from(encoder.get(
+                    crate::encoder::EncoderSection::MessageType(EncoderMessageType::default()),
+                ));
                 if matches!(msg_type, Ok(EncoderMessageType::PresetChange)) {
                     match pulse {
                         EncoderPulse::Clockwise => {
@@ -548,7 +568,8 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
                             }
                         }
                         EncoderPulse::CounterClockwise => {
-                            self.global.preset.current = self.global.preset.current.saturating_sub(1);
+                            self.global.preset.current =
+                                self.global.preset.current.saturating_sub(1);
                         }
                     }
                     return Messages::None;
@@ -571,17 +592,39 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
 
     /// Notify the config that a local MIDI message was generated.
     /// This updates output states for outputs configured in Local control mode.
-    pub fn notify_local_midi(&mut self, channel: u8, id: u8, value: u8, is_note_on: bool, is_cc: bool) -> usize {
+    pub fn notify_local_midi(
+        &mut self,
+        channel: u8,
+        id: u8,
+        value: u8,
+        is_note_on: bool,
+        is_cc: bool,
+    ) -> usize {
         self.update_outputs(channel, id, value, is_note_on, true, is_cc)
     }
 
     /// Notify the config that an external MIDI message was received.
     /// This updates output states for outputs configured in MIDI In control mode.
-    pub fn notify_external_midi(&mut self, channel: u8, id: u8, value: u8, is_note_on: bool, is_cc: bool) -> usize {
+    pub fn notify_external_midi(
+        &mut self,
+        channel: u8,
+        id: u8,
+        value: u8,
+        is_note_on: bool,
+        is_cc: bool,
+    ) -> usize {
         self.update_outputs(channel, id, value, is_note_on, false, is_cc)
     }
 
-    fn update_outputs(&mut self, channel: u8, id: u8, value: u8, is_note_on: bool, is_local: bool, is_cc: bool) -> usize {
+    fn update_outputs(
+        &mut self,
+        channel: u8,
+        id: u8,
+        value: u8,
+        is_note_on: bool,
+        is_local: bool,
+        is_cc: bool,
+    ) -> usize {
         use crate::led::handler::OutputState;
         use crate::led::ControlType;
 
@@ -592,22 +635,44 @@ impl<const P: usize, const B: usize, const A: usize, const E: usize, const L: us
         let mut count = 0;
         for led in preset.leds.iter_mut() {
             let ct = led.get_control_type();
-            let check = match (is_local, is_cc, ct) {
-                (true, false, ControlType::LocalNoteSingleValue | ControlType::LocalNoteMultiValue) => true,
-                (true, true, ControlType::LocalCcSingleValue | ControlType::LocalCcMultiValue) => true,
-                (false, false, ControlType::MidiInNoteSingleValue | ControlType::MidiInNoteMultiValue) => true,
-                (false, true, ControlType::MidiInCcSingleValue | ControlType::MidiInCcMultiValue) => true,
-                (_, _, ControlType::Static) => true,
-                _ => false,
-            };
+            let check = matches!(
+                (is_local, is_cc, ct),
+                (
+                    true,
+                    false,
+                    ControlType::LocalNoteSingleValue | ControlType::LocalNoteMultiValue
+                ) | (
+                    true,
+                    true,
+                    ControlType::LocalCcSingleValue | ControlType::LocalCcMultiValue
+                ) | (
+                    false,
+                    false,
+                    ControlType::MidiInNoteSingleValue | ControlType::MidiInNoteMultiValue
+                ) | (
+                    false,
+                    true,
+                    ControlType::MidiInCcSingleValue | ControlType::MidiInCcMultiValue
+                ) | (_, _, ControlType::Static)
+            );
             if !check {
                 continue;
             }
 
             match led.process_midi(channel, id, value, is_note_on) {
-                OutputState::On => { led.set_state(true); count += 1; }
-                OutputState::Off => { led.set_state(false); count += 1; }
-                OutputState::Level(l) => { led.set_level(l); led.set_state(l > 0); count += 1; }
+                OutputState::On => {
+                    led.set_state(true);
+                    count += 1;
+                }
+                OutputState::Off => {
+                    led.set_state(false);
+                    count += 1;
+                }
+                OutputState::Level(l) => {
+                    led.set_level(l);
+                    led.set_state(l > 0);
+                    count += 1;
+                }
                 OutputState::NoChange => {}
             }
         }
@@ -789,7 +854,11 @@ mod tests {
         use crate::led::{ControlType, LedSection};
         use crate::ChannelOrAll;
 
-        let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
+        let version = FirmwareVersion {
+            major: 1,
+            minor: 0,
+            revision: 0,
+        };
         let mut config: Config<1, 2, 2, 2, 2, _> = Config::new(version, 0, NoopHandler);
 
         // Directly configure output 0 on the preset
@@ -817,7 +886,11 @@ mod tests {
     #[test]
     fn test_preset_default_with_different_analog_and_encoder_counts() {
         // Config<P=1, B=6, A=2, E=4, L=8> — A != E exposes the generic param swap
-        let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
+        let version = FirmwareVersion {
+            major: 1,
+            minor: 0,
+            revision: 0,
+        };
         let config: Config<1, 6, 2, 4, 8, _> = Config::new(version, 0, NoopHandler);
         let preset = config.presets.get(0).unwrap();
         assert_eq!(preset.buttons.len(), 6);
@@ -835,7 +908,11 @@ mod tests {
         use crate::global::MidiIndex;
         use crate::ChannelOrAll;
 
-        let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
+        let version = FirmwareVersion {
+            major: 1,
+            minor: 0,
+            revision: 0,
+        };
         let mut config: Config<1, 2, 1, 1, 1, _> = Config::new(version, 0, NoopHandler);
 
         // Configure button 0 on channel 1 (0-based) with Note message
@@ -855,7 +932,7 @@ mod tests {
         let msg = messages.next(&mut buf).unwrap().unwrap();
         // Note On on channel 5 = status 0x95
         assert_eq!(msg.data()[0] & 0xF0, 0x90); // Note On
-        assert_eq!(msg.data()[0] & 0x0F, 5);    // channel 5
+        assert_eq!(msg.data()[0] & 0x0F, 5); // channel 5
     }
 
     /// Wiki: Global > MIDI settings > "Standard note off"
@@ -867,7 +944,11 @@ mod tests {
         use crate::global::MidiIndex;
         use crate::ChannelOrAll;
 
-        let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
+        let version = FirmwareVersion {
+            major: 1,
+            minor: 0,
+            revision: 0,
+        };
         let mut config: Config<1, 2, 1, 1, 1, _> = Config::new(version, 0, NoopHandler);
 
         // Configure button 0 as momentary Note
@@ -892,24 +973,30 @@ mod tests {
         let mut messages = config.handle_button(0, Action::Released);
         let msg = messages.next(&mut buf).unwrap().unwrap();
         assert_eq!(msg.data()[0], 0x80); // Note Off status
-        assert_eq!(msg.data()[1], 60);   // same note
+        assert_eq!(msg.data()[1], 60); // same note
     }
 
     /// Verify that the global channel override also works for encoders
     #[test]
     fn test_global_midi_channel_overrides_encoder_channel() {
-        use crate::encoder::{handler::EncoderPulse, EncoderSection, EncoderMessageType};
+        use crate::encoder::{handler::EncoderPulse, EncoderMessageType, EncoderSection};
         use crate::global::MidiIndex;
         use crate::ChannelOrAll;
 
-        let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
+        let version = FirmwareVersion {
+            major: 1,
+            minor: 0,
+            revision: 0,
+        };
         let mut config: Config<1, 1, 1, 2, 1, _> = Config::new(version, 0, NoopHandler);
 
         // Configure encoder 0: enabled, CC 7-bit, channel 2 (0-based = 1)
         let preset = config.current_preset_mut().unwrap();
         let e = preset.encoder_mut(0).unwrap();
         e.set(EncoderSection::Enabled(true));
-        e.set(EncoderSection::MessageType(EncoderMessageType::ControlChange));
+        e.set(EncoderSection::MessageType(
+            EncoderMessageType::ControlChange,
+        ));
         e.set(EncoderSection::Channel(ChannelOrAll::Channel(1))); // ch 2
         e.set(EncoderSection::PulsesPerStep(1));
 
@@ -927,18 +1014,24 @@ mod tests {
     /// Verify that the global channel override also works for analog
     #[test]
     fn test_global_midi_channel_overrides_analog_channel() {
-        use crate::analog::{AnalogSection, AnalogMessageType};
+        use crate::analog::{AnalogMessageType, AnalogSection};
         use crate::global::MidiIndex;
         use crate::ChannelOrAll;
 
-        let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
+        let version = FirmwareVersion {
+            major: 1,
+            minor: 0,
+            revision: 0,
+        };
         let mut config: Config<1, 1, 2, 1, 1, _> = Config::new(version, 0, NoopHandler);
 
         // Configure analog 0: enabled, CC 7-bit, channel 3 (0-based = 2)
         let preset = config.current_preset_mut().unwrap();
         let a = preset.analog_mut(0).unwrap();
         a.set(AnalogSection::Enabled(true));
-        a.set(AnalogSection::MessageType(AnalogMessageType::PotentiometerWithCCMessage7Bit));
+        a.set(AnalogSection::MessageType(
+            AnalogMessageType::PotentiometerWithCCMessage7Bit,
+        ));
         a.set(AnalogSection::Channel(ChannelOrAll::Channel(2)));
 
         // Enable global channel = 7 (wire format)
@@ -959,7 +1052,11 @@ mod tests {
         use crate::global::MidiIndex;
         use crate::ChannelOrAll;
 
-        let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
+        let version = FirmwareVersion {
+            major: 1,
+            minor: 0,
+            revision: 0,
+        };
         let mut config: Config<1, 2, 1, 1, 1, _> = Config::new(version, 0, NoopHandler);
 
         // Configure button 0 on channel 3
@@ -991,7 +1088,11 @@ mod tests {
     /// Response contains serial number bytes encoded as two-byte values
     #[test]
     fn test_serial_number_request() {
-        let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
+        let version = FirmwareVersion {
+            major: 1,
+            minor: 0,
+            revision: 0,
+        };
         let mut config = Config::<1, 1, 1, 1, 1, _>::new(version, 0, NoopHandler);
         config.set_serial_number(&[0xAB, 0xCD, 0xEF, 0x12]);
 
@@ -1002,7 +1103,7 @@ mod tests {
         let data = resp.data();
         assert_eq!(data[0], 0xF0);
         assert_eq!(data[6], 0x53); // serial number special ID
-        // First byte 0xAB encoded as two bytes: high=0x01, low=0x2B
+                                   // First byte 0xAB encoded as two bytes: high=0x01, low=0x2B
         assert_eq!(data[7], 0x01);
         assert_eq!(data[8], 0x2B);
         assert_eq!(*data.last().unwrap(), 0xF7);
@@ -1026,7 +1127,11 @@ mod tests {
             }
         }
 
-        let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
+        let version = FirmwareVersion {
+            major: 1,
+            minor: 0,
+            revision: 0,
+        };
         let mut config = Config::<1, 1, 1, 1, 1, _>::new(version, 0, TrackingHandler);
 
         // Handshake first (required to enable SysEx)
@@ -1038,7 +1143,10 @@ mod tests {
         let buf = &mut [0; MAX_MESSAGE_SIZE];
         let _ = responses.next(buf, &mut config);
 
-        assert!(CALLED.load(Ordering::Relaxed), "factory_reset() should have been called");
+        assert!(
+            CALLED.load(Ordering::Relaxed),
+            "factory_reset() should have been called"
+        );
     }
 
     /// Output configuration block > Global settings (wiki)
@@ -1046,7 +1154,11 @@ mod tests {
     #[test]
     fn test_global_led_settings_stored_and_retrievable() {
         use crate::led::LedSection;
-        let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
+        let version = FirmwareVersion {
+            major: 1,
+            minor: 0,
+            revision: 0,
+        };
         let mut config: Config<1, 1, 1, 1, 1, _> = Config::new(version, 0, NoopHandler);
 
         // SET global LED setting: BlinkWithMIDIClock (index 0) = 1
@@ -1076,19 +1188,28 @@ mod tests {
     /// Button message type OpenDeckPresetChange (0x11) should switch active preset
     #[test]
     fn test_button_preset_change() {
-        use crate::button::{ButtonMessageType, ButtonSection};
         use crate::button::handler::Action;
+        use crate::button::{ButtonMessageType, ButtonSection};
 
-        let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
+        let version = FirmwareVersion {
+            major: 1,
+            minor: 0,
+            revision: 0,
+        };
         let mut config: Config<3, 2, 1, 1, 1, _> = Config::new(version, 0, NoopHandler);
 
         // Configure button 0 as preset change to preset 1
         config.process_req(OpenDeckRequest::Configuration(
-            Wish::Set, Amount::Single,
-            Block::Button(0, ButtonSection::MessageType(ButtonMessageType::OpenDeckPresetChange)),
+            Wish::Set,
+            Amount::Single,
+            Block::Button(
+                0,
+                ButtonSection::MessageType(ButtonMessageType::OpenDeckPresetChange),
+            ),
         ));
         config.process_req(OpenDeckRequest::Configuration(
-            Wish::Set, Amount::Single,
+            Wish::Set,
+            Amount::Single,
             Block::Button(0, ButtonSection::MidiId(1)),
         ));
 
@@ -1103,21 +1224,30 @@ mod tests {
     /// Encoder message type PresetChange (0x4) should inc/dec active preset
     #[test]
     fn test_encoder_preset_change() {
-        use crate::encoder::{EncoderMessageType, EncoderSection, handler::EncoderPulse};
+        use crate::encoder::{handler::EncoderPulse, EncoderMessageType, EncoderSection};
 
-        let version = FirmwareVersion { major: 1, minor: 0, revision: 0 };
+        let version = FirmwareVersion {
+            major: 1,
+            minor: 0,
+            revision: 0,
+        };
         let mut config: Config<3, 1, 1, 1, 1, _> = Config::new(version, 0, NoopHandler);
 
         // Configure encoder 0 as preset change on all presets
         for preset in 0..3usize {
             config.global.preset.current = preset;
             config.process_req(OpenDeckRequest::Configuration(
-                Wish::Set, Amount::Single,
+                Wish::Set,
+                Amount::Single,
                 Block::Encoder(0, EncoderSection::Enabled(true)),
             ));
             config.process_req(OpenDeckRequest::Configuration(
-                Wish::Set, Amount::Single,
-                Block::Encoder(0, EncoderSection::MessageType(EncoderMessageType::PresetChange)),
+                Wish::Set,
+                Amount::Single,
+                Block::Encoder(
+                    0,
+                    EncoderSection::MessageType(EncoderMessageType::PresetChange),
+                ),
             ));
         }
         config.global.preset.current = 0;
