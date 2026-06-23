@@ -108,6 +108,7 @@ pub struct Config<
 > {
     parser: OpenDeckParser,
     global: GlobalConfig,
+    bpm: crate::bpm::Bpm,
     enabled: bool,
     presets: Vec<Preset<B, A, E, L>, P>,
     version: FirmwareVersion,
@@ -317,6 +318,7 @@ impl<
             serial_number: Vec::new(),
             handler,
             global: GlobalConfig::default(),
+            bpm: crate::bpm::Bpm::default(),
         }
     }
 
@@ -362,7 +364,7 @@ impl<
                     wish, for_amount, block, res_values,
                 ))
             }
-            // FIXME support OpenDeckRequest::ComponentInfo
+            // Component info messages are outbound-only (board → host), never received.
             OpenDeckRequest::ComponentInfo => None,
         }
     }
@@ -603,17 +605,29 @@ impl<
     pub fn handle_button(&mut self, index: usize, action: Action) -> Messages<'_> {
         use crate::button::ButtonMessageType;
 
-        // Check for internal preset change before borrowing for MIDI handling
+        // Check for internal preset change or BPM before borrowing for MIDI handling
         if matches!(action, Action::Pressed) {
             if let Some(preset) = self.presets.get(self.global.preset.current) {
                 if let Some(button) = preset.buttons.get(index) {
                     let msg_type = ButtonMessageType::try_from(button.get(
                         crate::button::ButtonSection::MessageType(ButtonMessageType::default()),
                     ));
-                    if matches!(msg_type, Ok(ButtonMessageType::OpenDeckPresetChange)) {
-                        let target = button.get(crate::button::ButtonSection::MidiId(0)) as usize;
-                        self.global.preset.current = target;
-                        return Messages::None;
+                    match msg_type {
+                        Ok(ButtonMessageType::OpenDeckPresetChange) => {
+                            let target =
+                                button.get(crate::button::ButtonSection::MidiId(0)) as usize;
+                            self.global.preset.current = target;
+                            return Messages::None;
+                        }
+                        Ok(ButtonMessageType::BPMIncr) => {
+                            self.bpm.increment();
+                            return Messages::None;
+                        }
+                        Ok(ButtonMessageType::BPMDecr) => {
+                            self.bpm.decrement();
+                            return Messages::None;
+                        }
+                        _ => {}
                     }
                 }
             }
@@ -652,7 +666,7 @@ impl<
     pub fn handle_encoder(&mut self, index: usize, pulse: EncoderPulse) -> Messages<'_> {
         use crate::encoder::EncoderMessageType;
 
-        // Check for internal preset change
+        // Check for internal preset change or BPM
         if let Some(preset) = self.presets.get(self.global.preset.current) {
             if let Some(encoder) = preset.encoders.get(index) {
                 let msg_type = EncoderMessageType::try_from(encoder.get(
@@ -669,6 +683,13 @@ impl<
                             self.global.preset.current =
                                 self.global.preset.current.saturating_sub(1);
                         }
+                    }
+                    return Messages::None;
+                }
+                if matches!(msg_type, Ok(EncoderMessageType::BPM)) {
+                    match pulse {
+                        EncoderPulse::Clockwise => self.bpm.increment(),
+                        EncoderPulse::CounterClockwise => self.bpm.decrement(),
                     }
                     return Messages::None;
                 }
@@ -847,6 +868,10 @@ impl<
     /// Current active preset index.
     pub fn active_preset(&self) -> usize {
         self.global.preset.current
+    }
+
+    pub fn bpm(&self) -> &crate::bpm::Bpm {
+        &self.bpm
     }
 }
 #[cfg(test)]
@@ -1645,5 +1670,192 @@ mod tests {
         config.handle_encoder(0, EncoderPulse::CounterClockwise);
         config.handle_encoder(0, EncoderPulse::CounterClockwise);
         assert_eq!(config.active_preset(), 0);
+    }
+
+    /// Button BPMIncr (0x1B) should increment BPM state, no MIDI output
+    #[test]
+    fn test_button_bpm_increment() {
+        use crate::button::handler::Action;
+        use crate::button::{ButtonMessageType, ButtonSection};
+
+        let version = FirmwareVersion {
+            major: 1,
+            minor: 0,
+            revision: 0,
+        };
+        let mut config: Config<1, 2, 1, 1, 1, _> = Config::new(version, 0, NoopHandler);
+
+        config.process_req(OpenDeckRequest::Configuration(
+            Wish::Set,
+            Amount::Single,
+            Block::Button(0, ButtonSection::MessageType(ButtonMessageType::BPMIncr)),
+        ));
+
+        assert_eq!(config.bpm().get(), 120);
+
+        let mut buf = [0u8; 8];
+        let mut m = config.handle_button(0, Action::Pressed);
+        assert_eq!(m.next(&mut buf), Ok(None));
+
+        assert_eq!(config.bpm().get(), 121);
+    }
+
+    /// Button BPMDecr (0x1C) should decrement BPM state, no MIDI output
+    #[test]
+    fn test_button_bpm_decrement() {
+        use crate::button::handler::Action;
+        use crate::button::{ButtonMessageType, ButtonSection};
+
+        let version = FirmwareVersion {
+            major: 1,
+            minor: 0,
+            revision: 0,
+        };
+        let mut config: Config<1, 2, 1, 1, 1, _> = Config::new(version, 0, NoopHandler);
+
+        config.process_req(OpenDeckRequest::Configuration(
+            Wish::Set,
+            Amount::Single,
+            Block::Button(0, ButtonSection::MessageType(ButtonMessageType::BPMDecr)),
+        ));
+
+        assert_eq!(config.bpm().get(), 120);
+
+        let mut buf = [0u8; 8];
+        let mut m = config.handle_button(0, Action::Pressed);
+        assert_eq!(m.next(&mut buf), Ok(None));
+
+        assert_eq!(config.bpm().get(), 119);
+    }
+
+    /// Encoder BPM mode (0xA) should adjust BPM via rotation, no MIDI output
+    #[test]
+    fn test_encoder_bpm_mode() {
+        use crate::encoder::{EncoderMessageType, EncoderSection};
+
+        let version = FirmwareVersion {
+            major: 1,
+            minor: 0,
+            revision: 0,
+        };
+        let mut config: Config<1, 1, 1, 2, 1, _> = Config::new(version, 0, NoopHandler);
+
+        config.process_req(OpenDeckRequest::Configuration(
+            Wish::Set,
+            Amount::Single,
+            Block::Encoder(0, EncoderSection::Enabled(true)),
+        ));
+        config.process_req(OpenDeckRequest::Configuration(
+            Wish::Set,
+            Amount::Single,
+            Block::Encoder(0, EncoderSection::MessageType(EncoderMessageType::BPM)),
+        ));
+
+        assert_eq!(config.bpm().get(), 120);
+
+        let mut buf = [0u8; 8];
+        let mut m = config.handle_encoder(0, EncoderPulse::Clockwise);
+        assert_eq!(m.next(&mut buf), Ok(None));
+        assert_eq!(config.bpm().get(), 121);
+
+        let mut m = config.handle_encoder(0, EncoderPulse::CounterClockwise);
+        assert_eq!(m.next(&mut buf), Ok(None));
+        assert_eq!(config.bpm().get(), 120);
+    }
+
+    /// External MIDI CC should update LED level when control type is MidiInCcMultiValue
+    #[test]
+    fn test_external_midi_cc_updates_led_level() {
+        use crate::led::{ControlType, LedSection};
+        use crate::ChannelOrAll;
+
+        let version = FirmwareVersion {
+            major: 1,
+            minor: 0,
+            revision: 0,
+        };
+        let mut config: Config<1, 1, 1, 1, 2, _> = Config::new(version, 0, NoopHandler);
+
+        // Configure LED 0: MidiInCcMultiValue, activation ID=3, channel=1
+        config.process_req(OpenDeckRequest::Configuration(
+            Wish::Set,
+            Amount::Single,
+            Block::Led(0, LedSection::ControlType(ControlType::MidiInCcMultiValue)),
+        ));
+        config.process_req(OpenDeckRequest::Configuration(
+            Wish::Set,
+            Amount::Single,
+            Block::Led(0, LedSection::ActivationId(3)),
+        ));
+        config.process_req(OpenDeckRequest::Configuration(
+            Wish::Set,
+            Amount::Single,
+            Block::Led(0, LedSection::Channel(ChannelOrAll::Channel(0))),
+        ));
+
+        // Verify control type was stored
+        assert_eq!(
+            config.output_control_type(0),
+            ControlType::MidiInCcMultiValue
+        );
+
+        // Send external MIDI CC#3 value=100 on channel 0
+        let changed = config.notify_external_midi(0, 3, 100, false, true);
+        assert!(changed > 0, "LED should have been updated");
+        assert_eq!(config.output_level(0), 100);
+    }
+
+    /// External MIDI Note should update LED level when control type is MidiInNoteMultiValue
+    #[test]
+    fn test_external_midi_note_updates_led_level() {
+        use crate::led::{ControlType, LedSection};
+        use crate::ChannelOrAll;
+
+        let version = FirmwareVersion {
+            major: 1,
+            minor: 0,
+            revision: 0,
+        };
+        let mut config: Config<1, 1, 1, 1, 2, _> = Config::new(version, 0, NoopHandler);
+
+        // Configure LED 0: MidiInNoteMultiValue, activation ID=60, channel=1
+        config.process_req(OpenDeckRequest::Configuration(
+            Wish::Set,
+            Amount::Single,
+            Block::Led(
+                0,
+                LedSection::ControlType(ControlType::MidiInNoteMultiValue),
+            ),
+        ));
+        config.process_req(OpenDeckRequest::Configuration(
+            Wish::Set,
+            Amount::Single,
+            Block::Led(0, LedSection::ActivationId(60)),
+        ));
+        config.process_req(OpenDeckRequest::Configuration(
+            Wish::Set,
+            Amount::Single,
+            Block::Led(0, LedSection::Channel(ChannelOrAll::Channel(0))),
+        ));
+
+        assert_eq!(
+            config.output_control_type(0),
+            ControlType::MidiInNoteMultiValue
+        );
+
+        // Send external Note On, note=60, velocity=80, channel 0
+        let changed = config.notify_external_midi(0, 60, 80, true, false);
+        assert!(changed > 0, "LED should have been updated");
+        assert_eq!(config.output_level(0), 80);
+
+        // Higher velocity
+        let changed = config.notify_external_midi(0, 60, 127, true, false);
+        assert!(changed > 0);
+        assert_eq!(config.output_level(0), 127);
+
+        // Note off → level 0
+        let changed = config.notify_external_midi(0, 60, 0, false, false);
+        assert!(changed > 0);
+        assert_eq!(config.output_level(0), 0);
     }
 }

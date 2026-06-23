@@ -8,6 +8,7 @@ use crate::{
 use heapless::Vec;
 
 pub mod analog;
+pub mod bpm;
 pub mod button;
 pub mod config;
 pub mod encoder;

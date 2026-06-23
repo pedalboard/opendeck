@@ -75,6 +75,9 @@ impl GlobalMidi {
     pub fn usb_to_usb_thru(&self) -> bool {
         self.usb_to_usb_thru
     }
+    pub fn send_midi_clock_enabled(&self) -> bool {
+        self.send_midi_clock
+    }
     pub fn set(&mut self, index: MidiIndex, value: u16) {
         match index {
             MidiIndex::StandardNoteOff => self.standard_note_off = value > 0,

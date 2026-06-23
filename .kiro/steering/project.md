@@ -67,3 +67,14 @@
 4. `amidi -S 'F0 00 53 43 00 00 55 F7' -p hw:2,0,0` (bootloader mode)
 5. Wait for `/media/laenzi/RPI-RP2` to appear
 6. `cp .../pedalboard-midi.uf2 /media/laenzi/RPI-RP2/ && sync`
+
+## Firmware Build (pedalboard-midi)
+
+- The `pedalboard-midi` Makefile uses `--config` to patch the opendeck dependency at build time
+- `OPENDECK_PATCH := --config 'patch."https://github.com/pedalboard/opendeck".opendeck.path="../opendeck"'`
+- **Never modify `Cargo.toml` to add `[patch]` sections** — use `make build` or pass `$(OPENDECK_PATCH)` manually
+- `make build` — release build with local opendeck
+- `make lint` — clippy with local opendeck
+- `make uf2` — build + convert to UF2
+- `make bootsel` — enter bootloader via SysEx
+- `make install` — copy UF2 to mounted RP2040
