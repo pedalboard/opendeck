@@ -662,7 +662,10 @@ mod tests {
     #[test]
     fn should_reject_value_ge_128_in_one_byte_mode() {
         let buf = Vec::new();
-        assert_eq!(ValueSize::OneByte.push(128, buf), Err(RenderError::InvalidValue));
+        assert_eq!(
+            ValueSize::OneByte.push(128, buf),
+            Err(RenderError::InvalidValue)
+        );
     }
 
     #[test]

@@ -28,7 +28,11 @@ impl<'a> EncoderMessages<'a> {
             pulse: EncoderPulse::Clockwise,
         }
     }
-    fn new_with_channel(encoder: &'a mut Encoder, pulse: EncoderPulse, channel_override: Option<ChannelOrAll>) -> Self {
+    fn new_with_channel(
+        encoder: &'a mut Encoder,
+        pulse: EncoderPulse,
+        channel_override: Option<ChannelOrAll>,
+    ) -> Self {
         let mt = &encoder.message_type;
         let nr_of_messages = match mt {
             EncoderMessageType::ControlChange => 1,
@@ -190,7 +194,11 @@ impl Encoder {
     pub fn handle(&mut self, p: EncoderPulse) -> EncoderMessages<'_> {
         self.handle_with_channel(p, None)
     }
-    pub fn handle_with_channel(&mut self, p: EncoderPulse, channel_override: Option<ChannelOrAll>) -> EncoderMessages<'_> {
+    pub fn handle_with_channel(
+        &mut self,
+        p: EncoderPulse,
+        channel_override: Option<ChannelOrAll>,
+    ) -> EncoderMessages<'_> {
         if !self.pulse_count_reached() {
             return EncoderMessages::none(self);
         }
@@ -215,17 +223,29 @@ impl Encoder {
         let step = match self.accelleration {
             crate::encoder::Accelleration::None => 1u16,
             crate::encoder::Accelleration::Slow => {
-                if self.state.consecutive >= 4 { 2 } else { 1 }
+                if self.state.consecutive >= 4 {
+                    2
+                } else {
+                    1
+                }
             }
             crate::encoder::Accelleration::Medium => {
-                if self.state.consecutive >= 6 { 4 }
-                else if self.state.consecutive >= 3 { 2 }
-                else { 1 }
+                if self.state.consecutive >= 6 {
+                    4
+                } else if self.state.consecutive >= 3 {
+                    2
+                } else {
+                    1
+                }
             }
             crate::encoder::Accelleration::Fast => {
-                if self.state.consecutive >= 5 { 4 }
-                else if self.state.consecutive >= 2 { 2 }
-                else { 1 }
+                if self.state.consecutive >= 5 {
+                    4
+                } else if self.state.consecutive >= 2 {
+                    2
+                } else {
+                    1
+                }
             }
         };
 
@@ -345,7 +365,7 @@ mod tests {
             it.next(&mut buf).unwrap();
         }
         assert_eq!(encoder.value, 3); // 3 pulses at step 1
-        // 4th pulse should step by 2
+                                      // 4th pulse should step by 2
         let mut it = encoder.handle(EncoderPulse::Clockwise);
         it.next(&mut buf).unwrap();
         assert_eq!(encoder.value, 5);

@@ -6,14 +6,9 @@
 #[cfg(test)]
 mod tests {
     use crate::{
-        analog::AnalogSection,
-        button::ButtonSection,
-        encoder::EncoderSection,
-        led::LedSection,
-        parser::OpenDeckParser,
-        renderer::OpenDeckRenderer,
-        Amount, Block, MessageStatus, OpenDeckRequest, OpenDeckResponse, ValueSize, Wish,
-        MAX_MESSAGE_SIZE,
+        analog::AnalogSection, button::ButtonSection, encoder::EncoderSection, led::LedSection,
+        parser::OpenDeckParser, renderer::OpenDeckRenderer, Amount, Block, MessageStatus,
+        OpenDeckRequest, OpenDeckResponse, ValueSize, Wish, MAX_MESSAGE_SIZE,
     };
     use heapless::Vec;
     use midi2::prelude::*;
@@ -61,8 +56,8 @@ mod tests {
     #[test]
     fn test_render_wiki_get_analog_midi_id_response() {
         let expected = [
-            0xF0u8, 0x00, 0x53, 0x43, 0x01, 0x00, 0x00, 0x00, 0x03, 0x03, 0x00, 0x05, 0x00,
-            0x00, 0x00, 0x05, 0xF7,
+            0xF0u8, 0x00, 0x53, 0x43, 0x01, 0x00, 0x00, 0x00, 0x03, 0x03, 0x00, 0x05, 0x00, 0x00,
+            0x00, 0x05, 0xF7,
         ];
         let rendered = render(
             OpenDeckResponse::Configuration(
@@ -94,7 +89,9 @@ mod tests {
                 Amount::All(0x00),
                 Block::Encoder(
                     0,
-                    EncoderSection::MessageType(crate::encoder::EncoderMessageType::ControlChange7Fh01h)
+                    EncoderSection::MessageType(
+                        crate::encoder::EncoderMessageType::ControlChange7Fh01h
+                    )
                 ),
             )
         );
@@ -153,8 +150,8 @@ mod tests {
     #[test]
     fn test_render_wiki_set_output_control_type_static_response() {
         let expected = [
-            0xF0u8, 0x00, 0x53, 0x43, 0x01, 0x00, 0x01, 0x00, 0x04, 0x05, 0x00, 0x00, 0x00,
-            0x0A, 0xF7,
+            0xF0u8, 0x00, 0x53, 0x43, 0x01, 0x00, 0x01, 0x00, 0x04, 0x05, 0x00, 0x00, 0x00, 0x0A,
+            0xF7,
         ];
         let rendered = render(
             OpenDeckResponse::Configuration(
@@ -198,8 +195,8 @@ mod tests {
     #[test]
     fn test_render_wiki_set_switch_message_type_response() {
         let expected = [
-            0xF0u8, 0x00, 0x53, 0x43, 0x01, 0x00, 0x01, 0x00, 0x01, 0x01, 0x00, 0x04, 0x00,
-            0x01, 0xF7,
+            0xF0u8, 0x00, 0x53, 0x43, 0x01, 0x00, 0x01, 0x00, 0x01, 0x01, 0x00, 0x04, 0x00, 0x01,
+            0xF7,
         ];
         let rendered = render(
             OpenDeckResponse::Configuration(
@@ -248,8 +245,8 @@ mod tests {
     #[test]
     fn test_render_wiki_set_analog_upper_cc_limit_response() {
         let expected = [
-            0xF0u8, 0x00, 0x53, 0x43, 0x01, 0x00, 0x01, 0x00, 0x03, 0x07, 0x00, 0x05, 0x20,
-            0x04, 0xF7,
+            0xF0u8, 0x00, 0x53, 0x43, 0x01, 0x00, 0x01, 0x00, 0x03, 0x07, 0x00, 0x05, 0x20, 0x04,
+            0xF7,
         ];
         let rendered = render(
             OpenDeckResponse::Configuration(
@@ -387,8 +384,8 @@ mod tests {
             0xF7,
         ];
         let expected_response = [
-            0xF0u8, 0x00, 0x53, 0x43, 0x01, 0x00, 0x00, 0x00, 0x03, 0x03, 0x00, 0x05, 0x00,
-            0x00, 0x00, 0x05, 0xF7,
+            0xF0u8, 0x00, 0x53, 0x43, 0x01, 0x00, 0x00, 0x00, 0x03, 0x03, 0x00, 0x05, 0x00, 0x00,
+            0x00, 0x05, 0xF7,
         ];
 
         let parsed = parser().parse(&request_bytes).unwrap();
@@ -412,8 +409,8 @@ mod tests {
             0xF7,
         ];
         let expected_response = [
-            0xF0u8, 0x00, 0x53, 0x43, 0x01, 0x00, 0x01, 0x00, 0x03, 0x07, 0x00, 0x05, 0x20,
-            0x04, 0xF7,
+            0xF0u8, 0x00, 0x53, 0x43, 0x01, 0x00, 0x01, 0x00, 0x03, 0x07, 0x00, 0x05, 0x20, 0x04,
+            0xF7,
         ];
 
         let parsed = parser().parse(&request_bytes).unwrap();
@@ -443,7 +440,12 @@ mod tests {
             0xF7,
         ];
         let result = parser().parse(&request).unwrap();
-        if let OpenDeckRequest::Configuration(_, _, Block::Analog(5, AnalogSection::UpperCCLimit(v))) = result {
+        if let OpenDeckRequest::Configuration(
+            _,
+            _,
+            Block::Analog(5, AnalogSection::UpperCCLimit(v)),
+        ) = result
+        {
             assert_eq!(v, 4100);
         } else {
             panic!("Unexpected parse result: {:?}", result);
@@ -459,7 +461,9 @@ mod tests {
             0xF7,
         ];
         let result = parser().parse(&request).unwrap();
-        if let OpenDeckRequest::Configuration(_, _, Block::Analog(0, AnalogSection::MidiId(v))) = result {
+        if let OpenDeckRequest::Configuration(_, _, Block::Analog(0, AnalogSection::MidiId(v))) =
+            result
+        {
             assert_eq!(v, 0);
         } else {
             panic!("Unexpected parse result: {:?}", result);
@@ -479,7 +483,12 @@ mod tests {
             0xF7,
         ];
         let result = parser().parse(&request).unwrap();
-        if let OpenDeckRequest::Configuration(_, _, Block::Analog(0, AnalogSection::UpperCCLimit(v))) = result {
+        if let OpenDeckRequest::Configuration(
+            _,
+            _,
+            Block::Analog(0, AnalogSection::UpperCCLimit(v)),
+        ) = result
+        {
             assert_eq!(v, 0x3FFF);
         } else {
             panic!("Unexpected parse result: {:?}", result);

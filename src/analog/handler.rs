@@ -15,7 +15,11 @@ pub struct AnalogMessages<'a> {
     channel_messages: ChannelMessages,
 }
 impl<'a> AnalogMessages<'a> {
-    pub fn new_with_channel(analog: &'a mut Analog, value: u16, channel_override: Option<ChannelOrAll>) -> Self {
+    pub fn new_with_channel(
+        analog: &'a mut Analog,
+        value: u16,
+        channel_override: Option<ChannelOrAll>,
+    ) -> Self {
         let mt = &analog.message_type;
         let nr_of_messages = match mt {
             AnalogMessageType::Button => 0,
@@ -103,7 +107,11 @@ impl Analog {
     pub fn handle(&mut self, value: u16) -> AnalogMessages<'_> {
         self.handle_with_channel(value, None)
     }
-    pub fn handle_with_channel(&mut self, value: u16, channel_override: Option<ChannelOrAll>) -> AnalogMessages<'_> {
+    pub fn handle_with_channel(
+        &mut self,
+        value: u16,
+        channel_override: Option<ChannelOrAll>,
+    ) -> AnalogMessages<'_> {
         let scaled = self.scale_value(value);
         if scaled == self.last_value {
             return AnalogMessages::suppressed(self);
@@ -120,8 +128,8 @@ impl Analog {
         };
 
         let min_value = (adc_max as f32 * (self.lower_adc_offset as f32 / 100.0f32)) as u16;
-        let max_value = adc_max
-            - (adc_max as f32 * (self.upper_adc_offset as f32 / 100.0f32)) as u16;
+        let max_value =
+            adc_max - (adc_max as f32 * (self.upper_adc_offset as f32 / 100.0f32)) as u16;
         if input < min_value {
             return self.lower_limit;
         }
@@ -478,7 +486,9 @@ mod tests {
         let mut buf = [0x00u8; 8];
         let mut analog = Analog::with_adc_max(3, 1023);
         analog.set(AnalogSection::Enabled(true));
-        analog.set(AnalogSection::MessageType(AnalogMessageType::PotentiometerWithCCMessage7Bit));
+        analog.set(AnalogSection::MessageType(
+            AnalogMessageType::PotentiometerWithCCMessage7Bit,
+        ));
         analog.set(AnalogSection::UpperCCLimit(127));
         let mut it = analog.handle(1023);
         let m = it.next(&mut buf).unwrap().unwrap();
