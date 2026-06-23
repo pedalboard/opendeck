@@ -53,7 +53,7 @@ impl GlobalLed {
             LedIndex::UseMidiProgramChangeOffset => self.midi_program_change_offset = *value > 0,
         }
     }
-    pub fn get(&mut self, index: &LedIndex) -> u16 {
+    pub fn get(&self, index: &LedIndex) -> u16 {
         match index {
             LedIndex::BlinkWithMIDIClock => self.blink_with_midi_clock.into(),
             LedIndex::EnableStartupAnimation => self.startup_animtation.into(),
