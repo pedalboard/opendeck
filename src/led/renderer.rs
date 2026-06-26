@@ -6,9 +6,9 @@ use crate::{
 impl From<LedSection> for Section {
     fn from(s: LedSection) -> Section {
         match s {
-            LedSection::BlinkTesting(v) => Section {
+            LedSection::ColorTesting(v) => Section {
                 id: LedSectionId::BlinkTesting.into(),
-                value: v.into(),
+                value: v as u16,
             },
             LedSection::State(v) => Section {
                 id: LedSectionId::State.into(),

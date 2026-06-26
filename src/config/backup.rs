@@ -540,7 +540,7 @@ mod tests {
             Some(OpenDeckResponse::Configuration(
                 Wish::Set,
                 Amount::Single,
-                Block::Led(0, LedSection::BlinkTesting(false)),
+                Block::Led(0, LedSection::ColorTesting(Color::default())),
                 NewValues::new(),
             ))
         );

@@ -28,6 +28,12 @@
 
 ## Key Learnings
 
+### Architecture Decision: Protocol approach
+- Currently hybrid: OpenDeck `0x43` for MIDI config + UI, custom `0x44` for labels/extensions
+- CLI (`pedalboard-cli`) uses both protocols via bridge WebSocket for gitops workflow
+- If custom extensions keep growing, consider switching to direct config upload (YAML → binary → flash) instead of per-field SysEx mutation
+- Keep OpenDeck for UI/debugging even if primary config path changes
+
 ### Encoders
 - `rotary-encoder-embedded` v0.5.0 breaks detection, pin to v0.3.1 (rev d1b8795)
 - Default `pulses_per_step=4` requires 4 detent clicks per MIDI message — set to 1 for these encoders

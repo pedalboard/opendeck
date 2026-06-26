@@ -10,7 +10,6 @@ pub mod renderer;
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Led {
     color_testing: Color,
-    blink_testing: bool,
     activation_id: u8,
     activation_value: u8,
     control_type: ControlType,
@@ -66,7 +65,6 @@ impl Led {
     pub fn new(midi_id: u8) -> Self {
         Led {
             color_testing: Color::default(),
-            blink_testing: false,
             activation_id: midi_id,
             activation_value: 0,
             control_type: ControlType::default(),
@@ -96,7 +94,7 @@ impl Led {
     pub fn set(&mut self, section: LedSection) {
         match section {
             LedSection::State(v) => self.state = v,
-            LedSection::BlinkTesting(v) => self.blink_testing = v,
+            LedSection::ColorTesting(v) => self.color_testing = v,
             LedSection::Reserved(_) => {}
             LedSection::ControlType(v) => self.control_type = v,
             LedSection::ActivationId(v) => self.activation_id = v,
@@ -111,7 +109,7 @@ impl Led {
     pub fn get(&self, section: LedSection) -> u16 {
         match section {
             LedSection::State(_) => self.state.into(),
-            LedSection::BlinkTesting(_) => self.blink_testing.into(),
+            LedSection::ColorTesting(_) => self.color_testing as u16,
             LedSection::Reserved(_) => 0,
             LedSection::ControlType(_) => self.control_type.into(),
             LedSection::ActivationId(_) => self.activation_id.into(),
@@ -178,7 +176,7 @@ enum LedSectionId {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum LedSection {
     State(bool),
-    BlinkTesting(bool),
+    ColorTesting(Color),
     Global(u16),
     ActivationId(u8),
     ActivationValue(u8),

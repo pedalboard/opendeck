@@ -27,7 +27,7 @@ impl LedBackupIterator {
             }
             LedSectionId::BlinkTesting => {
                 self.section_id = LedSectionId::ActivationId;
-                LedSection::BlinkTesting(led.blink_testing)
+                LedSection::ColorTesting(led.color_testing)
             }
             LedSectionId::ActivationId => {
                 self.section_id = LedSectionId::Reserved;

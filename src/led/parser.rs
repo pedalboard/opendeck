@@ -1,5 +1,5 @@
 use crate::{
-    led::{LedSection, LedSectionId},
+    led::{Color, LedSection, LedSectionId},
     parser::OpenDeckParseError,
     ChannelOrAll, MessageStatus, Section,
 };
@@ -18,7 +18,9 @@ impl TryFrom<Section> for LedSection {
                     .map(LedSection::ControlType)
                     .map_err(OpenDeckParseError::new_value_err),
                 LedSectionId::Reserved => Ok(LedSection::Reserved(v.value)),
-                LedSectionId::BlinkTesting => Ok(LedSection::BlinkTesting(v.value > 0)),
+                LedSectionId::BlinkTesting => Ok(LedSection::ColorTesting(
+                    Color::try_from(v.value).unwrap_or_default(),
+                )),
                 LedSectionId::Channel => Ok(LedSection::Channel(ChannelOrAll::from(v.value))),
                 LedSectionId::Global => Ok(LedSection::Global(v.value)),
             }
