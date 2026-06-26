@@ -1858,4 +1858,47 @@ mod tests {
         assert!(changed > 0);
         assert_eq!(config.output_level(0), 0);
     }
+
+    /// Regression test for issue #45: buttons configured as ProgramChange produce
+    /// 2-byte MIDI messages. Consumers must not require data.len() >= 3.
+    #[test]
+    fn test_program_change_button_produces_2_byte_message() {
+        use crate::button::{ButtonMessageType, ButtonSection};
+        use midi2::Data;
+
+        let version = FirmwareVersion {
+            major: 1,
+            minor: 0,
+            revision: 0,
+        };
+        let mut config = Config::<1, 10, 2, 2, 10, _>::new(version, 0, NoopHandler);
+
+        // Configure button 2 as ProgramChange with program=5, channel=1
+        config.process_req(OpenDeckRequest::Configuration(
+            Wish::Set,
+            Amount::Single,
+            Block::Button(
+                2,
+                ButtonSection::MessageType(ButtonMessageType::ProgramChange),
+            ),
+        ));
+        config.process_req(OpenDeckRequest::Configuration(
+            Wish::Set,
+            Amount::Single,
+            Block::Button(2, ButtonSection::MidiId(5)),
+        ));
+
+        // Press button → should produce a ProgramChange message
+        let mut buf = [0u8; 6];
+        let mut messages = config.handle_button(2, crate::button::handler::Action::Pressed);
+        let msg = messages.next(&mut buf).unwrap();
+        assert!(msg.is_some(), "ProgramChange button must produce a message");
+
+        let m = msg.unwrap();
+        let data = m.data();
+        // ProgramChange is 2 bytes: [0xC0 | channel, program]
+        assert_eq!(data.len(), 2, "ProgramChange is a 2-byte MIDI message");
+        assert_eq!(data[0] & 0xF0, 0xC0);
+        assert_eq!(data[1], 5); // program number
+    }
 }
