@@ -870,6 +870,11 @@ impl<
         self.global.preset.current
     }
 
+    /// Set active preset index.
+    pub fn set_active_preset(&mut self, index: usize) {
+        self.global.preset.current = index;
+    }
+
     pub fn bpm(&self) -> &crate::bpm::Bpm {
         &self.bpm
     }
